@@ -1,0 +1,7 @@
+{
+  "Home": {
+    "title": "今天的习惯",
+    "completed": "{completed} / {total} 已完成",
+    "doIt": "开始"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "Home": {
+    "title": "Today's Habits",
+    "completed": "{completed} / {total} Completed",
+    "doIt": "Do it"
+  }
+}

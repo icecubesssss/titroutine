@@ -46,10 +46,10 @@ export default function Home() {
 
   // EVOLUTION LOGIC: If coins >= 170, the egg hatches into a baby rabbit!
   const isEvolved = coins >= 170;
-  const petSpriteUrl = isEvolved ? "/assets/baby_rabbit_single.png" : "/assets/egg_sprite_clean.png";
+  const petSpriteUrl = isEvolved ? "/assets/baby_rabbit_sprite_clean.png" : "/assets/egg_sprite_clean.png";
   const totalFrames = isEvolved ? 1 : 6;
-  const frameWidth = isEvolved ? 300 : 170;
-  const frameHeight = isEvolved ? 300 : 186;
+  const frameWidth = isEvolved ? 1024 : 170;
+  const frameHeight = isEvolved ? 468 : 186;
   
   // Background styling depending on evolution stage
   const roomBackground = isEvolved 
@@ -96,7 +96,7 @@ export default function Home() {
             frameHeight={frameHeight}
             totalFrames={totalFrames}
             fps={6}
-            scale={isEvolved ? 0.7 : 0.8}
+            scale={isEvolved ? 0.25 : 0.8}
             className="drop-shadow-lg"
           />
           {/* Evolution Particle Effect Placeholder */}

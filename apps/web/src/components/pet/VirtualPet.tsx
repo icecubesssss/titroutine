@@ -49,6 +49,7 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
           background-image: url('${spriteUrl}');
           background-size: ${frameWidth * totalFrames * scale}px ${frameHeight * scale}px;
           background-position: -${currentFrame * frameWidth * scale}px 0px;
+          background-repeat: no-repeat;
           image-rendering: pixelated;
         }
       `}</style>

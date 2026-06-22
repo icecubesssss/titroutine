@@ -46,10 +46,10 @@ export default function Home() {
 
   // EVOLUTION LOGIC: If coins >= 170, the egg hatches into a baby rabbit!
   const isEvolved = coins >= 170;
-  const petSpriteUrl = isEvolved ? "/assets/baby_rabbit_sprite_clean.png" : "/assets/egg_sprite_clean.png";
-  const totalFrames = isEvolved ? 7 : 6;
-  const frameWidth = isEvolved ? 146 : 170; // 1024/7 = 146, 1024/6 = 170
-  const frameHeight = isEvolved ? 468 : 186;
+  const petSpriteUrl = isEvolved ? "/assets/baby_rabbit_single.png" : "/assets/egg_sprite_clean.png";
+  const totalFrames = isEvolved ? 1 : 6;
+  const frameWidth = isEvolved ? 300 : 170;
+  const frameHeight = isEvolved ? 300 : 186;
   
   // Background styling depending on evolution stage
   const roomBackground = isEvolved 

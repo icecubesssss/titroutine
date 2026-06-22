@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { CheckCircle, Flame, Pencil, Settings, BookOpen } from "lucide-react";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
-import { VirtualPet } from "@/components/pet/VirtualPet";
+import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
 import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
@@ -15,106 +15,6 @@ import { useSound } from "@/hooks/useSound";
 import { toggleHabitAction, updateTimezoneAction } from "@/app/[locale]/actions";
 import { stageFromStreak } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
-
-interface StageMetadata {
-  name: string;
-  spriteUrl: string;
-  frameWidth: number;
-  frameHeight: number;
-  totalFrames: number;
-  fps: number;
-  scale: number;
-  offsetX?: number;
-  offsetY?: number;
-  sheetWidth?: number;
-  sheetHeight?: number;
-  roomBackground: string;
-  idle?: boolean;
-}
-
-const STAGES_METADATA: Record<number, StageMetadata> = {
-  0: {
-    name: "Egg",
-    spriteUrl: "/assets/egg_sprite_clean.png",
-    frameWidth: 170,
-    frameHeight: 186,
-    totalFrames: 6,
-    fps: 6,
-    scale: 0.8,
-    roomBackground: "bg-gradient-to-b from-amber-100 via-orange-100 to-amber-200",
-    idle: false,
-  },
-  1: {
-    name: "Baby Rabbit",
-    spriteUrl: "/assets/baby_rabbit_sprite_clean.png",
-    sheetWidth: 1024,
-    sheetHeight: 468,
-    offsetX: 313,
-    offsetY: 316,
-    frameWidth: 188,
-    frameHeight: 152,
-    totalFrames: 1,
-    fps: 1,
-    scale: 1.1,
-    roomBackground: "bg-gradient-to-b from-blue-200 via-green-100 to-green-300",
-    idle: true,
-  },
-  2: {
-    name: "Young Rabbit",
-    spriteUrl: "/assets/young_rabbit_sprite_clean.png",
-    frameWidth: 236,
-    frameHeight: 345,
-    totalFrames: 8,
-    fps: 8,
-    scale: 0.5,
-    roomBackground: "bg-gradient-to-b from-emerald-100 via-teal-50 to-emerald-200",
-    idle: true,
-  },
-  3: {
-    name: "Spirit Rabbit",
-    spriteUrl: "/assets/spirit_rabbit_sprite_clean.png",
-    frameWidth: 245,
-    frameHeight: 474,
-    totalFrames: 8,
-    fps: 8,
-    scale: 0.4,
-    roomBackground: "bg-gradient-to-b from-indigo-900 via-purple-900 to-indigo-950 text-white",
-    idle: true,
-  },
-  4: {
-    name: "Bunny Girl Child",
-    spriteUrl: "/assets/bunny_child_sprite_clean.png",
-    frameWidth: 232,
-    frameHeight: 399,
-    totalFrames: 8,
-    fps: 8,
-    scale: 0.5,
-    roomBackground: "bg-gradient-to-b from-rose-100 via-pink-50 to-rose-200",
-    idle: true,
-  },
-  5: {
-    name: "Teen Bunny Girl",
-    spriteUrl: "/assets/bunny_teen_sprite_clean.png",
-    frameWidth: 222,
-    frameHeight: 385,
-    totalFrames: 8,
-    fps: 8,
-    scale: 0.5,
-    roomBackground: "bg-gradient-to-b from-blue-100 via-indigo-50 to-blue-200",
-    idle: true,
-  },
-  6: {
-    name: "Young Woman",
-    spriteUrl: "/assets/bunny_woman_sprite_clean.png",
-    frameWidth: 299,
-    frameHeight: 516,
-    totalFrames: 6,
-    fps: 6,
-    scale: 0.4,
-    roomBackground: "bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100",
-    idle: true,
-  },
-};
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
@@ -134,10 +34,27 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [timerHabit, setTimerHabit] = useState<HabitWithLog | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAlbumOpen, setIsAlbumOpen] = useState(false);
+  const [companionOverrideAction, setCompanionOverrideAction] = useState<CompanionAction | null>(null);
+
   // Dev-only overrides (from the Settings → Developer Tools panel) for previewing
   // pet stages / streaks before the higher-stage art lands.
   const [devStageOverride, setDevStageOverride] = useState<number | null>(null);
   const [devStreakOverride, setDevStreakOverride] = useState<number | null>(null);
+
+  // Xử lý action tự động nhả về trạng thái mặc định sau vài giây
+  useEffect(() => {
+    if (companionOverrideAction === "welcome" || companionOverrideAction === "happy" || companionOverrideAction === "sad") {
+      const timer = setTimeout(() => {
+        setCompanionOverrideAction(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [companionOverrideAction]);
+
+  // Welcome back effect
+  useEffect(() => {
+    setCompanionOverrideAction("welcome");
+  }, []);
 
   // Re-sync whenever the server sends fresh data (after router.refresh()).
   useEffect(() => {
@@ -179,7 +96,14 @@ export function HomeView({ data }: { data: DashboardData }) {
       prev.map((h) => (h.id === habit.id ? { ...h, isCompleted: willComplete, value: value ?? null } : h))
     );
     setCoins((c) => Math.max(0, c + (willComplete ? 10 : -10)));
-    if (willComplete) playTing();
+    
+    if (willComplete) {
+      playTing();
+      setCompanionOverrideAction("happy");
+    } else {
+      // Nếu undo thì có thể hơi buồn tí xíu
+      setCompanionOverrideAction("sad");
+    }
 
     startTransition(async () => {
       try {
@@ -209,9 +133,17 @@ export function HomeView({ data }: { data: DashboardData }) {
   const normalStage = stageFromStreak(currentStreak);
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
 
-  const activeStage = STAGES_METADATA[currentStage] || STAGES_METADATA[0];
+  const activeStage = STAGES_CONFIG[currentStage] || STAGES_CONFIG[0];
   const roomBackground = activeStage.roomBackground;
   const isEvolved = currentStage >= 1;
+
+  // Determine current companion action
+  let currentAction: CompanionAction = companionOverrideAction || getDefaultActionByTime();
+  if (timerHabit) {
+    currentAction = "study"; // Đang bật timer thì bắt học
+  } else if (totalCount > 0 && completedCount === totalCount && !companionOverrideAction) {
+    currentAction = "happy"; // Hoàn thành hết task trong ngày thì vui
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-2xl overflow-hidden relative">
@@ -258,23 +190,17 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         <div
           className="relative mt-12 drop-shadow-2xl z-10 transition-transform hover:scale-110 cursor-pointer"
-          onClick={playSwoosh}
+          onClick={() => {
+            playSwoosh();
+            setCompanionOverrideAction("happy"); // Bấm vào thỏ thì nó vui
+          }}
         >
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px]"></div>
 
-          <VirtualPet
-            key={`stage-${currentStage}`}
-            spriteUrl={activeStage.spriteUrl}
-            sheetWidth={activeStage.sheetWidth}
-            sheetHeight={activeStage.sheetHeight}
-            offsetX={activeStage.offsetX}
-            offsetY={activeStage.offsetY}
-            frameWidth={activeStage.frameWidth}
-            frameHeight={activeStage.frameHeight}
-            totalFrames={activeStage.totalFrames}
-            fps={activeStage.fps}
-            scale={activeStage.scale}
-            idle={activeStage.idle}
+          <RabbitCompanion
+            key={`stage-${currentStage}-${currentAction}`}
+            stage={currentStage}
+            action={currentAction}
             className="drop-shadow-lg"
           />
 

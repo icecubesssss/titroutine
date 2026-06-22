@@ -11,11 +11,12 @@ export interface RabbitCompanionProps {
   className?: string;
 }
 
-// Giả định bạn sẽ dọn dẹp sprite sheet thành 64x64 sau, 
-// nhưng hiện tại AI tạo ảnh 1024x1024 (4 cột x 5 hàng).
-// => frameWidth = 1024/4 = 256. frameHeight = 1024/5 ≈ 205.
-const TEMP_FRAME_WIDTH = 256;
-const TEMP_FRAME_HEIGHT = 205;
+// Kích thước cắt ảnh tự động từ script
+const BABY_FRAME_W = 262;
+const BABY_FRAME_H = 222;
+
+const CHILD_FRAME_W = 276;
+const CHILD_FRAME_H = 224;
 
 interface StageConfig extends Partial<VirtualPetProps> {
   name: string;
@@ -38,20 +39,20 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
   },
   1: {
     name: "Baby Rabbit",
-    spriteUrl: "/assets/baby_rabbit_phase1.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: TEMP_FRAME_WIDTH,
-    frameHeight: TEMP_FRAME_HEIGHT,
+    spriteUrl: "/assets/baby_rabbit_phase1_clean.png",
+    sheetWidth: BABY_FRAME_W * 4,
+    sheetHeight: BABY_FRAME_H * 5,
+    frameWidth: BABY_FRAME_W,
+    frameHeight: BABY_FRAME_H,
     defaultScale: 0.8,
     roomBackground: "bg-gradient-to-b from-blue-200 via-green-100 to-green-300",
     actions: {
       idle: { offsetY: 0, fps: 4, totalFrames: 4 },
-      sleep: { offsetY: TEMP_FRAME_HEIGHT * 1, fps: 2, totalFrames: 4 },
-      happy: { offsetY: TEMP_FRAME_HEIGHT * 2, fps: 6, totalFrames: 4 },
-      sad: { offsetY: TEMP_FRAME_HEIGHT * 3, fps: 3, totalFrames: 4 },
-      eat: { offsetY: TEMP_FRAME_HEIGHT * 4, fps: 5, totalFrames: 4 },
-      welcome: { offsetY: TEMP_FRAME_HEIGHT * 2, fps: 6, totalFrames: 4 }, // Fallback to happy
+      sleep: { offsetY: BABY_FRAME_H * 1, fps: 2, totalFrames: 4 },
+      happy: { offsetY: BABY_FRAME_H * 2, fps: 6, totalFrames: 4 },
+      sad: { offsetY: BABY_FRAME_H * 3, fps: 3, totalFrames: 4 },
+      eat: { offsetY: BABY_FRAME_H * 4, fps: 5, totalFrames: 4 },
+      welcome: { offsetY: BABY_FRAME_H * 2, fps: 6, totalFrames: 4 }, // Fallback to happy
       study: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
     },
   },
@@ -79,19 +80,19 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
   },
   4: {
     name: "Bunny Girl Child",
-    spriteUrl: "/assets/bunny_child_phase1.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: TEMP_FRAME_WIDTH,
-    frameHeight: TEMP_FRAME_HEIGHT,
+    spriteUrl: "/assets/bunny_child_phase1_clean.png",
+    sheetWidth: CHILD_FRAME_W * 4,
+    sheetHeight: CHILD_FRAME_H * 5,
+    frameWidth: CHILD_FRAME_W,
+    frameHeight: CHILD_FRAME_H,
     defaultScale: 0.7,
     roomBackground: "bg-gradient-to-b from-rose-100 via-pink-50 to-rose-200",
     actions: {
       idle: { offsetY: 0, fps: 4, totalFrames: 4 },
-      study: { offsetY: TEMP_FRAME_HEIGHT * 1, fps: 5, totalFrames: 4 },
-      sleep: { offsetY: TEMP_FRAME_HEIGHT * 2, fps: 2, totalFrames: 4 },
-      happy: { offsetY: TEMP_FRAME_HEIGHT * 3, fps: 6, totalFrames: 4 },
-      welcome: { offsetY: TEMP_FRAME_HEIGHT * 4, fps: 6, totalFrames: 4 },
+      study: { offsetY: CHILD_FRAME_H * 1, fps: 5, totalFrames: 4 },
+      sleep: { offsetY: CHILD_FRAME_H * 2, fps: 2, totalFrames: 4 },
+      happy: { offsetY: CHILD_FRAME_H * 3, fps: 6, totalFrames: 4 },
+      welcome: { offsetY: CHILD_FRAME_H * 4, fps: 6, totalFrames: 4 },
       sad: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
       eat: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
     },

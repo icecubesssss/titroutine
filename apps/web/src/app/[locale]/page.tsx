@@ -46,11 +46,7 @@ export default function Home() {
 
   // EVOLUTION LOGIC: If coins >= 170, the egg hatches into a baby rabbit!
   const isEvolved = coins >= 170;
-  const petSpriteUrl = isEvolved ? "/assets/baby_rabbit_sprite_clean.png" : "/assets/egg_sprite_clean.png";
-  const totalFrames = isEvolved ? 1 : 6;
-  const frameWidth = isEvolved ? 1024 : 170;
-  const frameHeight = isEvolved ? 468 : 186;
-  
+
   // Background styling depending on evolution stage
   const roomBackground = isEvolved 
     ? "bg-gradient-to-b from-blue-300 via-green-200 to-green-400" // Meadow for rabbit
@@ -89,16 +85,35 @@ export default function Home() {
           {/* Base shadow/nest under the pet */}
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px]"></div>
           
-          <VirtualPet
-            key={petSpriteUrl} // Force re-mount on evolution
-            spriteUrl={petSpriteUrl}
-            frameWidth={frameWidth}
-            frameHeight={frameHeight}
-            totalFrames={totalFrames}
-            fps={6}
-            scale={isEvolved ? 0.25 : 0.8}
-            className="drop-shadow-lg"
-          />
+          {isEvolved ? (
+            // A single baby rabbit cropped out of the scattered sheet,
+            // with a gentle idle bob so it "moves" while staying in place.
+            <VirtualPet
+              key="rabbit"
+              spriteUrl="/assets/baby_rabbit_sprite_clean.png"
+              sheetWidth={1024}
+              sheetHeight={468}
+              offsetX={313}
+              offsetY={316}
+              frameWidth={188}
+              frameHeight={152}
+              totalFrames={1}
+              scale={1.1}
+              idle
+              className="drop-shadow-lg"
+            />
+          ) : (
+            <VirtualPet
+              key="egg"
+              spriteUrl="/assets/egg_sprite_clean.png"
+              frameWidth={170}
+              frameHeight={186}
+              totalFrames={6}
+              fps={6}
+              scale={0.8}
+              className="drop-shadow-lg"
+            />
+          )}
           {/* Evolution Particle Effect Placeholder */}
           {isEvolved && (
             <div className="absolute -top-6 -right-6 animate-bounce">

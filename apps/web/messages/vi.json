@@ -1,7 +1,66 @@
 {
+  "Auth": {
+    "tagline": "Bạn đồng hành nuôi dưỡng thói quen của bạn",
+    "signIn": "Đăng nhập",
+    "signUp": "Đăng ký",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "loading": "Đang xử lý...",
+    "checkEmail": "Kiểm tra hộp thư để xác nhận tài khoản nhé!",
+    "errorMissing": "Vui lòng nhập đầy đủ email và mật khẩu.",
+    "errorWeakPassword": "Mật khẩu cần ít nhất 6 ký tự.",
+    "errorInvalid": "Email hoặc mật khẩu không đúng.",
+    "errorExists": "Email này đã được đăng ký."
+  },
   "Home": {
     "title": "Thói quen hôm nay",
     "completed": "{completed} / {total} Hoàn thành",
-    "doIt": "Làm thôi"
+    "doIt": "Làm thôi",
+    "streakDays": "{count} ngày",
+    "settings": "Cài đặt",
+    "empty": "Chưa có thói quen nào. Thêm cái đầu tiên nhé!",
+    "edit": "Sửa",
+    "undo": "Hoàn tác",
+    "minutes": "{count} phút",
+    "daily": "Hằng ngày"
+  },
+  "HabitModal": {
+    "newTitle": "Thói quen mới",
+    "editTitle": "Sửa thói quen",
+    "close": "Đóng",
+    "name": "Tên thói quen",
+    "namePlaceholder": "VD: Đọc 10 trang",
+    "type": "Loại",
+    "typeDaily": "Hằng ngày",
+    "typeTimer": "Hẹn giờ",
+    "duration": "Thời lượng (phút)",
+    "create": "Lưu thói quen",
+    "save": "Lưu thay đổi",
+    "delete": "Xóa thói quen",
+    "error": "Có lỗi xảy ra, thử lại nhé."
+  },
+  "Timer": {
+    "cancel": "Hủy",
+    "done": "Hoàn thành",
+    "pause": "Tạm dừng",
+    "resume": "Tiếp tục",
+    "finishEarly": "Kết thúc sớm"
+  },
+  "Settings": {
+    "title": "Cài đặt",
+    "close": "Đóng",
+    "language": "Ngôn ngữ",
+    "audio": "Âm thanh",
+    "lofi": "Nhạc Lofi",
+    "lofiSub": "Giai điệu thư giãn nền",
+    "toggleMusic": "Bật/tắt nhạc nền",
+    "reports": "Báo cáo",
+    "emailPlaceholder": "Email của bạn",
+    "sendReport": "Gửi báo cáo",
+    "sending": "Đang gửi...",
+    "reportSent": "Đã gửi! Kiểm tra hộp thư nhé.",
+    "reportError": "Gửi thất bại, thử lại sau.",
+    "account": "Tài khoản",
+    "signOut": "Đăng xuất"
   }
 }

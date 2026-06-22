@@ -1,7 +1,66 @@
 {
+  "Auth": {
+    "tagline": "The companion who grows your habits with you",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "loading": "Working...",
+    "checkEmail": "Check your inbox to confirm your account!",
+    "errorMissing": "Please enter both email and password.",
+    "errorWeakPassword": "Password must be at least 6 characters.",
+    "errorInvalid": "Incorrect email or password.",
+    "errorExists": "This email is already registered."
+  },
   "Home": {
     "title": "Today's Habits",
     "completed": "{completed} / {total} Completed",
-    "doIt": "Do it"
+    "doIt": "Do it",
+    "streakDays": "{count} Days",
+    "settings": "Settings",
+    "empty": "No habits yet. Add your first one!",
+    "edit": "Edit",
+    "undo": "Undo",
+    "minutes": "{count} mins",
+    "daily": "Daily"
+  },
+  "HabitModal": {
+    "newTitle": "New Habit",
+    "editTitle": "Edit Habit",
+    "close": "Close",
+    "name": "Habit Name",
+    "namePlaceholder": "e.g. Read 10 pages",
+    "type": "Type",
+    "typeDaily": "Daily",
+    "typeTimer": "Timer",
+    "duration": "Duration (minutes)",
+    "create": "Save Habit",
+    "save": "Save Changes",
+    "delete": "Delete Habit",
+    "error": "Something went wrong, please try again."
+  },
+  "Timer": {
+    "cancel": "Cancel",
+    "done": "Complete",
+    "pause": "Pause",
+    "resume": "Resume",
+    "finishEarly": "Finish early"
+  },
+  "Settings": {
+    "title": "Settings",
+    "close": "Close",
+    "language": "Language",
+    "audio": "Audio",
+    "lofi": "Lofi Music",
+    "lofiSub": "Background chill vibes",
+    "toggleMusic": "Toggle background music",
+    "reports": "Reports",
+    "emailPlaceholder": "Your email",
+    "sendReport": "Send report",
+    "sending": "Sending...",
+    "reportSent": "Sent! Check your inbox.",
+    "reportError": "Failed to send, try again later.",
+    "account": "Account",
+    "signOut": "Sign out"
   }
 }

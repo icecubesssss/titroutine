@@ -1,7 +1,66 @@
 {
+  "Auth": {
+    "tagline": "与你一同养成习惯的伙伴",
+    "signIn": "登录",
+    "signUp": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "loading": "处理中...",
+    "checkEmail": "请查收邮件以确认你的账户！",
+    "errorMissing": "请输入邮箱和密码。",
+    "errorWeakPassword": "密码至少需要 6 个字符。",
+    "errorInvalid": "邮箱或密码不正确。",
+    "errorExists": "该邮箱已被注册。"
+  },
   "Home": {
     "title": "今天的习惯",
     "completed": "{completed} / {total} 已完成",
-    "doIt": "开始"
+    "doIt": "开始",
+    "streakDays": "{count} 天",
+    "settings": "设置",
+    "empty": "还没有习惯，添加第一个吧！",
+    "edit": "编辑",
+    "undo": "撤销",
+    "minutes": "{count} 分钟",
+    "daily": "每天"
+  },
+  "HabitModal": {
+    "newTitle": "新习惯",
+    "editTitle": "编辑习惯",
+    "close": "关闭",
+    "name": "习惯名称",
+    "namePlaceholder": "例如：读 10 页书",
+    "type": "类型",
+    "typeDaily": "每天",
+    "typeTimer": "计时",
+    "duration": "时长（分钟）",
+    "create": "保存习惯",
+    "save": "保存更改",
+    "delete": "删除习惯",
+    "error": "出错了，请重试。"
+  },
+  "Timer": {
+    "cancel": "取消",
+    "done": "完成",
+    "pause": "暂停",
+    "resume": "继续",
+    "finishEarly": "提前结束"
+  },
+  "Settings": {
+    "title": "设置",
+    "close": "关闭",
+    "language": "语言",
+    "audio": "音频",
+    "lofi": "Lofi 音乐",
+    "lofiSub": "轻松的背景音乐",
+    "toggleMusic": "切换背景音乐",
+    "reports": "报告",
+    "emailPlaceholder": "你的邮箱",
+    "sendReport": "发送报告",
+    "sending": "发送中...",
+    "reportSent": "已发送！请查收邮箱。",
+    "reportError": "发送失败，请稍后再试。",
+    "account": "账户",
+    "signOut": "退出登录"
   }
 }

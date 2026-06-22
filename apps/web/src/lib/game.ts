@@ -1,36 +1,37 @@
-// Pure, framework-agnostic game rules. Safe to import from server or client.
+// Pure, framework-agnostic game rules. Safe to import from server or client so
+// the UI and the server actions always agree on derived state.
 
 export const COINS_PER_HABIT = 10;
 export const EXP_PER_HABIT = 10;
 
 /**
- * Total-EXP required to reach each pet stage (index === stage, 0..6).
- * Higher-stage art is still being produced; the thresholds exist so progression
- * keeps advancing in the database in the meantime.
+ * Minimum streak (≈ days together) required to reach each pet stage
+ * (index === stage, 0..6). Mirrors the age-based evolution in the design bible.
  */
-export const STAGE_EXP_THRESHOLDS = [0, 50, 200, 500, 1500, 4000, 9000] as const;
+export const STAGE_STREAK_THRESHOLDS = [0, 3, 7, 15, 30, 60, 100] as const;
 
-export function petStageFromExp(totalExp: number): number {
+/** The single source of truth for which pet stage to show / store. */
+export function stageFromStreak(streak: number): number {
   let stage = 0;
-  for (let i = 0; i < STAGE_EXP_THRESHOLDS.length; i++) {
-    if (totalExp >= STAGE_EXP_THRESHOLDS[i]) stage = i;
+  for (let i = 0; i < STAGE_STREAK_THRESHOLDS.length; i++) {
+    if (streak >= STAGE_STREAK_THRESHOLDS[i]) stage = i;
   }
   return stage;
 }
 
-/** EXP still needed to reach the next stage (0 when already at the max stage). */
-export function expToNextStage(totalExp: number): number {
-  const stage = petStageFromExp(totalExp);
-  const next = STAGE_EXP_THRESHOLDS[stage + 1];
-  return next === undefined ? 0 : next - totalExp;
+/** Streak still needed to reach the next stage (0 when already at the max). */
+export function streakToNextStage(streak: number): number {
+  const stage = stageFromStreak(streak);
+  const next = STAGE_STREAK_THRESHOLDS[stage + 1];
+  return next === undefined ? 0 : next - streak;
 }
 
 /** Current date as YYYY-MM-DD in the given IANA timezone. */
 export function todayInTimezone(timezone: string): string {
   try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone || 'UTC' }).format(new Date());
+    return new Intl.DateTimeFormat("en-CA", { timeZone: timezone || "UTC" }).format(new Date());
   } catch {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date());
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "UTC" }).format(new Date());
   }
 }
 

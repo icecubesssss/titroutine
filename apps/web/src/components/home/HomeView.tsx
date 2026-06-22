@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CheckCircle, Flame, Pencil, Settings, BookOpen } from "lucide-react";
@@ -13,6 +13,7 @@ import { TimerModal } from "@/components/home/TimerModal";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { useSound } from "@/hooks/useSound";
 import { toggleHabitAction, updateTimezoneAction } from "@/app/[locale]/actions";
+import { stageFromStreak } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 
 interface StageMetadata {
@@ -115,16 +116,6 @@ const STAGES_METADATA: Record<number, StageMetadata> = {
   },
 };
 
-function getStageFromStreak(streak: number): number {
-  if (streak < 3) return 0;
-  if (streak < 7) return 1;
-  if (streak < 15) return 2;
-  if (streak < 30) return 3;
-  if (streak < 60) return 4;
-  if (streak < 100) return 5;
-  return 6;
-}
-
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const router = useRouter();
@@ -133,6 +124,9 @@ export function HomeView({ data }: { data: DashboardData }) {
   // Server data is the source of truth; mirror it locally for optimistic UI.
   const [habits, setHabits] = useState(data.habits);
   const [coins, setCoins] = useState(data.profile.coins);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  // Synchronous guard so a rapid double-tap can't double-award coins/EXP.
+  const inFlight = useRef<Set<string>>(new Set());
   const [, startTransition] = useTransition();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -174,6 +168,10 @@ export function HomeView({ data }: { data: DashboardData }) {
   }, [completedCount, totalCount]);
 
   const commitToggle = (habit: HabitWithLog, value?: number) => {
+    if (inFlight.current.has(habit.id)) return; // ignore re-entrant taps
+    inFlight.current.add(habit.id);
+    setPendingIds((prev) => new Set(prev).add(habit.id));
+
     const willComplete = !habit.isCompleted;
 
     // Optimistic update.
@@ -184,8 +182,17 @@ export function HomeView({ data }: { data: DashboardData }) {
     if (willComplete) playTing();
 
     startTransition(async () => {
-      await toggleHabitAction({ habitId: habit.id, value });
-      router.refresh();
+      try {
+        await toggleHabitAction({ habitId: habit.id, value });
+        router.refresh();
+      } finally {
+        inFlight.current.delete(habit.id);
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(habit.id);
+          return next;
+        });
+      }
     });
   };
 
@@ -199,7 +206,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   const currentStreak = devStreakOverride !== null ? devStreakOverride : data.profile.currentStreak;
-  const normalStage = getStageFromStreak(currentStreak);
+  const normalStage = stageFromStreak(currentStreak);
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
 
   const activeStage = STAGES_METADATA[currentStage] || STAGES_METADATA[0];
@@ -338,8 +345,9 @@ export function HomeView({ data }: { data: DashboardData }) {
                     type="button"
                     aria-label={t("undo")}
                     title={t("undo")}
+                    disabled={pendingIds.has(habit.id)}
                     onClick={() => commitToggle(habit)}
-                    className="shrink-0"
+                    className="shrink-0 disabled:opacity-50"
                   >
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   </button>
@@ -348,6 +356,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                     variant="primary"
                     size="sm"
                     className="shrink-0"
+                    disabled={pendingIds.has(habit.id)}
                     onClick={() => handleDoIt(habit)}
                   >
                     {t("doIt")}

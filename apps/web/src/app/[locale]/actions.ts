@@ -6,7 +6,7 @@ import {
   COINS_PER_HABIT,
   EXP_PER_HABIT,
   nextStreak,
-  petStageFromExp,
+  stageFromStreak,
   todayInTimezone,
 } from "@/lib/game";
 import type { HabitType } from "@/lib/types";
@@ -158,22 +158,22 @@ export async function toggleHabitAction(input: {
   const delta = willComplete ? 1 : -1;
   const coins = Math.max(0, (profile?.coins ?? 0) + delta * COINS_PER_HABIT);
   const totalExp = Math.max(0, (profile?.total_exp ?? 0) + delta * EXP_PER_HABIT);
-  const petStage = petStageFromExp(totalExp);
+
+  // Streak only advances on the first completion of a new day; the pet stage is
+  // derived from the streak so the stored value always matches what's shown.
+  const newStreak = willComplete
+    ? nextStreak(profile?.current_streak ?? 0, profile?.last_active_date ?? null, today)
+    : profile?.current_streak ?? 0;
 
   const patch: Record<string, unknown> = {
     coins,
     total_exp: totalExp,
-    pet_stage: petStage,
+    pet_stage: stageFromStreak(newStreak),
     updated_at: new Date().toISOString(),
   };
 
-  // Streak only advances on the first completion of a new day.
   if (willComplete) {
-    patch.current_streak = nextStreak(
-      profile?.current_streak ?? 0,
-      profile?.last_active_date ?? null,
-      today
-    );
+    patch.current_streak = newStreak;
     patch.last_active_date = today;
   }
 

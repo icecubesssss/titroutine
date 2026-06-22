@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
-import { petStageFromExp, todayInTimezone } from "./game";
+import { stageFromStreak, todayInTimezone } from "./game";
 import type { DashboardData, HabitConfig, HabitType, HabitWithLog } from "./types";
 
 interface HabitRow {
@@ -37,6 +37,7 @@ export async function getDashboard(): Promise<DashboardData | null> {
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
   const totalExp = profile?.total_exp ?? 0;
+  const currentStreak = profile?.current_streak ?? 0;
 
   const [{ data: habitRows }, { data: logRows }] = await Promise.all([
     supabase
@@ -72,9 +73,9 @@ export async function getDashboard(): Promise<DashboardData | null> {
   return {
     profile: {
       coins: profile?.coins ?? 0,
-      currentStreak: profile?.current_streak ?? 0,
-      // Keep the displayed stage in sync with EXP even if the column lags.
-      petStage: profile?.pet_stage ?? petStageFromExp(totalExp),
+      currentStreak,
+      // Stage is derived from the streak (age-based evolution per the design bible).
+      petStage: profile?.pet_stage ?? stageFromStreak(currentStreak),
       totalExp,
       timezone,
       username: profile?.username ?? null,

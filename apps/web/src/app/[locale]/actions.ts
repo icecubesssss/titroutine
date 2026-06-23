@@ -266,3 +266,101 @@ export async function buyFreezeAction(): Promise<ActionResult> {
   revalidatePath("/", "layout");
   return {};
 }
+
+export async function buyItemAction(itemId: string, price: number): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("coins")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+  const currentCoins = profile?.coins ?? 0;
+
+  if (currentCoins < price) {
+    return { error: "not_enough_coins" };
+  }
+
+  // Lấy inventory hiện tại
+  const { data: inventory, error: invError } = await supabase
+    .from("inventory")
+    .select("unlocked_items")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (invError && invError.code !== 'PGRST116') return { error: invError.message };
+
+  const unlocked = new Set((inventory?.unlocked_items as string[]) || []);
+  if (unlocked.has(itemId)) {
+    return { error: "already_owned" };
+  }
+
+  unlocked.add(itemId);
+
+  // Trừ tiền
+  const { error: updateProfileError } = await supabase
+    .from("profiles")
+    .update({ coins: currentCoins - price })
+    .eq("id", userId);
+
+  if (updateProfileError) return { error: updateProfileError.message };
+
+  // Cập nhật inventory (upsert)
+  const { error: updateInvError } = await supabase
+    .from("inventory")
+    .upsert({
+      user_id: userId,
+      unlocked_items: Array.from(unlocked),
+      updated_at: new Date().toISOString(),
+    });
+
+  if (updateInvError) return { error: updateInvError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function equipItemAction(slot: string, itemId: string | null): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: inventory, error: invError } = await supabase
+    .from("inventory")
+    .select("equipped_items, unlocked_items")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (invError && invError.code !== 'PGRST116') return { error: invError.message };
+
+  // Kiểm tra xem đã sở hữu chưa (nếu không phải gỡ đồ)
+  if (itemId !== null) {
+    const unlocked = (inventory?.unlocked_items as string[]) || [];
+    if (!unlocked.includes(itemId)) {
+      return { error: "item_not_owned" };
+    }
+  }
+
+  const equipped = { ...((inventory?.equipped_items as Record<string, string>) || {}) };
+  
+  if (itemId === null) {
+    delete equipped[slot];
+  } else {
+    equipped[slot] = itemId;
+  }
+
+  const { error: updateInvError } = await supabase
+    .from("inventory")
+    .upsert({
+      user_id: userId,
+      equipped_items: equipped,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (updateInvError) return { error: updateInvError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}

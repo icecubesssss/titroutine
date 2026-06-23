@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3 } from "lucide-react";
+import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag } from "lucide-react";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
@@ -11,7 +11,9 @@ import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
+import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
+import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
 import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction } from "@/app/[locale]/actions";
 import { stageFromStreak } from "@/lib/game";
@@ -36,6 +38,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [timerHabit, setTimerHabit] = useState<HabitWithLog | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAlbumOpen, setIsAlbumOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
   const [companionOverrideAction, setCompanionOverrideAction] = useState<CompanionAction | null>(null);
 
   // Dev-only overrides (from the Settings → Developer Tools panel) for previewing
@@ -178,7 +181,12 @@ export function HomeView({ data }: { data: DashboardData }) {
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
 
   const activeStage = STAGES_CONFIG[currentStage] || STAGES_CONFIG[0];
-  const roomBackground = activeStage.roomBackground;
+  
+  // Custom Room Theme (nếu có trang bị Wallpaper, nó ghi đè roomBackground mặc định)
+  const equippedWallpaperId = data.inventory.equippedItems["wallpaper"];
+  const customWallpaper = SHOP_ITEMS.find((item) => item.id === equippedWallpaperId);
+  const roomBackground = customWallpaper ? customWallpaper.className : activeStage.roomBackground;
+
   const isEvolved = currentStage >= 1;
 
   // Determine current companion action
@@ -241,6 +249,19 @@ export function HomeView({ data }: { data: DashboardData }) {
               className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-purple-500 hover:text-purple-600 animate-pulse"
             >
               <BookOpen className="w-5 h-5" />
+            </button>
+
+            {/* Cửa hàng (Shop) */}
+            <button
+              aria-label="Cửa hàng"
+              title="Cửa hàng"
+              onClick={() => {
+                playSwoosh();
+                setIsShopOpen(true);
+              }}
+              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-amber-500 hover:text-amber-600"
+            >
+              <ShoppingBag className="w-5 h-5" />
             </button>
 
             {/* Thống kê (Analytics) */}
@@ -428,6 +449,14 @@ export function HomeView({ data }: { data: DashboardData }) {
         isOpen={isAlbumOpen}
         onClose={() => setIsAlbumOpen(false)}
         currentStreak={currentStreak}
+      />
+      
+      <ShopModal
+        isOpen={isShopOpen}
+        onClose={() => setIsShopOpen(false)}
+        coins={coins}
+        unlockedItems={data.inventory.unlockedItems}
+        equippedItems={data.inventory.equippedItems}
       />
       
       <CelebrationModal

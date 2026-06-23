@@ -25,9 +25,15 @@ export interface ProfileSummary {
   streakFreezes: number;
 }
 
+export interface InventorySummary {
+  equippedItems: Record<string, string>;
+  unlockedItems: string[];
+}
+
 export interface DashboardData {
   profile: ProfileSummary;
   habits: HabitWithLog[];
+  inventory: InventorySummary;
   today: string; // YYYY-MM-DD in the user's timezone
   email: string | null;
 }

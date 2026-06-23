@@ -39,7 +39,7 @@ export async function getDashboard(): Promise<DashboardData | null> {
   const totalExp = profile?.total_exp ?? 0;
   const currentStreak = profile?.current_streak ?? 0;
 
-  const [{ data: habitRows }, { data: logRows }] = await Promise.all([
+  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config")
@@ -51,6 +51,11 @@ export async function getDashboard(): Promise<DashboardData | null> {
       .select("habit_id, is_completed, value")
       .eq("user_id", user.id)
       .eq("date", today),
+    supabase
+      .from("inventory")
+      .select("equipped_items, unlocked_items")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const logByHabit = new Map<string, LogRow>();
@@ -81,6 +86,10 @@ export async function getDashboard(): Promise<DashboardData | null> {
       username: profile?.username ?? null,
       lastCheckinDate: profile?.last_checkin_date ?? null,
       streakFreezes: profile?.streak_freezes ?? 0,
+    },
+    inventory: {
+      equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
+      unlockedItems: (inventoryData?.unlocked_items as string[]) || [],
     },
     habits,
     today,

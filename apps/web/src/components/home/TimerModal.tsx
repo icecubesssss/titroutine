@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Play, X, Smartphone, AlertTriangle } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
@@ -30,6 +30,8 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
   const [isFaceDown, setIsFaceDown] = useState(false);
   const [penaltySeconds, setPenaltySeconds] = useState<number | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<"prompt" | "granted" | "denied">("prompt");
+  
+  const progressRef = useRef<HTMLDivElement>(null);
 
   // Reset state when a new habit is opened
   useEffect(() => {
@@ -145,10 +147,14 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
     return () => clearInterval(timerId);
   }, [hasStarted, finished, failed, isFaceDown, penaltySeconds, permissionStatus]);
 
-  if (!habit) return null;
+  useEffect(() => {
+    if (progressRef.current) {
+      const progress = hasStarted ? ((total - remaining) / total) * 100 : 0;
+      progressRef.current.style.width = `${progress}%`;
+    }
+  }, [remaining, total, hasStarted]);
 
-  const elapsed = total - remaining;
-  const progress = total > 0 ? (elapsed / total) * 100 : 0;
+  if (!habit) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -218,9 +224,8 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                   </div>
                   <div className="w-full h-4 rounded-full bg-gray-100 overflow-hidden shadow-inner">
                     <div
+                      ref={progressRef}
                       className="h-full bg-fire-orange transition-[width] duration-1000 ease-linear"
-                      // eslint-disable-next-line
-                      style={{ width: `${progress}%` }}
                     />
                   </div>
                   {permissionStatus === "granted" && (

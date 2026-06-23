@@ -1,11 +1,12 @@
-export type HabitType = "boolean" | "timer" | "counter";
 
 export type FrequencyType = "daily" | "specific_days" | "x_times_a_week";
 
+export type HabitType = "boolean" | "timer" | "counter" | "negative";
+export type TimeOfDay = "morning" | "afternoon" | "evening" | "anytime";
+
 export interface HabitFrequency {
   type: FrequencyType;
-  days?: number[]; // 0 = Sunday, 1 = Monday, etc.
-  timesPerWeek?: number;
+  days?: number[]; // 0=Sun, 1=Mon... Used for specific_days
 }
 
 export interface HabitConfig {
@@ -19,6 +20,7 @@ export interface HabitWithLog {
   type: HabitType;
   config: HabitConfig;
   frequency: HabitFrequency;
+  timeOfDay: TimeOfDay;
   isCompleted: boolean;
   value: number | null;
 }
@@ -45,4 +47,6 @@ export interface DashboardData {
   inventory: InventorySummary;
   today: string; // YYYY-MM-DD in the user's timezone
   email: string | null;
+  currentDate: string;
+  isToday: boolean;
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
 import { stageFromStreak, todayInTimezone } from "./game";
-import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency } from "./types";
+import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
 
 interface HabitRow {
   id: string;
@@ -10,6 +10,7 @@ interface HabitRow {
   type: HabitType | null;
   config: HabitConfig | null;
   frequency: HabitFrequency | null;
+  time_of_day: TimeOfDay | null;
 }
 
 interface LogRow {
@@ -22,7 +23,7 @@ interface LogRow {
  * Loads everything the home screen needs for the signed-in user, scoped to
  * "today" in their own timezone. Returns null when there is no session.
  */
-export async function getDashboard(): Promise<DashboardData | null> {
+export async function getDashboard(targetDateStr?: string): Promise<DashboardData | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,13 +38,15 @@ export async function getDashboard(): Promise<DashboardData | null> {
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
+  const targetDate = targetDateStr || today;
+  const isToday = targetDate === today;
   const totalExp = profile?.total_exp ?? 0;
   const currentStreak = profile?.current_streak ?? 0;
 
   const [{ data: habitRows }, { data: logRows }, { data: inventoryData }] = await Promise.all([
     supabase
       .from("habits")
-      .select("id, title, type, config, frequency")
+      .select("id, title, type, config, frequency, time_of_day")
       .eq("user_id", user.id)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
@@ -51,7 +54,7 @@ export async function getDashboard(): Promise<DashboardData | null> {
       .from("habit_logs")
       .select("habit_id, is_completed, value")
       .eq("user_id", user.id)
-      .eq("date", today),
+      .eq("date", targetDate),
     supabase
       .from("inventory")
       .select("equipped_items, unlocked_items")
@@ -71,13 +74,13 @@ export async function getDashboard(): Promise<DashboardData | null> {
   const habits: HabitWithLog[] = ((habitRows ?? []) as HabitRow[])
     .map((h) => {
       const log = logByHabit.get(h.id);
-      const frequency = h.frequency ?? { type: "daily" };
       return {
         id: h.id,
         title: h.title,
-        type: (h.type as HabitType) ?? "boolean",
+        type: h.type ?? "boolean",
         config: h.config ?? {},
-        frequency,
+        frequency: h.frequency ?? { type: "daily" },
+        timeOfDay: h.time_of_day ?? "anytime",
         isCompleted: Boolean(log?.is_completed),
         value: log?.value ?? null,
       };
@@ -108,6 +111,8 @@ export async function getDashboard(): Promise<DashboardData | null> {
     },
     habits,
     today,
+    currentDate: targetDate,
+    isToday,
     email: user.email ?? null,
   };
 }

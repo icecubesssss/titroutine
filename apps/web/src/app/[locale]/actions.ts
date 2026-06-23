@@ -42,10 +42,11 @@ export async function updateTimezoneAction(timezone: string): Promise<ActionResu
 
 export async function addHabitAction(input: {
   title: string;
-  type: Extract<HabitType, "boolean" | "timer" | "counter">;
+  type: HabitType;
   durationMinutes?: number;
   targetCount?: number;
   frequency?: Record<string, unknown>;
+  timeOfDay?: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -65,7 +66,8 @@ export async function addHabitAction(input: {
     title,
     type: input.type,
     config,
-    frequency: input.frequency ?? { type: "daily" },
+    frequency: input.frequency || { type: "daily" },
+    time_of_day: input.timeOfDay || "anytime",
   });
   if (error) return { error: error.message };
 
@@ -79,6 +81,7 @@ export async function updateHabitAction(input: {
   durationMinutes?: number;
   targetCount?: number;
   frequency?: Record<string, unknown>;
+  timeOfDay?: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -95,6 +98,9 @@ export async function updateHabitAction(input: {
   }
   if (input.frequency != null) {
     patch.frequency = input.frequency;
+  }
+  if (input.timeOfDay != null) {
+    patch.time_of_day = input.timeOfDay;
   }
 
   const { error } = await supabase
@@ -130,6 +136,7 @@ export async function archiveHabitAction(id: string): Promise<ActionResult> {
 export async function toggleHabitAction(input: {
   habitId: string;
   value?: number;
+  date?: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -154,6 +161,14 @@ export async function toggleHabitAction(input: {
 
   const willComplete = !existing?.is_completed;
 
+  // Fetch habit type to determine if it's a negative habit
+  const { data: habitData } = await supabase
+    .from("habits")
+    .select("type")
+    .eq("id", input.habitId)
+    .single();
+  const isNegative = habitData?.type === "negative";
+
   // Upsert today's log (UNIQUE(habit_id, date) makes this idempotent).
   const { error: logError } = await supabase.from("habit_logs").upsert(
     {
@@ -168,7 +183,8 @@ export async function toggleHabitAction(input: {
   if (logError) return { error: logError.message };
 
   // Reconcile profile economy + streak.
-  const delta = willComplete ? 1 : -1;
+  const sign = isNegative ? -1 : 1;
+  const delta = (willComplete ? 1 : -1) * sign;
   const coins = Math.max(0, (profile?.coins ?? 0) + delta * COINS_PER_HABIT);
   const totalExp = Math.max(0, (profile?.total_exp ?? 0) + delta * EXP_PER_HABIT);
 
@@ -177,7 +193,7 @@ export async function toggleHabitAction(input: {
   let newStreak = profile?.current_streak ?? 0;
   let remainingFreezes = profile?.streak_freezes ?? 0;
 
-  if (willComplete) {
+  if (willComplete && !isNegative) {
     const streakResult = nextStreak(
       profile?.current_streak ?? 0,
       profile?.last_active_date ?? null,
@@ -186,6 +202,9 @@ export async function toggleHabitAction(input: {
     );
     newStreak = streakResult.newStreak;
     remainingFreezes -= streakResult.freezesUsed;
+  } else if (willComplete && isNegative) {
+    // Violated negative habit -> Reset streak
+    newStreak = 0;
   }
 
   const patch: Record<string, unknown> = {
@@ -197,8 +216,10 @@ export async function toggleHabitAction(input: {
 
   if (willComplete) {
     patch.current_streak = newStreak;
-    patch.last_active_date = today;
-    patch.streak_freezes = remainingFreezes;
+    if (!isNegative) {
+      patch.last_active_date = today;
+      patch.streak_freezes = remainingFreezes;
+    }
   }
 
   const { error: updateError } = await supabase
@@ -215,6 +236,7 @@ export async function incrementCounterHabitAction(input: {
   habitId: string;
   incrementAmount: number;
   targetCount: number;
+  date?: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -227,12 +249,13 @@ export async function incrementCounterHabitAction(input: {
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
+  const targetDate = input.date || today;
 
   const { data: existing } = await supabase
     .from("habit_logs")
     .select("id, is_completed, value")
     .eq("habit_id", input.habitId)
-    .eq("date", today)
+    .eq("date", targetDate)
     .maybeSingle();
 
   if (existing?.is_completed) return {}; // already done

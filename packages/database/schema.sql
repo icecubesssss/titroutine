@@ -31,6 +31,7 @@ CREATE TABLE public.habits (
   type TEXT DEFAULT 'boolean', -- boolean, timer, counter
   config JSONB DEFAULT '{}'::jsonb, -- e.g., { "target_time": 1800, "target_count": 5 }
   frequency JSONB DEFAULT '{"type": "daily"}'::jsonb, -- e.g., { "type": "weekly", "days": [1, 3, 5] }
+  time_of_day TEXT DEFAULT 'anytime', -- morning, afternoon, evening, anytime
   created_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ
 );

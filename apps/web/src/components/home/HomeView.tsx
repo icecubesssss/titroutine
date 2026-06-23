@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag } from "lucide-react";
+import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, addDays, parseISO } from "date-fns";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
@@ -117,33 +118,38 @@ export function HomeView({ data }: { data: DashboardData }) {
     setPendingIds((prev) => new Set(prev).add(habit.id));
 
     const willComplete = !habit.isCompleted;
+    const isNegative = habit.type === "negative";
+    const delta = (willComplete ? 1 : -1) * (isNegative ? -1 : 1);
 
     // Optimistic update.
     setHabits((prev) =>
       prev.map((h) => (h.id === habit.id ? { ...h, isCompleted: willComplete, value: value ?? null } : h))
     );
-    setCoins((c) => Math.max(0, c + (willComplete ? 10 : -10)));
+    setCoins((c) => Math.max(0, c + delta * 10));
     
     if (willComplete) {
-      playTing();
-      setCompanionOverrideAction("happy");
-      
-      // Determine if this is the first habit of the day, increasing the streak
-      // If previous streak + 1 = new streak, show streak celebration. (approx logic for UI)
-      // We will show a habit celebration
-      setCelebration({
-        isOpen: true,
-        type: "habit",
-        coinsAwarded: 10,
-      });
+      if (!isNegative) {
+        playTing();
+        setCompanionOverrideAction("happy");
+        setCelebration({
+          isOpen: true,
+          type: "habit",
+          coinsAwarded: 10,
+        });
+      } else {
+        setCompanionOverrideAction("sad");
+      }
     } else {
-      // Nếu undo thì có thể hơi buồn tí xíu
-      setCompanionOverrideAction("sad");
+      if (isNegative) {
+        setCompanionOverrideAction("happy");
+      } else {
+        setCompanionOverrideAction("sad");
+      }
     }
 
     startTransition(async () => {
       try {
-        await toggleHabitAction({ habitId: habit.id, value });
+        await toggleHabitAction({ habitId: habit.id, value, date: data.currentDate });
         router.refresh();
       } finally {
         inFlight.current.delete(habit.id);
@@ -171,7 +177,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         await incrementCounterHabitAction({ 
           habitId: habit.id, 
           incrementAmount: amount, 
-          targetCount: target 
+          targetCount: target,
+          date: data.currentDate
         });
         
         // If it completes, play celebration
@@ -354,8 +361,29 @@ export function HomeView({ data }: { data: DashboardData }) {
       {/* Bottom half: Habits */}
       <section className="flex-[1.2] bg-earth-bg p-6 pb-24 overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black tracking-tight">{t("title")}</h2>
-          <span className="text-sm font-bold text-gray-500">
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Ngày trước"
+              title="Ngày trước"
+              onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), -1), "yyyy-MM-dd")}`)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6 text-gray-400" />
+            </button>
+            <h2 className="text-2xl font-black tracking-tight min-w-[120px] text-center">
+              {data.isToday ? t("title") : format(parseISO(data.currentDate), "dd/MM/yyyy")}
+            </h2>
+            <button
+              aria-label="Ngày tiếp theo"
+              title="Ngày tiếp theo"
+              disabled={data.isToday}
+              onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronRight className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+          <span className="text-sm font-bold text-gray-500 shrink-0">
             {t("completed", { completed: completedCount, total: totalCount })}
           </span>
         </div>
@@ -366,91 +394,123 @@ export function HomeView({ data }: { data: DashboardData }) {
             <p className="font-medium">{t("empty")}</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {habits.map((habit) => (
-              <div
-                key={habit.id}
-                className={`bg-white p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
-                  habit.isCompleted
-                    ? "border-gray-100 opacity-60"
-                    : "border-gray-200 border-b-4"
-                }`}
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <button
-                    type="button"
-                    aria-label={t("edit")}
-                    title={t("edit")}
-                    onClick={() => setEditingHabit(habit)}
-                    className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl shrink-0 hover:bg-blue-200 transition-colors group relative"
-                  >
-                    <span className="group-hover:opacity-0 transition-opacity">
-                      {habit.type === "timer" ? "⏳" : "💧"}
-                    </span>
-                    <Pencil className="w-5 h-5 text-blue-500 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                  <div className="min-w-0">
-                    <h3
-                      className={`font-bold truncate ${
-                        habit.isCompleted ? "line-through text-gray-400" : "text-earth-text"
+          <div className="space-y-8">
+            {[
+              { id: "morning", label: "🌅 Buổi Sáng", items: habits.filter(h => h.timeOfDay === "morning") },
+              { id: "afternoon", label: "☀️ Buổi Chiều", items: habits.filter(h => h.timeOfDay === "afternoon") },
+              { id: "evening", label: "🌙 Buổi Tối", items: habits.filter(h => h.timeOfDay === "evening") },
+              { id: "anytime", label: "♾️ Bất kỳ lúc nào", items: habits.filter(h => !h.timeOfDay || h.timeOfDay === "anytime") }
+            ].map(section => {
+              if (section.items.length === 0) return null;
+              return (
+                <div key={section.id} className="space-y-3">
+                  <h3 className="text-lg font-bold text-earth-brown flex items-center gap-2">
+                    {section.label}
+                  </h3>
+                  {section.items.map((habit) => (
+                    <div
+                      key={habit.id}
+                      className={`bg-white p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                        habit.isCompleted
+                          ? "border-gray-100 opacity-60"
+                          : habit.type === "negative"
+                          ? "border-red-200 border-b-4 bg-red-50"
+                          : "border-gray-200 border-b-4"
                       }`}
                     >
-                      {habit.title}
-                    </h3>
-                    <p className="text-sm text-gray-400 font-medium">
-                      {habit.type === "timer" && habit.config.target_time
-                        ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
-                        : habit.type === "counter" && habit.config.target_count
-                        ? `Mục tiêu: ${habit.config.target_count}`
-                        : t("daily")}
-                    </p>
-                  </div>
-                </div>
+                      <div className="flex items-center gap-4 min-w-0">
+                        <button
+                          type="button"
+                          aria-label={t("edit")}
+                          title={t("edit")}
+                          onClick={() => setEditingHabit(habit)}
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 transition-colors group relative ${
+                            habit.type === "negative" ? "bg-red-100 hover:bg-red-200" : "bg-blue-100 hover:bg-blue-200"
+                          }`}
+                        >
+                          <span className="group-hover:opacity-0 transition-opacity">
+                            {habit.type === "timer" ? "⏳" : habit.type === "negative" ? "💥" : "💧"}
+                          </span>
+                          <Pencil className={`w-5 h-5 absolute opacity-0 group-hover:opacity-100 transition-opacity ${
+                            habit.type === "negative" ? "text-red-500" : "text-blue-500"
+                          }`} />
+                        </button>
+                        <div className="min-w-0">
+                          <h3
+                            className={`font-bold truncate ${
+                              habit.isCompleted ? "line-through text-gray-400" : habit.type === "negative" ? "text-red-600" : "text-earth-text"
+                            }`}
+                          >
+                            {habit.title}
+                          </h3>
+                          <p className={`text-sm font-medium ${habit.type === "negative" ? "text-red-400" : "text-gray-400"}`}>
+                            {habit.type === "timer" && habit.config.target_time
+                              ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
+                              : habit.type === "counter" && habit.config.target_count
+                              ? `Mục tiêu: ${habit.config.target_count}`
+                              : habit.type === "negative"
+                              ? "Cấm vi phạm"
+                              : t("daily")}
+                          </p>
+                        </div>
+                      </div>
 
-                {habit.isCompleted ? (
-                  <button
-                    type="button"
-                    aria-label={t("undo")}
-                    title={t("undo")}
-                    disabled={pendingIds.has(habit.id)}
-                    onClick={() => commitToggle(habit)}
-                    className="shrink-0 disabled:opacity-50"
-                  >
-                    <CheckCircle className="w-8 h-8 text-green-500" />
-                  </button>
-                ) : habit.type === "counter" ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={pendingIds.has(habit.id)}
-                      onClick={() => handleIncrementCounter(habit, -1)}
-                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold hover:bg-gray-200 text-gray-600 disabled:opacity-50"
-                    >
-                      -
-                    </button>
-                    <span className="font-bold tabular-nums min-w-[2.5rem] text-center text-earth-text">
-                      {habit.value || 0}/{habit.config.target_count || 1}
-                    </span>
-                    <button
-                      disabled={pendingIds.has(habit.id)}
-                      onClick={() => handleIncrementCounter(habit, 1)}
-                      className="w-8 h-8 rounded-full bg-fire-orange flex items-center justify-center font-bold text-white hover:bg-orange-600 shadow-sm disabled:opacity-50"
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <DuoButton
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={pendingIds.has(habit.id)}
-                    onClick={() => handleDoIt(habit)}
-                  >
-                    {t("doIt")}
-                  </DuoButton>
-                )}
-              </div>
-            ))}
+                      {habit.isCompleted ? (
+                        <button
+                          type="button"
+                          aria-label={t("undo")}
+                          title={t("undo")}
+                          disabled={pendingIds.has(habit.id)}
+                          onClick={() => commitToggle(habit)}
+                          className="shrink-0 disabled:opacity-50"
+                        >
+                          <CheckCircle className={`w-8 h-8 ${habit.type === "negative" ? "text-red-500" : "text-green-500"}`} />
+                        </button>
+                      ) : habit.type === "counter" ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            disabled={pendingIds.has(habit.id)}
+                            onClick={() => handleIncrementCounter(habit, -1)}
+                            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+                          >
+                            -
+                          </button>
+                          <span className="font-bold tabular-nums min-w-[2.5rem] text-center text-earth-text">
+                            {habit.value || 0}/{habit.config.target_count || 1}
+                          </span>
+                          <button
+                            disabled={pendingIds.has(habit.id)}
+                            onClick={() => handleIncrementCounter(habit, 1)}
+                            className="w-8 h-8 rounded-full bg-fire-orange flex items-center justify-center font-bold text-white hover:bg-orange-600 shadow-sm disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : habit.type === "negative" ? (
+                        <button
+                          type="button"
+                          disabled={pendingIds.has(habit.id)}
+                          onClick={() => handleDoIt(habit)}
+                          className="shrink-0 bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200 font-bold px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                        >
+                          Vi phạm
+                        </button>
+                      ) : (
+                        <DuoButton
+                          variant="primary"
+                          size="sm"
+                          className="shrink-0"
+                          disabled={pendingIds.has(habit.id)}
+                          onClick={() => handleDoIt(habit)}
+                        >
+                          {t("doIt")}
+                        </DuoButton>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

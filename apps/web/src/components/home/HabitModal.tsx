@@ -9,7 +9,7 @@ import {
   archiveHabitAction,
   updateHabitAction,
 } from "@/app/[locale]/actions";
-import type { HabitWithLog, FrequencyType } from "@/lib/types";
+import type { HabitWithLog, FrequencyType, TimeOfDay, HabitType } from "@/lib/types";
 
 interface HabitModalProps {
   isOpen: boolean;
@@ -24,7 +24,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   const isEdit = Boolean(habit);
 
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<"boolean" | "timer" | "counter">("boolean");
+  const [type, setType] = useState<HabitType>("boolean");
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("anytime");
   const [duration, setDuration] = useState(15);
   const [targetCount, setTargetCount] = useState(5);
   const [freqType, setFreqType] = useState<FrequencyType>("daily");
@@ -36,7 +37,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   useEffect(() => {
     if (habit) {
       setTitle(habit.title);
-      setType(habit.type as "boolean" | "timer" | "counter");
+      setType(habit.type);
+      setTimeOfDay(habit.timeOfDay || "anytime");
       setDuration(habit.config.target_time ? Math.round(habit.config.target_time / 60) : 15);
       setTargetCount(habit.config.target_count || 5);
       setFreqType(habit.frequency?.type || "daily");
@@ -44,6 +46,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
     } else {
       setTitle("");
       setType("boolean");
+      setTimeOfDay("anytime");
       setDuration(15);
       setTargetCount(5);
       setFreqType("daily");
@@ -65,21 +68,23 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
         days: freqType === "specific_days" ? freqDays : undefined,
       };
 
-      const result = isEdit
-        ? await updateHabitAction({
-            id: habit!.id,
-            title,
-            durationMinutes: type === "timer" ? duration : undefined,
-            targetCount: type === "counter" ? targetCount : undefined,
-            frequency,
-          })
-        : await addHabitAction({
-            title,
-            type: type as "boolean" | "timer" | "counter",
-            durationMinutes: type === "timer" ? duration : undefined,
-            targetCount: type === "counter" ? targetCount : undefined,
-            frequency,
-          });
+        const result = isEdit
+          ? await updateHabitAction({
+              id: habit!.id,
+              title,
+              durationMinutes: type === "timer" ? duration : undefined,
+              targetCount: type === "counter" ? targetCount : undefined,
+              frequency,
+              timeOfDay,
+            })
+          : await addHabitAction({
+              title,
+              type: type as HabitType,
+              durationMinutes: type === "timer" ? duration : undefined,
+              targetCount: type === "counter" ? targetCount : undefined,
+              frequency,
+              timeOfDay,
+            });
 
       if (result?.error) {
         setError(t("error"));
@@ -177,6 +182,17 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                 >
                   🔢 Đếm
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setType("negative")}
+                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                    type === "negative"
+                      ? "border-red-500 bg-red-50 text-red-600"
+                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  💥 Tồi tệ
+                </button>
               </div>
             </div>
           )}
@@ -212,6 +228,31 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-earth-text">Buổi trong ngày</label>
+            <div className="flex gap-2">
+              {[
+                { id: "morning", label: "🌅 Sáng" },
+                { id: "afternoon", label: "☀️ Chiều" },
+                { id: "evening", label: "🌙 Tối" },
+                { id: "anytime", label: "♾️ Bất kỳ" },
+              ].map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setTimeOfDay(b.id as TimeOfDay)}
+                  className={`flex-1 p-2 rounded-xl border-2 font-bold text-xs sm:text-sm transition-all ${
+                    timeOfDay === b.id
+                      ? "border-fire-orange bg-orange-50 text-fire-orange"
+                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-bold text-earth-text">Lịch trình</label>

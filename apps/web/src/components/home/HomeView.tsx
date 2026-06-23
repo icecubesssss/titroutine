@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { CheckCircle, Flame, Pencil, Settings, BookOpen } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
+import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
@@ -11,13 +11,15 @@ import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
+import { CelebrationModal } from "@/components/home/CelebrationModal";
 import { useSound } from "@/hooks/useSound";
-import { toggleHabitAction, updateTimezoneAction } from "@/app/[locale]/actions";
+import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction } from "@/app/[locale]/actions";
 import { stageFromStreak } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
+  const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
 
@@ -40,6 +42,27 @@ export function HomeView({ data }: { data: DashboardData }) {
   // pet stages / streaks before the higher-stage art lands.
   const [devStageOverride, setDevStageOverride] = useState<number | null>(null);
   const [devStreakOverride, setDevStreakOverride] = useState<number | null>(null);
+
+  const [celebration, setCelebration] = useState<{
+    isOpen: boolean;
+    type: "streak" | "checkin" | "habit";
+    streakCount?: number;
+    coinsAwarded?: number;
+  }>({ isOpen: false, type: "habit" });
+
+  const [hasClaimedCheckinUI, setHasClaimedCheckinUI] = useState(false);
+
+  // Auto-trigger daily checkin popup
+  useEffect(() => {
+    if (!hasClaimedCheckinUI && data.profile.lastCheckinDate !== data.today) {
+      setCelebration({
+        isOpen: true,
+        type: "checkin",
+        coinsAwarded: 15,
+      });
+      setHasClaimedCheckinUI(true); // Prevent re-triggering while server action runs
+    }
+  }, [data.profile.lastCheckinDate, data.today, hasClaimedCheckinUI]);
 
   // Xử lý action tự động nhả về trạng thái mặc định sau vài giây
   useEffect(() => {
@@ -100,6 +123,15 @@ export function HomeView({ data }: { data: DashboardData }) {
     if (willComplete) {
       playTing();
       setCompanionOverrideAction("happy");
+      
+      // Determine if this is the first habit of the day, increasing the streak
+      // If previous streak + 1 = new streak, show streak celebration. (approx logic for UI)
+      // We will show a habit celebration
+      setCelebration({
+        isOpen: true,
+        type: "habit",
+        coinsAwarded: 10,
+      });
     } else {
       // Nếu undo thì có thể hơi buồn tí xíu
       setCompanionOverrideAction("sad");
@@ -118,6 +150,18 @@ export function HomeView({ data }: { data: DashboardData }) {
         });
       }
     });
+  };
+
+  const handleCloseCelebration = () => {
+    const isCheckin = celebration.type === "checkin";
+    setCelebration((prev) => ({ ...prev, isOpen: false }));
+    if (isCheckin) {
+      setCoins((c) => c + 15);
+      startTransition(async () => {
+        await claimDailyCheckinAction();
+        router.refresh();
+      });
+    }
   };
 
   const handleDoIt = (habit: HabitWithLog) => {
@@ -152,11 +196,33 @@ export function HomeView({ data }: { data: DashboardData }) {
         className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/20 p-6 min-h-[40vh] transition-colors duration-1000 ${roomBackground}`}
       >
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
-          <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm">
+          <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative">
             <Flame className="w-5 h-5 text-fire-orange" />
             <span className="text-fire-orange">
               {t("streakDays", { count: currentStreak })}
             </span>
+            {data.profile.streakFreezes > 0 && (
+              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-100 px-1.5 rounded" title="Thẻ đóng băng chuỗi">
+                ❄️ {data.profile.streakFreezes}
+              </span>
+            )}
+            {/* Tooltip mua thẻ */}
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <p className="text-xs text-gray-500 mb-2">Thẻ đóng băng giúp giữ chuỗi khi quên điểm danh (Giá: 50 Xu).</p>
+              <button 
+                className="w-full bg-blue-100 text-blue-600 hover:bg-blue-200 text-xs font-bold py-1.5 rounded-lg disabled:opacity-50"
+                disabled={coins < 50}
+                onClick={() => {
+                  setCoins(c => c - 50);
+                  startTransition(async () => {
+                    await buyFreezeAction();
+                    router.refresh();
+                  });
+                }}
+              >
+                Mua thẻ (❄️)
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -175,6 +241,19 @@ export function HomeView({ data }: { data: DashboardData }) {
               className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-purple-500 hover:text-purple-600 animate-pulse"
             >
               <BookOpen className="w-5 h-5" />
+            </button>
+
+            {/* Thống kê (Analytics) */}
+            <button
+              aria-label="Thống kê"
+              title="Thống kê"
+              onClick={() => {
+                playSwoosh();
+                router.push(`/${locale}/analytics`);
+              }}
+              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-blue-500 hover:text-blue-600"
+            >
+              <BarChart3 className="w-5 h-5" />
             </button>
 
             <button
@@ -349,6 +428,14 @@ export function HomeView({ data }: { data: DashboardData }) {
         isOpen={isAlbumOpen}
         onClose={() => setIsAlbumOpen(false)}
         currentStreak={currentStreak}
+      />
+      
+      <CelebrationModal
+        isOpen={celebration.isOpen}
+        onClose={handleCloseCelebration}
+        type={celebration.type}
+        streakCount={currentStreak}
+        coinsAwarded={celebration.coinsAwarded}
       />
     </main>
   );

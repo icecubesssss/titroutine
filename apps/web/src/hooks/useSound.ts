@@ -1,38 +1,47 @@
-import { useCallback, useRef } from "react";
-import { Howl } from "howler";
-
-// Place sound files in public/assets/sounds/ (e.g. ting.mp3, swoosh.mp3).
-// Loading is lazy and failure-tolerant: a missing or broken asset simply
-// results in a no-op instead of an uncaught error.
-const SOURCES = {
-  ting: "/assets/sounds/ting.mp3",
-  swoosh: "/assets/sounds/swoosh.mp3",
-} as const;
-
-type SoundName = keyof typeof SOURCES;
+import { useCallback } from "react";
 
 export const useSound = () => {
-  const cache = useRef<Partial<Record<SoundName, Howl | null>>>({});
-
-  const play = useCallback((name: SoundName, volume: number) => {
-    if (cache.current[name] === undefined) {
-      try {
-        cache.current[name] = new Howl({
-          src: [SOURCES[name]],
-          volume,
-          onloaderror: () => {
-            cache.current[name] = null;
-          },
-        });
-      } catch {
-        cache.current[name] = null;
-      }
+  const playTing = useCallback(() => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {
+      // ignore
     }
-    cache.current[name]?.play();
   }, []);
 
-  const playTing = useCallback(() => play("ting", 0.8), [play]);
-  const playSwoosh = useCallback(() => play("swoosh", 0.5), [play]);
+  const playSwoosh = useCallback(() => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   return { playTing, playSwoosh };
 };

@@ -123,7 +123,7 @@ export async function toggleHabitAction(input: {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date")
     .eq("id", userId)
     .maybeSingle();
   if (profileError) return { error: profileError.message };
@@ -161,9 +161,19 @@ export async function toggleHabitAction(input: {
 
   // Streak only advances on the first completion of a new day; the pet stage is
   // derived from the streak so the stored value always matches what's shown.
-  const newStreak = willComplete
-    ? nextStreak(profile?.current_streak ?? 0, profile?.last_active_date ?? null, today)
-    : profile?.current_streak ?? 0;
+  let newStreak = profile?.current_streak ?? 0;
+  let remainingFreezes = profile?.streak_freezes ?? 0;
+
+  if (willComplete) {
+    const streakResult = nextStreak(
+      profile?.current_streak ?? 0,
+      profile?.last_active_date ?? null,
+      today,
+      profile?.streak_freezes ?? 0
+    );
+    newStreak = streakResult.newStreak;
+    remainingFreezes -= streakResult.freezesUsed;
+  }
 
   const patch: Record<string, unknown> = {
     coins,
@@ -175,12 +185,82 @@ export async function toggleHabitAction(input: {
   if (willComplete) {
     patch.current_streak = newStreak;
     patch.last_active_date = today;
+    patch.streak_freezes = remainingFreezes;
   }
 
   const { error: updateError } = await supabase
     .from("profiles")
     .update(patch)
     .eq("id", userId);
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function claimDailyCheckinAction(): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("timezone, coins, last_checkin_date")
+    .eq("id", userId)
+    .maybeSingle();
+  
+  if (profileError) return { error: profileError.message };
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+
+  if (profile?.last_checkin_date === today) {
+    return { error: "already_checked_in" };
+  }
+
+  // Daily check-in reward: 15 coins
+  const newCoins = (profile?.coins ?? 0) + 15;
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ 
+      coins: newCoins,
+      last_checkin_date: today 
+    })
+    .eq("id", userId);
+    
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function buyFreezeAction(): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("coins, streak_freezes")
+    .eq("id", userId)
+    .maybeSingle();
+    
+  if (profileError) return { error: profileError.message };
+
+  const FREEZE_COST = 50;
+  const currentCoins = profile?.coins ?? 0;
+
+  if (currentCoins < FREEZE_COST) {
+    return { error: "not_enough_coins" };
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ 
+      coins: currentCoins - FREEZE_COST,
+      streak_freezes: (profile?.streak_freezes ?? 0) + 1 
+    })
+    .eq("id", userId);
+    
   if (updateError) return { error: updateError.message };
 
   revalidatePath("/", "layout");

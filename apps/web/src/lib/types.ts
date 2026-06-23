@@ -21,6 +21,8 @@ export interface ProfileSummary {
   totalExp: number;
   timezone: string;
   username: string | null;
+  lastCheckinDate: string | null;
+  streakFreezes: number;
 }
 
 export interface DashboardData {

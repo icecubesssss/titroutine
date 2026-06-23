@@ -30,7 +30,7 @@ export async function getDashboard(): Promise<DashboardData | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, timezone, coins, current_streak, total_exp, pet_stage")
+    .select("username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -79,6 +79,8 @@ export async function getDashboard(): Promise<DashboardData | null> {
       totalExp,
       timezone,
       username: profile?.username ?? null,
+      lastCheckinDate: profile?.last_checkin_date ?? null,
+      streakFreezes: profile?.streak_freezes ?? 0,
     },
     habits,
     today,

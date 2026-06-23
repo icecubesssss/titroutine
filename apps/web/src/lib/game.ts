@@ -50,11 +50,21 @@ export function daysBetween(fromISO: string, toISO: string): number {
 export function nextStreak(
   previousStreak: number,
   lastActiveDate: string | null,
-  today: string
-): number {
-  if (!lastActiveDate) return 1;
+  today: string,
+  availableFreezes: number = 0
+): { newStreak: number; freezesUsed: number } {
+  if (!lastActiveDate) return { newStreak: 1, freezesUsed: 0 };
   const diff = daysBetween(lastActiveDate, today);
-  if (diff <= 0) return previousStreak; // same day (or clock skew) — already counted
-  if (diff === 1) return previousStreak + 1; // consecutive day
-  return 1; // a gap broke the streak
+  if (diff <= 0) return { newStreak: previousStreak, freezesUsed: 0 }; // same day (or clock skew) — already counted
+  if (diff === 1) return { newStreak: previousStreak + 1, freezesUsed: 0 }; // consecutive day
+  
+  // A gap broke the streak. Check if we have enough freezes to cover the gap.
+  // E.g., if lastActive is Monday and today is Wednesday, diff is 2. The missed day is Tuesday (gap = 1).
+  const gap = diff - 1;
+  if (availableFreezes >= gap) {
+    // Used freezes to keep the streak alive. The completion today increments the streak.
+    return { newStreak: previousStreak + 1, freezesUsed: gap };
+  }
+  
+  return { newStreak: 1, freezesUsed: 0 }; // Not enough freezes, streak resets
 }

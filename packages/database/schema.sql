@@ -13,6 +13,7 @@ CREATE TABLE public.profiles (
   pet_stage INTEGER DEFAULT 0, -- 0: Trứng, 1: Thỏ con, v.v.
   affection_level INTEGER DEFAULT 0, -- Mức độ tình cảm với thú ảo
   last_active_date DATE, -- Dùng để tự động reset/kiểm tra streak
+  last_checkin_date DATE, -- Dùng để ghi nhận điểm danh mỗi ngày và thưởng xu
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

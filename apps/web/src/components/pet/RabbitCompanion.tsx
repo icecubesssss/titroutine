@@ -8,6 +8,7 @@ export type CompanionAction = "idle" | "sleep" | "happy" | "sad" | "eat" | "stud
 export interface RabbitCompanionProps {
   stage: number;
   action: CompanionAction;
+  equippedOutfit?: string;
   className?: string;
 }
 
@@ -135,9 +136,23 @@ export function getDefaultActionByTime(): CompanionAction {
 export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
   stage,
   action,
+  equippedOutfit,
   className,
 }) => {
   const config = STAGES_CONFIG[stage] || STAGES_CONFIG[0];
+  
+  // Xử lý mặc trang phục (Outfit Override)
+  // Chỉ áp dụng override nếu đang ở Stage 6 và có đồ (bản demo concept)
+  let finalSpriteUrl = config.spriteUrl!;
+  if (equippedOutfit && stage === 6) {
+    // Tạm thời lấy placeholder hoặc ảnh thật của outfit nếu đã làm
+    // Trong tương lai, mỗi outfit sẽ có sprite sheet tương ứng
+    // Ví dụ: outfit_summer_dress -> /assets/outfit_summer_dress_sprite.png
+    finalSpriteUrl = `/assets/${equippedOutfit}_sprite.png`;
+    // Lưu ý: Nếu file chưa có thật, UI sẽ bị gãy ảnh (broken image).
+    // Tạm thời giữ fallback về spriteUrl gốc nếu không load được, nhưng thẻ <img> không dễ bắt lỗi trong Canvas.
+    // Vì đây là demo, ta cứ truyền link mới.
+  }
 
   // Nếu stage này có file multi-action sprite sheet
   if (config.actions) {
@@ -145,7 +160,7 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
     
     return (
       <VirtualPet
-        spriteUrl={config.spriteUrl!}
+        spriteUrl={finalSpriteUrl}
         sheetWidth={config.sheetWidth}
         sheetHeight={config.sheetHeight}
         frameWidth={config.frameWidth!}
@@ -164,7 +179,7 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
   // Fallback cho các stage cũ chưa vẽ xong
   return (
     <VirtualPet
-      spriteUrl={config.spriteUrl!}
+      spriteUrl={finalSpriteUrl}
       sheetWidth={config.sheetWidth}
       sheetHeight={config.sheetHeight}
       offsetX={config.offsetX}

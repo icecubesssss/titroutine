@@ -2,13 +2,14 @@ import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
 import { stageFromStreak, todayInTimezone } from "./game";
-import type { DashboardData, HabitConfig, HabitType, HabitWithLog } from "./types";
+import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency } from "./types";
 
 interface HabitRow {
   id: string;
   title: string;
   type: HabitType | null;
   config: HabitConfig | null;
+  frequency: HabitFrequency | null;
 }
 
 interface LogRow {
@@ -42,7 +43,7 @@ export async function getDashboard(): Promise<DashboardData | null> {
   const [{ data: habitRows }, { data: logRows }, { data: inventoryData }] = await Promise.all([
     supabase
       .from("habits")
-      .select("id, title, type, config")
+      .select("id, title, type, config, frequency")
       .eq("user_id", user.id)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
@@ -63,17 +64,31 @@ export async function getDashboard(): Promise<DashboardData | null> {
     logByHabit.set(log.habit_id, log);
   }
 
-  const habits: HabitWithLog[] = ((habitRows ?? []) as HabitRow[]).map((h) => {
-    const log = logByHabit.get(h.id);
-    return {
-      id: h.id,
-      title: h.title,
-      type: (h.type as HabitType) ?? "boolean",
-      config: h.config ?? {},
-      isCompleted: Boolean(log?.is_completed),
-      value: log?.value ?? null,
-    };
-  });
+  // Calculate day of week safely (0 = Sunday, 1 = Monday, etc.)
+  // We append T00:00:00 to avoid timezone shift in new Date() parsing
+  const dayOfWeek = new Date(`${today}T00:00:00`).getDay();
+
+  const habits: HabitWithLog[] = ((habitRows ?? []) as HabitRow[])
+    .map((h) => {
+      const log = logByHabit.get(h.id);
+      const frequency = h.frequency ?? { type: "daily" };
+      return {
+        id: h.id,
+        title: h.title,
+        type: (h.type as HabitType) ?? "boolean",
+        config: h.config ?? {},
+        frequency,
+        isCompleted: Boolean(log?.is_completed),
+        value: log?.value ?? null,
+      };
+    })
+    .filter((h) => {
+      // Filter out habits that are not due today based on specific_days frequency
+      if (h.frequency.type === "specific_days" && Array.isArray(h.frequency.days)) {
+        return h.frequency.days.includes(dayOfWeek);
+      }
+      return true; // daily and x_times_a_week show up every day
+    });
 
   return {
     profile: {

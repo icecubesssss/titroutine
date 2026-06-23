@@ -9,7 +9,7 @@ import {
   archiveHabitAction,
   updateHabitAction,
 } from "@/app/[locale]/actions";
-import type { HabitWithLog } from "@/lib/types";
+import type { HabitWithLog, FrequencyType } from "@/lib/types";
 
 interface HabitModalProps {
   isOpen: boolean;
@@ -24,8 +24,11 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   const isEdit = Boolean(habit);
 
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<"boolean" | "timer">("boolean");
+  const [type, setType] = useState<"boolean" | "timer" | "counter">("boolean");
   const [duration, setDuration] = useState(15);
+  const [targetCount, setTargetCount] = useState(5);
+  const [freqType, setFreqType] = useState<FrequencyType>("daily");
+  const [freqDays, setFreqDays] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -33,12 +36,18 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   useEffect(() => {
     if (habit) {
       setTitle(habit.title);
-      setType(habit.type === "timer" ? "timer" : "boolean");
+      setType(habit.type as "boolean" | "timer" | "counter");
       setDuration(habit.config.target_time ? Math.round(habit.config.target_time / 60) : 15);
+      setTargetCount(habit.config.target_count || 5);
+      setFreqType(habit.frequency?.type || "daily");
+      setFreqDays(habit.frequency?.days || []);
     } else {
       setTitle("");
       setType("boolean");
       setDuration(15);
+      setTargetCount(5);
+      setFreqType("daily");
+      setFreqDays([]);
     }
     setError(null);
   }, [habit, isOpen]);
@@ -51,16 +60,25 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
     setError(null);
 
     startTransition(async () => {
+      const frequency = {
+        type: freqType,
+        days: freqType === "specific_days" ? freqDays : undefined,
+      };
+
       const result = isEdit
         ? await updateHabitAction({
             id: habit!.id,
             title,
             durationMinutes: type === "timer" ? duration : undefined,
+            targetCount: type === "counter" ? targetCount : undefined,
+            frequency,
           })
         : await addHabitAction({
             title,
-            type,
+            type: type as "boolean" | "timer" | "counter",
             durationMinutes: type === "timer" ? duration : undefined,
+            targetCount: type === "counter" ? targetCount : undefined,
+            frequency,
           });
 
       if (result?.error) {
@@ -148,6 +166,17 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                 >
                   ⏳ {t("typeTimer")}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setType("counter")}
+                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                    type === "counter"
+                      ? "border-fire-orange bg-orange-50 text-fire-orange"
+                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  🔢 Đếm
+                </button>
               </div>
             </div>
           )}
@@ -167,6 +196,75 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
               />
             </div>
           )}
+
+          {type === "counter" && (
+            <div className="space-y-2 animate-in slide-in-from-top-2">
+              <label className="block text-sm font-bold text-earth-text">Số lần / Số lượng (VD: 8 ly nước)</label>
+              <input
+                aria-label="Mục tiêu đếm"
+                title="Mục tiêu đếm"
+                type="number"
+                min={1}
+                max={999}
+                value={targetCount}
+                onChange={(e) => setTargetCount(Number(e.target.value))}
+                className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl focus:border-fire-orange focus:outline-none transition-colors"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-earth-text">Lịch trình</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFreqType("daily")}
+                className={`flex-1 p-2 rounded-xl border-2 font-bold transition-all ${
+                  freqType === "daily"
+                    ? "border-fire-orange bg-orange-50 text-fire-orange"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                Hàng ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => setFreqType("specific_days")}
+                className={`flex-1 p-2 rounded-xl border-2 font-bold transition-all ${
+                  freqType === "specific_days"
+                    ? "border-fire-orange bg-orange-50 text-fire-orange"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                Chọn ngày
+              </button>
+            </div>
+            {freqType === "specific_days" && (
+              <div className="flex justify-between mt-2 gap-1 animate-in slide-in-from-top-2">
+                {[1, 2, 3, 4, 5, 6, 0].map((d, index) => {
+                  const labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                  const isSelected = freqDays.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) setFreqDays(freqDays.filter(day => day !== d));
+                        else setFreqDays([...freqDays, d]);
+                      }}
+                      className={`w-10 h-10 rounded-full font-bold transition-all ${
+                        isSelected 
+                          ? "bg-fire-orange text-white"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                      }`}
+                    >
+                      {labels[index]}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 

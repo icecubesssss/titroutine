@@ -111,7 +111,9 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   >
                     <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
                       {/* Fake Image preview, real image would use next/image */}
-                      <div className="text-4xl">{item.slot === "wallpaper" ? "🖼️" : "🧶"}</div>
+                      <div className="text-4xl">
+                        {item.slot === "wallpaper" ? "🖼️" : item.slot === "outfit" ? "👗" : "🧶"}
+                      </div>
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>
@@ -161,7 +163,9 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       }`}
                     >
                       <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100">
-                        <div className="text-4xl">{item.slot === "wallpaper" ? "🖼️" : "🧶"}</div>
+                        <div className="text-4xl">
+                          {item.slot === "wallpaper" ? "🖼️" : item.slot === "outfit" ? "👗" : "🧶"}
+                        </div>
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>

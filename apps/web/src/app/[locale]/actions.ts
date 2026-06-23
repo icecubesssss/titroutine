@@ -42,8 +42,10 @@ export async function updateTimezoneAction(timezone: string): Promise<ActionResu
 
 export async function addHabitAction(input: {
   title: string;
-  type: Extract<HabitType, "boolean" | "timer">;
+  type: Extract<HabitType, "boolean" | "timer" | "counter">;
   durationMinutes?: number;
+  targetCount?: number;
+  frequency?: Record<string, unknown>;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -51,16 +53,19 @@ export async function addHabitAction(input: {
   const title = input.title.trim();
   if (!title) return { error: "empty_title" };
 
-  const config =
-    input.type === "timer" && input.durationMinutes
-      ? { target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 }
-      : {};
+  const config: Record<string, unknown> = {};
+  if (input.type === "timer" && input.durationMinutes) {
+    config.target_time = Math.max(1, Math.round(input.durationMinutes)) * 60;
+  } else if (input.type === "counter" && input.targetCount) {
+    config.target_count = Math.max(1, Math.round(input.targetCount));
+  }
 
   const { error } = await supabase.from("habits").insert({
     user_id: userId,
     title,
     type: input.type,
     config,
+    frequency: input.frequency ?? { type: "daily" },
   });
   if (error) return { error: error.message };
 
@@ -72,6 +77,8 @@ export async function updateHabitAction(input: {
   id: string;
   title: string;
   durationMinutes?: number;
+  targetCount?: number;
+  frequency?: Record<string, unknown>;
 }): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -81,7 +88,13 @@ export async function updateHabitAction(input: {
 
   const patch: Record<string, unknown> = { title };
   if (input.durationMinutes != null) {
-    patch.config = { target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 };
+    patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 };
+  }
+  if (input.targetCount != null) {
+    patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_count: Math.max(1, Math.round(input.targetCount)) };
+  }
+  if (input.frequency != null) {
+    patch.frequency = input.frequency;
   }
 
   const { error } = await supabase
@@ -193,6 +206,74 @@ export async function toggleHabitAction(input: {
     .update(patch)
     .eq("id", userId);
   if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function incrementCounterHabitAction(input: {
+  habitId: string;
+  incrementAmount: number;
+  targetCount: number;
+}): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+
+  const { data: existing } = await supabase
+    .from("habit_logs")
+    .select("id, is_completed, value")
+    .eq("habit_id", input.habitId)
+    .eq("date", today)
+    .maybeSingle();
+
+  if (existing?.is_completed) return {}; // already done
+
+  const currentValue = existing?.value ?? 0;
+  const newValue = Math.max(0, currentValue + input.incrementAmount);
+  const willComplete = newValue >= input.targetCount;
+
+  const { error: logError } = await supabase.from("habit_logs").upsert(
+    {
+      habit_id: input.habitId,
+      user_id: userId,
+      date: today,
+      is_completed: willComplete,
+      value: newValue,
+    },
+    { onConflict: "habit_id,date" }
+  );
+  if (logError) return { error: logError.message };
+
+  if (willComplete) {
+    const coins = Math.max(0, (profile?.coins ?? 0) + COINS_PER_HABIT);
+    const totalExp = Math.max(0, (profile?.total_exp ?? 0) + EXP_PER_HABIT);
+    
+    const streakResult = nextStreak(
+      profile?.current_streak ?? 0,
+      profile?.last_active_date ?? null,
+      today,
+      profile?.streak_freezes ?? 0
+    );
+    
+    await supabase.from("profiles").update({
+      coins,
+      total_exp: totalExp,
+      current_streak: streakResult.newStreak,
+      streak_freezes: profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0,
+      pet_stage: stageFromStreak(streakResult.newStreak),
+      last_active_date: today,
+      updated_at: new Date().toISOString(),
+    }).eq("id", userId);
+  }
 
   revalidatePath("/", "layout");
   return {};

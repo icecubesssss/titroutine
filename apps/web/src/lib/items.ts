@@ -3,7 +3,7 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number;
-  slot: "wallpaper" | "rug" | "object";
+  slot: "wallpaper" | "rug" | "object" | "outfit";
   className?: string; // CSS class to apply when equipped (for wallpapers/rugs)
   imageUrl: string;
 }
@@ -55,5 +55,14 @@ export const SHOP_ITEMS: ShopItem[] = [
     slot: "rug",
     className: "bg-gradient-to-r from-red-100 via-yellow-100 to-blue-100",
     imageUrl: "/assets/items/rug_rainbow.png",
+  },
+  // Outfits
+  {
+    id: "outfit_summer_dress",
+    name: "Váy Trễ Vai Mùa Hè",
+    description: "Tự tin, quyến rũ và tươi mát. Chỉ dành cho Stage 6.",
+    price: 500,
+    slot: "outfit",
+    imageUrl: "/assets/items/outfit_summer.png",
   },
 ];

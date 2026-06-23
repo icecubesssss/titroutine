@@ -15,7 +15,7 @@ import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
-import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction } from "@/app/[locale]/actions";
+import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction, incrementCounterHabitAction } from "@/app/[locale]/actions";
 import { stageFromStreak } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 
@@ -51,7 +51,8 @@ export function HomeView({ data }: { data: DashboardData }) {
     type: "streak" | "checkin" | "habit";
     streakCount?: number;
     coinsAwarded?: number;
-  }>({ isOpen: false, type: "habit" });
+    habitTitle?: string;
+  }>({ isOpen: false, type: "streak" });
 
   const [hasClaimedCheckinUI, setHasClaimedCheckinUI] = useState(false);
 
@@ -143,6 +144,43 @@ export function HomeView({ data }: { data: DashboardData }) {
     startTransition(async () => {
       try {
         await toggleHabitAction({ habitId: habit.id, value });
+        router.refresh();
+      } finally {
+        inFlight.current.delete(habit.id);
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(habit.id);
+          return next;
+        });
+      }
+    });
+  };
+
+  const handleIncrementCounter = (habit: HabitWithLog, amount: number) => {
+    if (pendingIds.has(habit.id)) return;
+    const currentVal = habit.value || 0;
+    const target = habit.config.target_count || 1;
+    if (currentVal + amount < 0) return;
+    
+    playSwoosh();
+    setPendingIds((prev) => new Set(prev).add(habit.id));
+    inFlight.current.add(habit.id);
+
+    startTransition(async () => {
+      try {
+        await incrementCounterHabitAction({ 
+          habitId: habit.id, 
+          incrementAmount: amount, 
+          targetCount: target 
+        });
+        
+        // If it completes, play celebration
+        if (currentVal + amount >= target) {
+          playTing();
+          setCelebration({ isOpen: true, type: "habit", habitTitle: habit.title });
+          setCompanionOverrideAction("happy");
+        }
+        
         router.refresh();
       } finally {
         inFlight.current.delete(habit.id);
@@ -298,9 +336,10 @@ export function HomeView({ data }: { data: DashboardData }) {
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px]"></div>
 
           <RabbitCompanion
-            key={`stage-${currentStage}-${currentAction}`}
+            key={`stage-${currentStage}-${currentAction}-${data.inventory.equippedItems["outfit"]}`}
             stage={currentStage}
             action={currentAction}
+            equippedOutfit={data.inventory.equippedItems["outfit"]}
             className="drop-shadow-lg"
           />
 
@@ -361,6 +400,8 @@ export function HomeView({ data }: { data: DashboardData }) {
                     <p className="text-sm text-gray-400 font-medium">
                       {habit.type === "timer" && habit.config.target_time
                         ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
+                        : habit.type === "counter" && habit.config.target_count
+                        ? `Mục tiêu: ${habit.config.target_count}`
                         : t("daily")}
                     </p>
                   </div>
@@ -377,6 +418,26 @@ export function HomeView({ data }: { data: DashboardData }) {
                   >
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   </button>
+                ) : habit.type === "counter" ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={pendingIds.has(habit.id)}
+                      onClick={() => handleIncrementCounter(habit, -1)}
+                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+                    >
+                      -
+                    </button>
+                    <span className="font-bold tabular-nums min-w-[2.5rem] text-center text-earth-text">
+                      {habit.value || 0}/{habit.config.target_count || 1}
+                    </span>
+                    <button
+                      disabled={pendingIds.has(habit.id)}
+                      onClick={() => handleIncrementCounter(habit, 1)}
+                      className="w-8 h-8 rounded-full bg-fire-orange flex items-center justify-center font-bold text-white hover:bg-orange-600 shadow-sm disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
                 ) : (
                   <DuoButton
                     variant="primary"

@@ -1,5 +1,13 @@
 export type HabitType = "boolean" | "timer" | "counter";
 
+export type FrequencyType = "daily" | "specific_days" | "x_times_a_week";
+
+export interface HabitFrequency {
+  type: FrequencyType;
+  days?: number[]; // 0 = Sunday, 1 = Monday, etc.
+  timesPerWeek?: number;
+}
+
 export interface HabitConfig {
   target_time?: number; // seconds, for timer habits
   target_count?: number; // for counter habits
@@ -10,6 +18,7 @@ export interface HabitWithLog {
   title: string;
   type: HabitType;
   config: HabitConfig;
+  frequency: HabitFrequency;
   isCompleted: boolean;
   value: number | null;
 }

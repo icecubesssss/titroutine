@@ -16,7 +16,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Hình nền hoa nhí tone hồng ấm áp.",
     price: 250,
     slot: "wallpaper",
-    className: "bg-[#ffe4e1] bg-[url('/assets/patterns/floral.png')] bg-repeat",
+    className: "bg-[url('/assets/items/wallpaper_floral.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_floral.png",
   },
   {
@@ -25,7 +25,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Hình nền bầu trời sao lung linh.",
     price: 300,
     slot: "wallpaper",
-    className: "bg-gradient-to-b from-[#1a1c2c] to-[#4a3d60]",
+    className: "bg-[url('/assets/items/wallpaper_stars.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_stars.png",
   },
   {
@@ -34,7 +34,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Không gian tươi mát mộc mạc.",
     price: 200,
     slot: "wallpaper",
-    className: "bg-gradient-to-b from-[#d4ecd3] to-[#8db596]",
+    className: "bg-[url('/assets/items/wallpaper_forest.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_forest.png",
   },
   // Rugs
@@ -56,13 +56,5 @@ export const SHOP_ITEMS: ShopItem[] = [
     className: "bg-gradient-to-r from-red-100 via-yellow-100 to-blue-100",
     imageUrl: "/assets/items/rug_rainbow.png",
   },
-  // Outfits
-  {
-    id: "outfit_summer_dress",
-    name: "Váy Trễ Vai Mùa Hè",
-    description: "Tự tin, quyến rũ và tươi mát. Chỉ dành cho Stage 6.",
-    price: 500,
-    slot: "outfit",
-    imageUrl: "/assets/items/outfit_summer.png",
-  },
+  // Outfits removed as per technical plan
 ];

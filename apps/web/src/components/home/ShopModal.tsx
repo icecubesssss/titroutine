@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { SHOP_ITEMS } from "@/lib/items";
 import { buyItemAction, equipItemAction } from "@/app/[locale]/actions";
 
@@ -110,10 +111,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     className="bg-white rounded-2xl border-2 border-[#f0e6d2] p-3 flex flex-col shadow-sm"
                   >
                     <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                      {/* Fake Image preview, real image would use next/image */}
-                      <div className="text-4xl">
-                        {item.slot === "wallpaper" ? "🖼️" : item.slot === "outfit" ? "👗" : "🧶"}
-                      </div>
+                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>
@@ -162,10 +160,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         isEquipped ? "border-amber-400 bg-amber-50/30" : "border-[#f0e6d2]"
                       }`}
                     >
-                      <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100">
-                        <div className="text-4xl">
-                          {item.slot === "wallpaper" ? "🖼️" : item.slot === "outfit" ? "👗" : "🧶"}
-                        </div>
+                      <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
+                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>

@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 import confetti from "canvas-confetti";
+import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
 import { HabitModal } from "@/components/home/HabitModal";
@@ -232,6 +233,10 @@ export function HomeView({ data }: { data: DashboardData }) {
   const customWallpaper = SHOP_ITEMS.find((item) => item.id === equippedWallpaperId);
   const roomBackground = customWallpaper ? customWallpaper.className : activeStage.roomBackground;
 
+  // Custom Rug
+  const equippedRugId = data.inventory.equippedItems["rug"];
+  const customRug = SHOP_ITEMS.find((item) => item.id === equippedRugId);
+
   const isEvolved = currentStage >= 1;
 
   // Determine current companion action
@@ -340,7 +345,17 @@ export function HomeView({ data }: { data: DashboardData }) {
             setCompanionOverrideAction("happy"); // Bấm vào thỏ thì nó vui
           }}
         >
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px]"></div>
+          {customRug ? (
+            <Image 
+              src={customRug.imageUrl} 
+              alt="Rug" 
+              width={250}
+              height={125}
+              className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[220px] object-contain opacity-95 -z-10" 
+            />
+          ) : (
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px] -z-10"></div>
+          )}
 
           <RabbitCompanion
             key={`stage-${currentStage}-${currentAction}-${data.inventory.equippedItems["outfit"]}`}

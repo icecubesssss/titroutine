@@ -39,6 +39,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   // Synchronous guard so a rapid double-tap can't double-award coins/EXP.
   const inFlight = useRef<Set<string>>(new Set());
   const [, startTransition] = useTransition();
+  const [isNavigating, startNavigation] = useTransition();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitWithLog | null>(null);
@@ -432,7 +433,7 @@ export function HomeView({ data }: { data: DashboardData }) {
       </section>
 
       {/* Bottom half: Habits */}
-      <section className="flex-[1.2] bg-earth-bg p-6 pb-24 overflow-y-auto">
+      <section className={`flex-[1.2] bg-earth-bg p-6 pb-24 overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
         {/* Weekly Header */}
         <div className="mb-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -440,7 +441,7 @@ export function HomeView({ data }: { data: DashboardData }) {
               <button
                 type="button"
                 aria-label={t("prevDay")}
-                onClick={() => router.push(`/${locale}?date=${format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
+                onClick={() => startNavigation(() => router.push(`/${locale}?date=${format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`))}
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-500" />
@@ -451,7 +452,7 @@ export function HomeView({ data }: { data: DashboardData }) {
               <button
                 type="button"
                 aria-label={t("nextDay")}
-                onClick={() => router.push(`/${locale}?date=${format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
+                onClick={() => startNavigation(() => router.push(`/${locale}?date=${format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`))}
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <ChevronRight className="w-5 h-5 text-gray-500" />
@@ -461,7 +462,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             <div className="flex items-center gap-2">
               {!data.isToday && (
                 <button 
-                  onClick={() => router.push(`/${locale}`)}
+                  onClick={() => startNavigation(() => router.push(`/${locale}`))}
                   className="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wider hover:bg-blue-700"
                 >
                   Hôm nay
@@ -485,7 +486,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                 return (
                   <button
                     key={dateStr}
-                    onClick={() => router.push(`/${locale}?date=${dateStr}`)}
+                    onClick={() => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
                     className={`flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative ${
                       isSelected 
                         ? "bg-blue-600 text-white shadow-md scale-105" 

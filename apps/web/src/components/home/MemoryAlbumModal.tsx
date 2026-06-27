@@ -3,64 +3,24 @@
 import React from "react";
 import { X, Lock, Heart, Award } from "lucide-react";
 import Image from "next/image";
-
-interface MemoryItem {
-  key: string;
-  title: string;
-  caption: string;
-  requiredStreak: number;
-  imageUrl: string;
-}
-
-const MEMORIES: MemoryItem[] = [
-  {
-    key: "memory_day_1",
-    title: "Ngày Đầu Gặp Gỡ",
-    caption: "The day we first met.",
-    requiredStreak: 3,
-    imageUrl: "/assets/memory_day_1.png",
-  },
-  {
-    key: "memory_day_30",
-    title: "Cùng Nhau Cố Gắng",
-    caption: "We started building habits together.",
-    requiredStreak: 30,
-    imageUrl: "/assets/memory_day_30.png",
-  },
-  {
-    key: "memory_day_100",
-    title: "Một Chặng Đường Dài",
-    caption: "We've come this far.",
-    requiredStreak: 100,
-    imageUrl: "/assets/memory_day_100.png",
-  },
-  {
-    key: "memory_day_365",
-    title: "Kỷ Niệm Tròn Năm",
-    caption: "One whole year together.",
-    requiredStreak: 365,
-    imageUrl: "/assets/memory_day_365.png",
-  },
-  {
-    key: "memory_day_1000",
-    title: "Cảm Ơn Vì Đã Ở Lại",
-    caption: "Thank you for staying.",
-    requiredStreak: 1000,
-    imageUrl: "/assets/memory_day_1000.png",
-  },
-];
+import { useTranslations } from "next-intl";
+import { MEMORIES } from "@/lib/memories";
 
 interface MemoryAlbumModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStreak: number;
+  /** Keys persisted server-side; an unlocked memory stays unlocked after a reset. */
+  unlockedMemories: string[];
 }
 
 export const MemoryAlbumModal: React.FC<MemoryAlbumModalProps> = ({
   isOpen,
   onClose,
   currentStreak,
+  unlockedMemories,
 }) => {
+  const t = useTranslations("Memory");
   if (!isOpen) return null;
 
   return (
@@ -70,11 +30,12 @@ export const MemoryAlbumModal: React.FC<MemoryAlbumModalProps> = ({
         {/* Header */}
         <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-stone-200 bg-amber-900/5">
           <h2 className="text-2xl font-black text-amber-900 flex items-center gap-2">
-            📔 Sổ Tay Kỷ Niệm
+            📔 {t("title")}
           </h2>
           <button
-            aria-label="Close"
-            title="Close"
+            type="button"
+            aria-label={t("close")}
+            title={t("close")}
             onClick={onClose}
             className="p-2 rounded-full bg-stone-200 hover:bg-stone-300 transition-colors text-stone-600"
           >
@@ -85,12 +46,13 @@ export const MemoryAlbumModal: React.FC<MemoryAlbumModalProps> = ({
         {/* Scrollable Album Body */}
         <div className="p-6 overflow-y-auto space-y-8 flex-1 bg-stone-100">
           <div className="text-center text-stone-500 text-xs font-semibold uppercase tracking-wider mb-2">
-            ✨ Duy trì thói quen để cùng thỏ ghi lại kỷ niệm ✨
+            ✨ {t("subtitle")} ✨
           </div>
           
           <div className="space-y-8">
             {MEMORIES.map((memory) => {
-              const isUnlocked = currentStreak >= memory.requiredStreak;
+              const isUnlocked =
+                unlockedMemories.includes(memory.key) || currentStreak >= memory.requiredStreak;
 
               return (
                 <div
@@ -121,10 +83,10 @@ export const MemoryAlbumModal: React.FC<MemoryAlbumModalProps> = ({
                       
                       <div className="w-full flex items-center justify-between mt-4 text-xs font-bold text-amber-800">
                         <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4 fill-red-400 text-red-400" /> {memory.title}
+                          <Heart className="w-4 h-4 fill-red-400 text-red-400" /> {t(`${memory.key}_title`)}
                         </span>
                         <span className="bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                          <Award className="w-3.5 h-3.5" /> Streak {memory.requiredStreak}+ ngày
+                          <Award className="w-3.5 h-3.5" /> {t("streakBadge", { days: memory.requiredStreak })}
                         </span>
                       </div>
                     </div>
@@ -133,9 +95,9 @@ export const MemoryAlbumModal: React.FC<MemoryAlbumModalProps> = ({
                       <div className="w-16 h-16 rounded-full bg-stone-200 flex items-center justify-center mb-4">
                         <Lock className="w-8 h-8 text-stone-400" />
                       </div>
-                      <div className="font-bold text-stone-600 mb-1">{memory.title}</div>
+                      <div className="font-bold text-stone-600 mb-1">{t(`${memory.key}_title`)}</div>
                       <div className="text-xs text-stone-500">
-                        Cần duy trì streak tối thiểu {memory.requiredStreak} ngày để mở khóa
+                        {t("lockedHint", { days: memory.requiredStreak })}
                       </div>
                     </div>
                   )}

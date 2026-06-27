@@ -12,3 +12,17 @@ body {
   background: var(--background);
   font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
+
+/* One-shot flash played over the pet when it evolves / hatches. */
+@keyframes evo-burst {
+  0%   { transform: scale(0.3); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Gentle pop-in for the pet's encouragement speech bubble. */
+@keyframes bubble-pop {
+  0%   { transform: translateY(6px) scale(0.85); opacity: 0; }
+  60%  { transform: translateY(0) scale(1.04); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}

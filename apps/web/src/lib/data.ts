@@ -1,7 +1,8 @@
 import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
-import { stageFromStreak, todayInTimezone } from "./game";
+import { ratchetStage, todayInTimezone } from "./game";
+import { eligibleMemoryKeys } from "./memories";
 import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
 
 interface HabitRow {
@@ -43,7 +44,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const totalExp = profile?.total_exp ?? 0;
   const currentStreak = profile?.current_streak ?? 0;
 
-  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }] = await Promise.all([
+  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config, frequency, time_of_day")
@@ -60,7 +61,20 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .select("equipped_items, unlocked_items")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("memories")
+      .select("memory_key")
+      .eq("user_id", user.id),
   ]);
+
+  // Persisted keepsakes plus anything the *current* streak earns right now, so a
+  // memory shows the moment it's reached even before the next mutation writes it.
+  const unlockedMemories = Array.from(
+    new Set([
+      ...((memoryRows ?? []) as { memory_key: string }[]).map((m) => m.memory_key),
+      ...eligibleMemoryKeys(currentStreak),
+    ])
+  );
 
   const logByHabit = new Map<string, LogRow>();
   for (const log of (logRows ?? []) as LogRow[]) {
@@ -97,8 +111,9 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     profile: {
       coins: profile?.coins ?? 0,
       currentStreak,
-      // Stage is derived from the streak (age-based evolution per the design bible).
-      petStage: profile?.pet_stage ?? stageFromStreak(currentStreak),
+      // Stage = highest reached. The streak sets a floor; the stored value can be
+      // higher because evolution never reverses (see ratchetStage in game.ts).
+      petStage: ratchetStage(profile?.pet_stage, currentStreak),
       totalExp,
       timezone,
       username: profile?.username ?? null,
@@ -109,6 +124,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
       unlockedItems: (inventoryData?.unlocked_items as string[]) || [],
     },
+    unlockedMemories,
     habits,
     today,
     currentDate: targetDate,

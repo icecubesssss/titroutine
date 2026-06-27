@@ -23,9 +23,12 @@ cd apps/web && npm run build      # build + typecheck (the real verification)
   runs next-intl routing, and gates routes (no session → `/<locale>/login`).
 - **Today/streaks are timezone-aware**: computed in the user's IANA timezone
   (captured client-side on first load), never UTC.
-- **Single source of truth for pet stage = `stageFromStreak(streak)`** in
-  `lib/game.ts`. Both the server (`pet_stage` column) and the UI use it. Do NOT
-  reintroduce an EXP-based stage. `total_exp`/`coins` are economy only.
+- **Single source of truth for pet stage = `ratchetStage(stored, streak)`** in
+  `lib/game.ts` (= `max(stored pet_stage, stageFromStreak(streak))`). The streak
+  sets a floor via `STAGE_STREAK_THRESHOLDS`, but evolution **never reverses** — a
+  broken streak keeps the stage already reached. Both the server (`pet_stage`
+  column) and the UI go through `ratchetStage`. Do NOT reintroduce an EXP-based
+  stage. `total_exp`/`coins` are economy only.
 
 ## File map (open these directly, don't go hunting)
 

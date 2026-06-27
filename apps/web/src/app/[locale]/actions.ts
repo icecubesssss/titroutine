@@ -6,9 +6,10 @@ import {
   COINS_PER_HABIT,
   EXP_PER_HABIT,
   nextStreak,
-  stageFromStreak,
+  ratchetStage,
   todayInTimezone,
 } from "@/lib/game";
+import { eligibleMemoryKeys } from "@/lib/memories";
 import type { HabitType } from "@/lib/types";
 
 type ActionResult = { error?: string };
@@ -19,6 +20,24 @@ async function getUserId() {
     data: { user },
   } = await supabase.auth.getUser();
   return { supabase, userId: user?.id ?? null };
+}
+
+type Supabase = Awaited<ReturnType<typeof getUserId>>["supabase"];
+
+/**
+ * Persist any newly-earned memory keepsakes. Idempotent: existing rows are ignored
+ * thanks to the UNIQUE(user_id, memory_key) constraint, so this is safe to call on
+ * every completion. Keeps memories from vanishing when a streak later resets.
+ */
+async function reconcileMemories(supabase: Supabase, userId: string, streak: number) {
+  const keys = eligibleMemoryKeys(streak);
+  if (keys.length === 0) return;
+  await supabase
+    .from("memories")
+    .upsert(
+      keys.map((memory_key) => ({ user_id: userId, memory_key })),
+      { onConflict: "user_id,memory_key", ignoreDuplicates: true }
+    );
 }
 
 /**
@@ -143,7 +162,7 @@ export async function toggleHabitAction(input: {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage")
     .eq("id", userId)
     .maybeSingle();
   if (profileError) return { error: profileError.message };
@@ -210,7 +229,8 @@ export async function toggleHabitAction(input: {
   const patch: Record<string, unknown> = {
     coins,
     total_exp: totalExp,
-    pet_stage: stageFromStreak(newStreak),
+    // Evolution never reverses: a broken streak keeps the stage already reached.
+    pet_stage: ratchetStage(profile?.pet_stage, newStreak),
     updated_at: new Date().toISOString(),
   };
 
@@ -228,6 +248,8 @@ export async function toggleHabitAction(input: {
     .eq("id", userId);
   if (updateError) return { error: updateError.message };
 
+  if (willComplete) await reconcileMemories(supabase, userId, newStreak);
+
   revalidatePath("/", "layout");
   return {};
 }
@@ -243,7 +265,7 @@ export async function incrementCounterHabitAction(input: {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage")
     .eq("id", userId)
     .maybeSingle();
 
@@ -292,10 +314,12 @@ export async function incrementCounterHabitAction(input: {
       total_exp: totalExp,
       current_streak: streakResult.newStreak,
       streak_freezes: profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0,
-      pet_stage: stageFromStreak(streakResult.newStreak),
+      pet_stage: ratchetStage(profile?.pet_stage, streakResult.newStreak),
       last_active_date: today,
       updated_at: new Date().toISOString(),
     }).eq("id", userId);
+
+    await reconcileMemories(supabase, userId, streakResult.newStreak);
   }
 
   revalidatePath("/", "layout");

@@ -31,6 +31,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   const [freqType, setFreqType] = useState<FrequencyType>("daily");
   const [freqDays, setFreqDays] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Hydrate the form whenever the target habit changes.
@@ -53,6 +54,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
       setFreqDays([]);
     }
     setError(null);
+    setConfirmDelete(false);
   }, [habit, isOpen]);
 
   if (!isOpen) return null;
@@ -97,6 +99,11 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
 
   const handleDelete = () => {
     if (!habit) return;
+    // Require a second tap so a stray click can't archive a habit by accident.
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     startTransition(async () => {
       const result = await archiveHabitAction(habit.id);
       if (result?.error) {
@@ -180,7 +187,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                       : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                   }`}
                 >
-                  🔢 Đếm
+                  🔢 {t("typeCounter")}
                 </button>
                 <button
                   type="button"
@@ -191,7 +198,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                       : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                   }`}
                 >
-                  💥 Tồi tệ
+                  💥 {t("typeNegative")}
                 </button>
               </div>
             </div>
@@ -215,10 +222,10 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
 
           {type === "counter" && (
             <div className="space-y-2 animate-in slide-in-from-top-2">
-              <label className="block text-sm font-bold text-earth-text">Số lần / Số lượng (VD: 8 ly nước)</label>
+              <label className="block text-sm font-bold text-earth-text">{t("counterLabel")}</label>
               <input
-                aria-label="Mục tiêu đếm"
-                title="Mục tiêu đếm"
+                aria-label={t("counterAria")}
+                title={t("counterAria")}
                 type="number"
                 min={1}
                 max={999}
@@ -230,13 +237,13 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           )}
 
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-earth-text">Buổi trong ngày</label>
+            <label className="block text-sm font-bold text-earth-text">{t("timeOfDay")}</label>
             <div className="flex gap-2">
               {[
-                { id: "morning", label: "🌅 Sáng" },
-                { id: "afternoon", label: "☀️ Chiều" },
-                { id: "evening", label: "🌙 Tối" },
-                { id: "anytime", label: "♾️ Bất kỳ" },
+                { id: "morning", label: `🌅 ${t("todMorning")}` },
+                { id: "afternoon", label: `☀️ ${t("todAfternoon")}` },
+                { id: "evening", label: `🌙 ${t("todEvening")}` },
+                { id: "anytime", label: `♾️ ${t("todAnytime")}` },
               ].map((b) => (
                 <button
                   key={b.id}
@@ -255,7 +262,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-earth-text">Lịch trình</label>
+            <label className="block text-sm font-bold text-earth-text">{t("schedule")}</label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -266,7 +273,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                     : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                 }`}
               >
-                Hàng ngày
+                {t("freqDaily")}
               </button>
               <button
                 type="button"
@@ -277,13 +284,13 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                     : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                 }`}
               >
-                Chọn ngày
+                {t("freqSpecific")}
               </button>
             </div>
             {freqType === "specific_days" && (
               <div className="flex justify-between mt-2 gap-1 animate-in slide-in-from-top-2">
                 {[1, 2, 3, 4, 5, 6, 0].map((d, index) => {
-                  const labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                  const labels = t("weekdaysShort").split(",");
                   const isSelected = freqDays.includes(d);
                   return (
                     <button
@@ -318,9 +325,13 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
                 type="button"
                 onClick={handleDelete}
                 disabled={isPending}
-                className="w-full flex items-center justify-center gap-2 py-2 text-sm font-bold text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                className={`w-full flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-xl transition-colors disabled:opacity-50 ${
+                  confirmDelete
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "text-red-500 hover:text-red-600"
+                }`}
               >
-                <Trash2 size={16} /> {t("delete")}
+                <Trash2 size={16} /> {confirmDelete ? t("deleteConfirm") : t("delete")}
               </button>
             )}
           </div>

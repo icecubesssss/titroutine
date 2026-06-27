@@ -45,6 +45,8 @@ export interface DashboardData {
   profile: ProfileSummary;
   habits: HabitWithLog[];
   inventory: InventorySummary;
+  /** Memory-album keys the user has permanently earned (survives streak resets). */
+  unlockedMemories: string[];
   today: string; // YYYY-MM-DD in the user's timezone
   email: string | null;
   currentDate: string;

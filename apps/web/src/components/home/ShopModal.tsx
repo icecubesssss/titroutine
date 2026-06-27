@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { SHOP_ITEMS } from "@/lib/items";
 import { buyItemAction, equipItemAction } from "@/app/[locale]/actions";
@@ -22,6 +23,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   unlockedItems,
   equippedItems,
 }) => {
+  const t = useTranslations("Shop");
   const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
   const router = useRouter();
@@ -56,15 +58,15 @@ export const ShopModal: React.FC<ShopModalProps> = ({
         {/* Header */}
         <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-[#e8dcc7] bg-white sticky top-0 z-10">
           <h2 className="text-2xl font-black text-amber-900 flex items-center gap-2">
-            <ShoppingBag className="text-amber-600" /> Cửa Hàng
+            <ShoppingBag className="text-amber-600" /> {t("title")}
           </h2>
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-bold text-sm shadow-sm flex items-center gap-1">
-              <span>💰</span> {coins} Xu
+              <span>💰</span> {t("coins", { count: coins })}
             </div>
             <button
-              aria-label="Đóng"
-              title="Đóng"
+              aria-label={t("close")}
+              title={t("close")}
               onClick={onClose}
               className="p-2 rounded-full bg-stone-100 hover:bg-stone-200 transition-colors text-stone-500"
             >
@@ -83,7 +85,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 : "border-transparent text-stone-400 hover:text-stone-600"
             }`}
           >
-            <ShoppingBag size={16} /> Mua Đồ
+            <ShoppingBag size={16} /> {t("tabShop")}
           </button>
           <button
             onClick={() => setActiveTab("inventory")}
@@ -93,7 +95,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 : "border-transparent text-stone-400 hover:text-stone-600"
             }`}
           >
-            <Package size={16} /> Kho Đồ ({unlockedItems.length})
+            <Package size={16} /> {t("tabInventory")} ({unlockedItems.length})
           </button>
         </div>
 
@@ -111,19 +113,20 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     className="bg-white rounded-2xl border-2 border-[#f0e6d2] p-3 flex flex-col shadow-sm"
                   >
                     <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                      <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>
-                      <p className="text-xs text-stone-500 line-clamp-1">{item.description}</p>
+                      <h3 className="font-bold text-stone-700 text-sm">{t(`item_${item.id}_name`)}</h3>
+                      <p className="text-xs text-stone-500 line-clamp-1">{t(`item_${item.id}_desc`)}</p>
                     </div>
                     <div className="mt-3">
                       {isOwned ? (
                         <div className="w-full text-center py-1.5 bg-stone-100 text-stone-500 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
-                          <CheckCircle size={14} /> Đã Sở Hữu
+                          <CheckCircle size={14} /> {t("owned")}
                         </div>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => handleBuy(item.id, item.price)}
                           disabled={!canAfford}
                           className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
@@ -132,7 +135,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                               : "bg-stone-100 text-stone-400 cursor-not-allowed"
                           }`}
                         >
-                          💰 {item.price} Xu
+                          💰 {t("price", { price: item.price })}
                         </button>
                       )}
                     </div>
@@ -147,7 +150,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               {unlockedItems.length === 0 ? (
                 <div className="col-span-2 py-12 text-center text-stone-400 font-medium flex flex-col items-center gap-2">
                   <Package className="w-12 h-12 text-stone-300" />
-                  Bạn chưa có đồ vật nào.
+                  {t("emptyInventory")}
                 </div>
               ) : (
                 SHOP_ITEMS.filter((item) => unlockedItems.includes(item.id)).map((item) => {
@@ -161,28 +164,30 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       }`}
                     >
                       <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                        <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-stone-700 text-sm">{item.name}</h3>
+                        <h3 className="font-bold text-stone-700 text-sm">{t(`item_${item.id}_name`)}</h3>
                         <p className="text-xs text-stone-400 uppercase font-bold mt-1">
-                          {item.slot}
+                          {t(`slot_${item.slot}`)}
                         </p>
                       </div>
                       <div className="mt-3 flex gap-2">
                         {isEquipped ? (
                           <button
+                            type="button"
                             onClick={() => handleUnequip(item.slot)}
                             className="w-full py-1.5 rounded-lg text-xs font-bold border-2 border-stone-200 text-stone-500 hover:bg-stone-50 transition-colors"
                           >
-                            Gỡ ra
+                            {t("unequip")}
                           </button>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => handleEquip(item.slot, item.id)}
                             className="w-full py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-200 transition-colors"
                           >
-                            Trang bị
+                            {t("equip")}
                           </button>
                         )}
                       </div>

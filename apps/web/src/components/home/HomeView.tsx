@@ -9,6 +9,8 @@ import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
+import { EggCompanion } from "@/components/pet/EggCompanion";
+import { PetSpeechBubble } from "@/components/pet/PetSpeechBubble";
 import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
@@ -21,8 +23,11 @@ import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFr
 import { stageFromStreak } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 
+const LAST_STAGE_KEY = "titroutine:lastPetStage";
+
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
+  const tStages = useTranslations("Stages");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
@@ -57,6 +62,22 @@ export function HomeView({ data }: { data: DashboardData }) {
   }>({ isOpen: false, type: "streak" });
 
   const [hasClaimedCheckinUI, setHasClaimedCheckinUI] = useState(false);
+
+  // Stage the user just evolved INTO this visit (drives the evolution celebration).
+  const [justEvolvedStage, setJustEvolvedStage] = useState<number | null>(null);
+
+  // Detect an evolution since the last visit. We persist the last-seen stage in
+  // localStorage so reaching a new form feels like a milestone event rather than a
+  // silent sprite swap. First-ever load just records the baseline (no popup).
+  useEffect(() => {
+    const serverStage = data.profile.petStage;
+    const stored = window.localStorage.getItem(LAST_STAGE_KEY);
+    if (stored !== null && serverStage > Number(stored)) {
+      setJustEvolvedStage(serverStage);
+      setCompanionOverrideAction("happy");
+    }
+    window.localStorage.setItem(LAST_STAGE_KEY, String(serverStage));
+  }, [data.profile.petStage]);
 
   // Auto-trigger daily checkin popup
   useEffect(() => {
@@ -237,6 +258,10 @@ export function HomeView({ data }: { data: DashboardData }) {
   const equippedRugId = data.inventory.equippedItems["rug"];
   const customRug = SHOP_ITEMS.find((item) => item.id === equippedRugId);
 
+  // Custom Object (free-standing decor in the corner of the room)
+  const equippedObjectId = data.inventory.equippedItems["object"];
+  const customObject = SHOP_ITEMS.find((item) => item.id === equippedObjectId);
+
   const isEvolved = currentStage >= 1;
 
   // Determine current companion action
@@ -260,14 +285,15 @@ export function HomeView({ data }: { data: DashboardData }) {
               {t("streakDays", { count: currentStreak })}
             </span>
             {data.profile.streakFreezes > 0 && (
-              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-100 px-1.5 rounded" title="Thẻ đóng băng chuỗi">
+              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-100 px-1.5 rounded" title={t("freezeTitle")}>
                 ❄️ {data.profile.streakFreezes}
               </span>
             )}
             {/* Tooltip mua thẻ */}
             <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <p className="text-xs text-gray-500 mb-2">Thẻ đóng băng giúp giữ chuỗi khi quên điểm danh (Giá: 50 Xu).</p>
-              <button 
+              <p className="text-xs text-gray-500 mb-2">{t("freezeTooltip", { price: 50 })}</p>
+              <button
+                type="button"
                 className="w-full bg-blue-100 text-blue-600 hover:bg-blue-200 text-xs font-bold py-1.5 rounded-lg disabled:opacity-50"
                 disabled={coins < 50}
                 onClick={() => {
@@ -278,7 +304,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                   });
                 }}
               >
-                Mua thẻ (❄️)
+                {t("buyFreeze")}
               </button>
             </div>
           </div>
@@ -290,8 +316,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
             {/* Sổ tay kỷ niệm (Memory Album) */}
             <button
-              aria-label="Sổ tay kỷ niệm"
-              title="Sổ tay kỷ niệm"
+              type="button"
+              aria-label={t("memoryAlbum")}
+              title={t("memoryAlbum")}
               onClick={() => {
                 playSwoosh();
                 setIsAlbumOpen(true);
@@ -303,8 +330,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
             {/* Cửa hàng (Shop) */}
             <button
-              aria-label="Cửa hàng"
-              title="Cửa hàng"
+              type="button"
+              aria-label={t("shop")}
+              title={t("shop")}
               onClick={() => {
                 playSwoosh();
                 setIsShopOpen(true);
@@ -316,8 +344,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
             {/* Thống kê (Analytics) */}
             <button
-              aria-label="Thống kê"
-              title="Thống kê"
+              type="button"
+              aria-label={t("analytics")}
+              title={t("analytics")}
               onClick={() => {
                 playSwoosh();
                 router.push(`/${locale}/analytics`);
@@ -338,32 +367,71 @@ export function HomeView({ data }: { data: DashboardData }) {
           </div>
         </div>
 
+        {/* Equipped decor object, tucked into the bottom-left corner of the room. */}
+        {customObject && (
+          <Image
+            src={customObject.imageUrl}
+            alt=""
+            width={120}
+            height={120}
+            className="absolute bottom-3 left-3 z-0 h-24 w-24 object-contain drop-shadow-md pointer-events-none"
+          />
+        )}
+
+        {/* Encouragement chat — only once the egg has hatched into a companion. */}
+        {currentStage >= 1 && (
+          <div className="z-30 mb-1">
+            <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} />
+          </div>
+        )}
+
         <div
-          className="relative mt-12 drop-shadow-2xl z-10 transition-transform hover:scale-110 cursor-pointer"
+          className="relative mt-2 drop-shadow-2xl z-10 transition-transform hover:scale-110 cursor-pointer"
           onClick={() => {
             playSwoosh();
             setCompanionOverrideAction("happy"); // Bấm vào thỏ thì nó vui
           }}
         >
           {customRug ? (
-            <Image 
-              src={customRug.imageUrl} 
-              alt="Rug" 
+            <Image
+              src={customRug.imageUrl}
+              alt="Rug"
               width={250}
               height={125}
-              className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[220px] object-contain opacity-95 -z-10" 
+              className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[220px] object-contain opacity-95 -z-10"
             />
           ) : (
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px] -z-10"></div>
           )}
 
-          <RabbitCompanion
-            key={`stage-${currentStage}-${currentAction}-${data.inventory.equippedItems["outfit"]}`}
-            stage={currentStage}
-            action={currentAction}
-            equippedOutfit={data.inventory.equippedItems["outfit"]}
-            className="drop-shadow-lg"
-          />
+          {currentStage === 0 ? (
+            <EggCompanion streak={currentStreak} action={currentAction} className="drop-shadow-lg" />
+          ) : (
+            <RabbitCompanion
+              key={`stage-${currentStage}-${currentAction}-${data.inventory.equippedItems["outfit"]}`}
+              stage={currentStage}
+              action={currentAction}
+              equippedOutfit={data.inventory.equippedItems["outfit"]}
+              className="drop-shadow-lg"
+            />
+          )}
+
+          {/* One-shot light burst when the pet just evolved / hatched. */}
+          {justEvolvedStage !== null && (
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+              <div
+                style={{
+                  width: 260,
+                  height: 260,
+                  backgroundImage: "url('/assets/fx_evolution_burst.png')",
+                  backgroundSize: "300% 200%",
+                  backgroundPosition: "50% 100%",
+                  backgroundRepeat: "no-repeat",
+                  animation: "evo-burst 1.1s ease-out forwards",
+                }}
+              />
+            </div>
+          )}
 
           {isEvolved && (
             <div className="absolute -top-6 -right-6 animate-bounce">
@@ -378,8 +446,9 @@ export function HomeView({ data }: { data: DashboardData }) {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <button
-              aria-label="Ngày trước"
-              title="Ngày trước"
+              type="button"
+              aria-label={t("prevDay")}
+              title={t("prevDay")}
               onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), -1), "yyyy-MM-dd")}`)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
@@ -389,8 +458,9 @@ export function HomeView({ data }: { data: DashboardData }) {
               {data.isToday ? t("title") : format(parseISO(data.currentDate), "dd/MM/yyyy")}
             </h2>
             <button
-              aria-label="Ngày tiếp theo"
-              title="Ngày tiếp theo"
+              type="button"
+              aria-label={t("nextDay")}
+              title={t("nextDay")}
               disabled={data.isToday}
               onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
@@ -411,10 +481,10 @@ export function HomeView({ data }: { data: DashboardData }) {
         ) : (
           <div className="space-y-8">
             {[
-              { id: "morning", label: "🌅 Buổi Sáng", items: habits.filter(h => h.timeOfDay === "morning") },
-              { id: "afternoon", label: "☀️ Buổi Chiều", items: habits.filter(h => h.timeOfDay === "afternoon") },
-              { id: "evening", label: "🌙 Buổi Tối", items: habits.filter(h => h.timeOfDay === "evening") },
-              { id: "anytime", label: "♾️ Bất kỳ lúc nào", items: habits.filter(h => !h.timeOfDay || h.timeOfDay === "anytime") }
+              { id: "morning", label: t("morning"), items: habits.filter(h => h.timeOfDay === "morning") },
+              { id: "afternoon", label: t("afternoon"), items: habits.filter(h => h.timeOfDay === "afternoon") },
+              { id: "evening", label: t("evening"), items: habits.filter(h => h.timeOfDay === "evening") },
+              { id: "anytime", label: t("anytime"), items: habits.filter(h => !h.timeOfDay || h.timeOfDay === "anytime") }
             ].map(section => {
               if (section.items.length === 0) return null;
               return (
@@ -462,9 +532,9 @@ export function HomeView({ data }: { data: DashboardData }) {
                             {habit.type === "timer" && habit.config.target_time
                               ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
                               : habit.type === "counter" && habit.config.target_count
-                              ? `Mục tiêu: ${habit.config.target_count}`
+                              ? t("targetGoal", { count: habit.config.target_count })
                               : habit.type === "negative"
-                              ? "Cấm vi phạm"
+                              ? t("noViolate")
                               : t("daily")}
                           </p>
                         </div>
@@ -508,7 +578,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                           onClick={() => handleDoIt(habit)}
                           className="shrink-0 bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200 font-bold px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
                         >
-                          Vi phạm
+                          {t("violate")}
                         </button>
                       ) : (
                         <DuoButton
@@ -585,6 +655,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         isOpen={isAlbumOpen}
         onClose={() => setIsAlbumOpen(false)}
         currentStreak={currentStreak}
+        unlockedMemories={data.unlockedMemories}
       />
       
       <ShopModal
@@ -601,6 +672,13 @@ export function HomeView({ data }: { data: DashboardData }) {
         type={celebration.type}
         streakCount={currentStreak}
         coinsAwarded={celebration.coinsAwarded}
+      />
+
+      <CelebrationModal
+        isOpen={justEvolvedStage !== null}
+        onClose={() => setJustEvolvedStage(null)}
+        type="evolution"
+        evolutionStageName={justEvolvedStage !== null ? tStages(`stage${justEvolvedStage}`) : undefined}
       />
     </main>
   );

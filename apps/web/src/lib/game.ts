@@ -5,18 +5,35 @@ export const COINS_PER_HABIT = 10;
 export const EXP_PER_HABIT = 10;
 
 /**
- * Minimum streak (≈ days together) required to reach each pet stage
+ * Minimum streak (≈ days together) required to *unlock* each pet stage
  * (index === stage, 0..6). Mirrors the age-based evolution in the design bible.
+ *
+ * Pacing ("vừa phải", ~4 months): the egg hatches on day 7 — long enough that a
+ * 3-day fluke no longer pops a rabbit — and the final form lands around day 120.
  */
-export const STAGE_STREAK_THRESHOLDS = [0, 3, 7, 15, 30, 60, 100] as const;
+export const STAGE_STREAK_THRESHOLDS = [0, 7, 21, 42, 70, 105, 120] as const;
 
-/** The single source of truth for which pet stage to show / store. */
+/**
+ * Highest stage a given streak alone unlocks. This is the *floor* for the real
+ * pet stage; the stored stage may be higher because evolution never reverses
+ * (see {@link ratchetStage}).
+ */
 export function stageFromStreak(streak: number): number {
   let stage = 0;
   for (let i = 0; i < STAGE_STREAK_THRESHOLDS.length; i++) {
     if (streak >= STAGE_STREAK_THRESHOLDS[i]) stage = i;
   }
   return stage;
+}
+
+/**
+ * The pet's real stage. Evolution is a permanent milestone, not a fragile mirror
+ * of the current streak: once a stage is reached it is kept even if the streak
+ * later breaks. Reaching the *next* stage still requires building the streak back
+ * up to its threshold. This is the single source of truth for `pet_stage`.
+ */
+export function ratchetStage(storedStage: number | null | undefined, streak: number): number {
+  return Math.max(storedStage ?? 0, stageFromStreak(streak));
 }
 
 /** Streak still needed to reach the next stage (0 when already at the max). */

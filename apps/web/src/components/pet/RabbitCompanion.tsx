@@ -26,6 +26,24 @@ interface StageConfig extends Partial<VirtualPetProps> {
   actions?: Record<string, { offsetY: number; totalFrames?: number; fps?: number }>;
 }
 
+// The newer *_actions.png sheets are all 1024×1024 grids: 5 rows in the order
+// idle, happy, sad, sleep, study (one action per row). 1024/5 ≈ 204.8 → row Y.
+const ACTION_ROW_Y = [0, 205, 410, 614, 819];
+
+/** Build the action map shared by every 1024×1024 action sheet. `frames` is the
+ *  number of columns (4 for most stages, 6 for the teen sheet). */
+function gridActions(frames: number): StageConfig["actions"] {
+  return {
+    idle: { offsetY: ACTION_ROW_Y[0], fps: 4, totalFrames: frames },
+    happy: { offsetY: ACTION_ROW_Y[1], fps: 6, totalFrames: frames },
+    sad: { offsetY: ACTION_ROW_Y[2], fps: 3, totalFrames: frames },
+    sleep: { offsetY: ACTION_ROW_Y[3], fps: 2, totalFrames: frames },
+    study: { offsetY: ACTION_ROW_Y[4], fps: 4, totalFrames: frames },
+    welcome: { offsetY: ACTION_ROW_Y[1], fps: 6, totalFrames: frames }, // → happy
+    eat: { offsetY: ACTION_ROW_Y[0], fps: 4, totalFrames: frames }, // → idle (no eat row)
+  };
+}
+
 export const STAGES_CONFIG: Record<number, StageConfig> = {
   0: {
     name: "Egg",
@@ -59,25 +77,25 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
   },
   2: {
     name: "Young Rabbit",
-    spriteUrl: "/assets/young_rabbit_sprite_clean.png",
-    frameWidth: 236,
-    frameHeight: 345,
-    totalFrames: 8,
-    fps: 8,
-    defaultScale: 0.5,
+    spriteUrl: "/assets/young_rabbit_actions.png",
+    sheetWidth: 1024,
+    sheetHeight: 1024,
+    frameWidth: 256, // 1024 / 4 columns
+    frameHeight: 205, // 1024 / 5 rows
+    defaultScale: 1.25, // tune if the character looks too small/large
     roomBackground: "bg-gradient-to-b from-emerald-100 via-teal-50 to-emerald-200",
-    idle: true,
+    actions: gridActions(4),
   },
   3: {
     name: "Spirit Rabbit",
-    spriteUrl: "/assets/spirit_rabbit_sprite_clean.png",
-    frameWidth: 245,
-    frameHeight: 474,
-    totalFrames: 8,
-    fps: 8,
-    defaultScale: 0.4,
+    spriteUrl: "/assets/spirit_rabbit_actions.png",
+    sheetWidth: 1024,
+    sheetHeight: 1024,
+    frameWidth: 256,
+    frameHeight: 205,
+    defaultScale: 1.2,
     roomBackground: "bg-gradient-to-b from-indigo-900 via-purple-900 to-indigo-950 text-white",
-    idle: true,
+    actions: gridActions(4),
   },
   4: {
     name: "Bunny Girl Child",
@@ -100,25 +118,25 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
   },
   5: {
     name: "Teen Bunny Girl",
-    spriteUrl: "/assets/bunny_teen_sprite_clean.png",
-    frameWidth: 222,
-    frameHeight: 385,
-    totalFrames: 8,
-    fps: 8,
-    defaultScale: 0.5,
+    spriteUrl: "/assets/bunny_teen_actions.png",
+    sheetWidth: 1024,
+    sheetHeight: 1024,
+    frameWidth: 170, // 1024 / 6 columns (this sheet has 6 frames per row)
+    frameHeight: 205,
+    defaultScale: 1.3,
     roomBackground: "bg-gradient-to-b from-blue-100 via-indigo-50 to-blue-200",
-    idle: true,
+    actions: gridActions(6),
   },
   6: {
     name: "Young Woman",
-    spriteUrl: "/assets/bunny_woman_sprite_clean.png",
-    frameWidth: 299,
-    frameHeight: 516,
-    totalFrames: 6,
-    fps: 6,
-    defaultScale: 0.4,
+    spriteUrl: "/assets/bunny_woman_actions.png",
+    sheetWidth: 1024,
+    sheetHeight: 1024,
+    frameWidth: 256,
+    frameHeight: 205,
+    defaultScale: 1.15,
     roomBackground: "bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100",
-    idle: true,
+    actions: gridActions(4),
   },
 };
 

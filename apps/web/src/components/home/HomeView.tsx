@@ -419,17 +419,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           {/* One-shot light burst when the pet just evolved / hatched. */}
           {justEvolvedStage !== null && (
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-              <div
-                style={{
-                  width: 260,
-                  height: 260,
-                  backgroundImage: "url('/assets/fx_evolution_burst.png')",
-                  backgroundSize: "300% 200%",
-                  backgroundPosition: "50% 100%",
-                  backgroundRepeat: "no-repeat",
-                  animation: "evo-burst 1.1s ease-out forwards",
-                }}
-              />
+              <div className="evo-burst-fx" />
             </div>
           )}
 

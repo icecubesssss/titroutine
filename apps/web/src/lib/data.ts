@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
+import { format, parseISO, startOfWeek, addDays } from "date-fns";
 import { ratchetStage, todayInTimezone } from "./game";
 import { eligibleMemoryKeys } from "./memories";
 import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
@@ -18,6 +19,7 @@ interface LogRow {
   habit_id: string;
   is_completed: boolean | null;
   value: number | null;
+  date: string;
 }
 
 /**
@@ -44,6 +46,10 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const totalExp = profile?.total_exp ?? 0;
   const currentStreak = profile?.current_streak ?? 0;
 
+  const targetDateObj = parseISO(targetDate);
+  const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
+  const weekDates = Array.from({ length: 7 }).map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
+
   const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }] = await Promise.all([
     supabase
       .from("habits")
@@ -53,9 +59,10 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .order("created_at", { ascending: true }),
     supabase
       .from("habit_logs")
-      .select("habit_id, is_completed, value")
+      .select("habit_id, is_completed, value, date")
       .eq("user_id", user.id)
-      .eq("date", targetDate),
+      .gte("date", weekDates[0])
+      .lte("date", weekDates[6]),
     supabase
       .from("inventory")
       .select("equipped_items, unlocked_items")
@@ -77,8 +84,18 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   );
 
   const logByHabit = new Map<string, LogRow>();
+  const weeklyLogsByHabit = new Map<string, Record<string, boolean>>();
+
   for (const log of (logRows ?? []) as LogRow[]) {
-    logByHabit.set(log.habit_id, log);
+    if (log.date === targetDate) {
+      logByHabit.set(log.habit_id, log);
+    }
+    let weekly = weeklyLogsByHabit.get(log.habit_id);
+    if (!weekly) {
+      weekly = {};
+      weeklyLogsByHabit.set(log.habit_id, weekly);
+    }
+    weekly[log.date] = Boolean(log.is_completed);
   }
 
   // Calculate day of week safely (0 = Sunday, 1 = Monday, etc.)
@@ -97,6 +114,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
         timeOfDay: h.time_of_day ?? "anytime",
         isCompleted: Boolean(log?.is_completed),
         value: log?.value ?? null,
+        weeklyLogs: weeklyLogsByHabit.get(h.id) || {},
       };
     })
     .filter((h) => {
@@ -130,5 +148,6 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     currentDate: targetDate,
     isToday,
     email: user.email ?? null,
+    weekDates,
   };
 }

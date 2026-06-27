@@ -23,6 +23,7 @@ export interface HabitWithLog {
   timeOfDay: TimeOfDay;
   isCompleted: boolean;
   value: number | null;
+  weeklyLogs?: Record<string, boolean>; // map of date YYYY-MM-DD to completion status
 }
 
 export interface ProfileSummary {
@@ -51,4 +52,5 @@ export interface DashboardData {
   email: string | null;
   currentDate: string;
   isToday: boolean;
+  weekDates?: string[]; // Array of YYYY-MM-DD for the current week (Mon-Sun)
 }

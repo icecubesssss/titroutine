@@ -169,13 +169,14 @@ export async function toggleHabitAction(input: {
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
+  const targetDate = input.date || today;
 
-  // Current state of today's log for this habit.
+  // Current state of targetDate's log for this habit.
   const { data: existing } = await supabase
     .from("habit_logs")
     .select("id, is_completed")
     .eq("habit_id", input.habitId)
-    .eq("date", today)
+    .eq("date", targetDate)
     .maybeSingle();
 
   const willComplete = !existing?.is_completed;
@@ -193,7 +194,7 @@ export async function toggleHabitAction(input: {
     {
       habit_id: input.habitId,
       user_id: userId,
-      date: today,
+      date: targetDate,
       is_completed: willComplete,
       value: willComplete ? input.value ?? null : null,
     },
@@ -212,29 +213,31 @@ export async function toggleHabitAction(input: {
   let newStreak = profile?.current_streak ?? 0;
   let remainingFreezes = profile?.streak_freezes ?? 0;
 
-  if (willComplete && !isNegative) {
-    const streakResult = nextStreak(
-      profile?.current_streak ?? 0,
-      profile?.last_active_date ?? null,
-      today,
-      profile?.streak_freezes ?? 0
-    );
-    newStreak = streakResult.newStreak;
-    remainingFreezes -= streakResult.freezesUsed;
-  } else if (willComplete && isNegative) {
-    // Violated negative habit -> Reset streak
-    newStreak = 0;
+  if (targetDate === today) {
+    if (willComplete && !isNegative) {
+      const streakResult = nextStreak(
+        profile?.current_streak ?? 0,
+        profile?.last_active_date ?? null,
+        today,
+        profile?.streak_freezes ?? 0
+      );
+      newStreak = streakResult.newStreak;
+      remainingFreezes -= streakResult.freezesUsed;
+    } else if (willComplete && isNegative) {
+      // Violated negative habit -> Reset streak
+      newStreak = 0;
+    }
   }
 
   const patch: Record<string, unknown> = {
     coins,
     total_exp: totalExp,
     // Evolution never reverses: a broken streak keeps the stage already reached.
-    pet_stage: ratchetStage(profile?.pet_stage, newStreak),
+    pet_stage: targetDate === today ? ratchetStage(profile?.pet_stage, newStreak) : profile?.pet_stage,
     updated_at: new Date().toISOString(),
   };
 
-  if (willComplete) {
+  if (willComplete && targetDate === today) {
     patch.current_streak = newStreak;
     if (!isNegative) {
       patch.last_active_date = today;

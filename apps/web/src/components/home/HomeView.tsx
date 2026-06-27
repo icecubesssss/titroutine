@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, addDays, parseISO } from "date-fns";
+import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
@@ -433,34 +433,75 @@ export function HomeView({ data }: { data: DashboardData }) {
 
       {/* Bottom half: Habits */}
       <section className="flex-[1.2] bg-earth-bg p-6 pb-24 overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label={t("prevDay")}
-              title={t("prevDay")}
-              onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), -1), "yyyy-MM-dd")}`)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ChevronLeft className="w-6 h-6 text-gray-400" />
-            </button>
-            <h2 className="text-2xl font-black tracking-tight min-w-[120px] text-center">
-              {data.isToday ? t("title") : format(parseISO(data.currentDate), "dd/MM/yyyy")}
-            </h2>
-            <button
-              type="button"
-              aria-label={t("nextDay")}
-              title={t("nextDay")}
-              disabled={data.isToday}
-              onClick={() => router.push(`/${locale}?date=${format(addDays(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <ChevronRight className="w-6 h-6 text-gray-400" />
-            </button>
+        {/* Weekly Header */}
+        <div className="mb-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+              <button
+                type="button"
+                aria-label={t("prevDay")}
+                onClick={() => router.push(`/${locale}?date=${format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-500" />
+              </button>
+              <div className="text-sm font-bold text-earth-brown text-center min-w-[110px]">
+                {data.weekDates ? `${format(parseISO(data.weekDates[0]), "dd/MM")} - ${format(parseISO(data.weekDates[6]), "dd/MM")}` : format(parseISO(data.currentDate), "dd/MM/yyyy")}
+              </div>
+              <button
+                type="button"
+                aria-label={t("nextDay")}
+                onClick={() => router.push(`/${locale}?date=${format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {!data.isToday && (
+                <button 
+                  onClick={() => router.push(`/${locale}`)}
+                  className="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wider hover:bg-blue-700"
+                >
+                  Hôm nay
+                </button>
+              )}
+              <span className="text-sm font-bold text-gray-500 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+                {t("completed", { completed: completedCount, total: totalCount })}
+              </span>
+            </div>
           </div>
-          <span className="text-sm font-bold text-gray-500 shrink-0">
-            {t("completed", { completed: completedCount, total: totalCount })}
-          </span>
+
+          {/* Days of Week row */}
+          {data.weekDates && (
+            <div className="flex justify-between bg-white p-2 rounded-3xl shadow-sm border border-gray-100">
+              {data.weekDates.map((dateStr, i) => {
+                const dateObj = parseISO(dateStr);
+                const isSelected = dateStr === data.currentDate;
+                const isRealToday = dateStr === data.today;
+                const dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => router.push(`/${locale}?date=${dateStr}`)}
+                    className={`flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative ${
+                      isSelected 
+                        ? "bg-blue-600 text-white shadow-md scale-105" 
+                        : "hover:bg-gray-50 text-gray-500"
+                    }`}
+                  >
+                    {isRealToday && !isSelected && (
+                      <span className="absolute -top-1 w-2 h-2 bg-amber-400 rounded-full"></span>
+                    )}
+                    <span className={`text-[10px] font-bold mb-0.5 ${isSelected ? "text-blue-200" : ""}`}>{dayNames[i]}</span>
+                    <span className="text-base font-black leading-none">{format(dateObj, "dd")}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {totalCount === 0 ? (
@@ -485,7 +526,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                   {section.items.map((habit) => (
                     <div
                       key={habit.id}
-                      className={`bg-white p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                      className={`bg-white p-4 rounded-2xl border-2 flex flex-col transition-all ${
                         habit.isCompleted
                           ? "border-gray-100 opacity-60"
                           : habit.type === "negative"
@@ -493,7 +534,8 @@ export function HomeView({ data }: { data: DashboardData }) {
                           : "border-gray-200 border-b-4"
                       }`}
                     >
-                      <div className="flex items-center gap-4 min-w-0">
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-4 min-w-0">
                         <button
                           type="button"
                           aria-label={t("edit")}
@@ -580,6 +622,46 @@ export function HomeView({ data }: { data: DashboardData }) {
                         >
                           {t("doIt")}
                         </DuoButton>
+                      )}
+                      </div>
+
+                      {/* Mini Weekly Calendar */}
+                      {data.weekDates && (
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between px-2">
+                          {data.weekDates.map((dateStr, i) => {
+                            const isPast = dateStr < data.today;
+                            const isFuture = dateStr > data.today;
+                            const completed = habit.weeklyLogs?.[dateStr];
+                            const dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                            
+                            let bgClass = "bg-gray-50 border border-gray-100"; 
+                            let textClass = "text-gray-400";
+                            let checkIcon = null;
+
+                            if (completed) {
+                              bgClass = "bg-green-100 border border-green-200";
+                              textClass = "text-green-600 font-bold";
+                              checkIcon = "✓";
+                            } else if (isPast) {
+                              bgClass = "bg-red-50 border border-red-200";
+                              textClass = "text-red-500";
+                              checkIcon = "×";
+                            } else if (!isFuture && !completed) {
+                              // Today and not completed
+                              bgClass = "bg-gray-100 border border-gray-300";
+                              textClass = "text-gray-500";
+                            }
+                            
+                            return (
+                              <div key={dateStr} className="flex flex-col items-center gap-1.5" title={format(parseISO(dateStr), "dd/MM/yyyy")}>
+                                <span className={`text-[9px] uppercase tracking-wider font-bold ${textClass}`}>{dayNames[i]}</span>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${bgClass} ${textClass}`}>
+                                  {checkIcon}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
                   ))}

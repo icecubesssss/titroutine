@@ -110,3 +110,62 @@ if __name__ == "__main__":
     child_input = os.path.join(assets_dir, "bunny_child_phase1.png")
     child_output = os.path.join(assets_dir, "bunny_child_phase1_clean.png")
     process_phase1_sprites(child_input, child_output, rows=5, cols=4)
+
+    # Process Bunny Child Phase 2 Morning
+    morning_input = os.path.join(assets_dir, "bunny_child_phase2_morning.png")
+    morning_output = os.path.join(assets_dir, "bunny_child_phase2_morning_clean.png")
+    process_phase1_sprites(morning_input, morning_output, rows=3, cols=4)
+
+    # Process Bunny Child Phase 2 Study
+    study_input = os.path.join(assets_dir, "bunny_child_phase2_study.png")
+    study_output = os.path.join(assets_dir, "bunny_child_phase2_study_clean.png")
+    process_phase1_sprites(study_input, study_output, rows=3, cols=4)
+
+    # Process Bunny Child Phase 2 Extra
+    extra_input = os.path.join(assets_dir, "bunny_child_phase2_extra.png")
+    extra_output = os.path.join(assets_dir, "bunny_child_phase2_extra_processed.png")
+    process_phase1_sprites(extra_input, extra_output, rows=5, cols=4)
+
+    # Process Phase 3
+    egg_input = os.path.join(assets_dir, "egg_phase3.png")
+    egg_output = os.path.join(assets_dir, "egg_phase3_clean.png")
+    process_phase1_sprites(egg_input, egg_output, rows=3, cols=4)
+
+    young_spirit_input = os.path.join(assets_dir, "young_spirit_rabbit_phase3.png")
+    young_spirit_output = os.path.join(assets_dir, "young_spirit_rabbit_phase3_clean.png")
+    process_phase1_sprites(young_spirit_input, young_spirit_output, rows=3, cols=4)
+
+    teen_input = os.path.join(assets_dir, "teen_bunny_girl_phase3.png")
+    teen_output = os.path.join(assets_dir, "teen_bunny_girl_phase3_clean.png")
+    process_phase1_sprites(teen_input, teen_output, rows=3, cols=4)
+
+    woman_input = os.path.join(assets_dir, "young_woman_bunny_phase3.png")
+    woman_output = os.path.join(assets_dir, "young_woman_bunny_phase3_clean.png")
+    process_phase1_sprites(woman_input, woman_output, rows=3, cols=4)
+
+    # Process Phase 4
+    interaction_input = os.path.join(assets_dir, "user_interaction_phase4.png")
+    interaction_output = os.path.join(assets_dir, "user_interaction_phase4_clean.png")
+    process_phase1_sprites(interaction_input, interaction_output, rows=3, cols=4)
+
+    streaks_input = os.path.join(assets_dir, "streaks_milestone_phase4.png")
+    streaks_output = os.path.join(assets_dir, "streaks_milestone_phase4_clean.png")
+    process_phase1_sprites(streaks_input, streaks_output, rows=4, cols=4)
+
+    # Process Phase 5
+    weather_input = os.path.join(assets_dir, "weather_seasons_phase5.png")
+    weather_output = os.path.join(assets_dir, "weather_seasons_phase5_clean.png")
+    process_phase1_sprites(weather_input, weather_output, rows=3, cols=4)
+
+    festivals_input = os.path.join(assets_dir, "festivals_phase5.png")
+    festivals_output = os.path.join(assets_dir, "festivals_phase5_clean.png")
+    process_phase1_sprites(festivals_input, festivals_output, rows=3, cols=4)
+
+    # Process Phase 6
+    rare1_input = os.path.join(assets_dir, "rare_events_1_phase6.png")
+    rare1_output = os.path.join(assets_dir, "rare_events_1_phase6_clean.png")
+    process_phase1_sprites(rare1_input, rare1_output, rows=3, cols=4)
+
+    rare2_input = os.path.join(assets_dir, "rare_events_2_phase6.png")
+    rare2_output = os.path.join(assets_dir, "rare_events_2_phase6_clean.png")
+    process_phase1_sprites(rare2_input, rare2_output, rows=3, cols=4)

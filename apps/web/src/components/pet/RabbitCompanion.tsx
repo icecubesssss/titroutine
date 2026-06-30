@@ -3,7 +3,22 @@
 import React from "react";
 import { VirtualPet, VirtualPetProps } from "./VirtualPet";
 
-export type CompanionAction = "idle" | "sleep" | "happy" | "sad" | "eat" | "study" | "welcome";
+export type CompanionAction = 
+  | "idle" | "sleep" | "happy" | "sad" | "eat" | "study" | "welcome"
+  | "egg_idle" | "egg_shake" | "egg_crack"
+  | "young_play" | "spirit_meditate" | "spirit_read"
+  | "wake_up_stretch" | "morning_tea" | "exercise_stretch"
+  | "study_laptop" | "read_floor" | "read_window"
+  | "relax_music" | "brush_hair"
+  | "proud_smile" | "embarrassed_blush" | "sleepy_yawn"
+  | "task_celebrate" | "inactive_alone" | "return_cry"
+  | "streak_30" | "streak_100" | "streak_365" | "streak_1000"
+  | "weather_rain" | "weather_snow"
+  | "season_spring" | "season_autumn" | "event_christmas" | "event_lunar_new_year"
+  | "rare_sleep_drool" | "rare_read_sleep" | "rare_cat"
+  | "rare_star" | "rare_sing" | "rare_cook_burn"
+  | "teen_laptop" | "teen_yoga" | "teen_coffee"
+  | "woman_plan" | "woman_tea" | "woman_wave";
 
 export interface RabbitCompanionProps {
   stage: number;
@@ -12,49 +27,46 @@ export interface RabbitCompanionProps {
   className?: string;
 }
 
-// Kích thước cắt ảnh tự động từ script
 const BABY_FRAME_W = 262;
 const BABY_FRAME_H = 222;
 
 const CHILD_FRAME_W = 276;
 const CHILD_FRAME_H = 224;
 
+interface ActionConfig {
+  offsetY: number;
+  totalFrames?: number;
+  fps?: number;
+  spriteUrl?: string;
+  sheetWidth?: number;
+  sheetHeight?: number;
+  frameWidth?: number;
+  frameHeight?: number;
+}
+
 interface StageConfig extends Partial<VirtualPetProps> {
   name: string;
   roomBackground: string;
   defaultScale: number;
-  actions?: Record<string, { offsetY: number; totalFrames?: number; fps?: number }>;
-}
-
-// The newer *_actions.png sheets are all 1024×1024 grids: 5 rows in the order
-// idle, happy, sad, sleep, study (one action per row). 1024/5 ≈ 204.8 → row Y.
-const ACTION_ROW_Y = [0, 205, 410, 614, 819];
-
-/** Build the action map shared by every 1024×1024 action sheet. `frames` is the
- *  number of columns (4 for most stages, 6 for the teen sheet). */
-function gridActions(frames: number): StageConfig["actions"] {
-  return {
-    idle: { offsetY: ACTION_ROW_Y[0], fps: 4, totalFrames: frames },
-    happy: { offsetY: ACTION_ROW_Y[1], fps: 6, totalFrames: frames },
-    sad: { offsetY: ACTION_ROW_Y[2], fps: 3, totalFrames: frames },
-    sleep: { offsetY: ACTION_ROW_Y[3], fps: 2, totalFrames: frames },
-    study: { offsetY: ACTION_ROW_Y[4], fps: 4, totalFrames: frames },
-    welcome: { offsetY: ACTION_ROW_Y[1], fps: 6, totalFrames: frames }, // → happy
-    eat: { offsetY: ACTION_ROW_Y[0], fps: 4, totalFrames: frames }, // → idle (no eat row)
-  };
+  actions?: Record<string, ActionConfig>;
 }
 
 export const STAGES_CONFIG: Record<number, StageConfig> = {
   0: {
     name: "Egg",
-    spriteUrl: "/assets/egg_sprite_clean.png",
-    frameWidth: 170,
-    frameHeight: 186,
-    totalFrames: 6,
-    fps: 6,
+    spriteUrl: "/assets/egg_phase3_clean.png",
+    sheetWidth: 228 * 4,
+    sheetHeight: 254 * 3,
+    frameWidth: 228,
+    frameHeight: 254,
     defaultScale: 0.8,
     roomBackground: "bg-gradient-to-b from-amber-100 via-orange-100 to-amber-200",
-    idle: false,
+    actions: {
+      egg_idle: { offsetY: 0, fps: 4, totalFrames: 4 },
+      egg_shake: { offsetY: 254 * 1, fps: 6, totalFrames: 4 },
+      egg_crack: { offsetY: 254 * 2, fps: 4, totalFrames: 4 },
+      idle: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback
+    }
   },
   1: {
     name: "Baby Rabbit",
@@ -71,31 +83,40 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
       happy: { offsetY: BABY_FRAME_H * 2, fps: 6, totalFrames: 4 },
       sad: { offsetY: BABY_FRAME_H * 3, fps: 3, totalFrames: 4 },
       eat: { offsetY: BABY_FRAME_H * 4, fps: 5, totalFrames: 4 },
-      welcome: { offsetY: BABY_FRAME_H * 2, fps: 6, totalFrames: 4 }, // Fallback to happy
-      study: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
+      welcome: { offsetY: BABY_FRAME_H * 2, fps: 6, totalFrames: 4 }, 
+      study: { offsetY: 0, fps: 4, totalFrames: 4 },
     },
   },
   2: {
     name: "Young Rabbit",
-    spriteUrl: "/assets/young_rabbit_actions.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: 256, // 1024 / 4 columns
-    frameHeight: 205, // 1024 / 5 rows
-    defaultScale: 1.25, // tune if the character looks too small/large
+    spriteUrl: "/assets/young_spirit_rabbit_phase3_clean.png",
+    sheetWidth: 239 * 4,
+    sheetHeight: 357 * 3,
+    frameWidth: 239,
+    frameHeight: 357,
+    defaultScale: 0.9,
     roomBackground: "bg-gradient-to-b from-emerald-100 via-teal-50 to-emerald-200",
-    actions: gridActions(4),
+    actions: {
+      young_play: { offsetY: 0, fps: 6, totalFrames: 4 },
+      idle: { offsetY: 0, fps: 6, totalFrames: 4 },
+      happy: { offsetY: 0, fps: 6, totalFrames: 4 },
+    },
   },
   3: {
     name: "Spirit Rabbit",
-    spriteUrl: "/assets/spirit_rabbit_actions.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: 256,
-    frameHeight: 205,
-    defaultScale: 1.2,
+    spriteUrl: "/assets/young_spirit_rabbit_phase3_clean.png",
+    sheetWidth: 239 * 4,
+    sheetHeight: 357 * 3,
+    frameWidth: 239,
+    frameHeight: 357,
+    defaultScale: 0.9,
     roomBackground: "bg-gradient-to-b from-indigo-900 via-purple-900 to-indigo-950 text-white",
-    actions: gridActions(4),
+    actions: {
+      spirit_meditate: { offsetY: 357 * 1, fps: 4, totalFrames: 4 },
+      spirit_read: { offsetY: 357 * 2, fps: 4, totalFrames: 4 },
+      idle: { offsetY: 357 * 1, fps: 4, totalFrames: 4 },
+      study: { offsetY: 357 * 2, fps: 4, totalFrames: 4 },
+    },
   },
   4: {
     name: "Bunny Girl Child",
@@ -107,36 +128,97 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     defaultScale: 0.7,
     roomBackground: "bg-gradient-to-b from-rose-100 via-pink-50 to-rose-200",
     actions: {
-      idle: { offsetY: 0, fps: 4, totalFrames: 4 },
-      study: { offsetY: CHILD_FRAME_H * 1, fps: 5, totalFrames: 4 },
-      sleep: { offsetY: CHILD_FRAME_H * 2, fps: 2, totalFrames: 4 },
-      happy: { offsetY: CHILD_FRAME_H * 3, fps: 6, totalFrames: 4 },
-      welcome: { offsetY: CHILD_FRAME_H * 4, fps: 6, totalFrames: 4 },
-      sad: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
-      eat: { offsetY: 0, fps: 4, totalFrames: 4 }, // Fallback to idle
+      // Phase 1 (Base Sprite)
+      idle: { offsetY: 0, fps: 4 },
+      study: { offsetY: CHILD_FRAME_H * 1, fps: 5 },
+      sleep: { offsetY: CHILD_FRAME_H * 2, fps: 2 },
+      happy: { offsetY: CHILD_FRAME_H * 3, fps: 6 },
+      welcome: { offsetY: CHILD_FRAME_H * 4, fps: 6 },
+      sad: { offsetY: 0, fps: 4 },
+      eat: { offsetY: 0, fps: 4 },
+
+      // Phase 2 Morning (267x337)
+      wake_up_stretch: { spriteUrl: "/assets/bunny_child_phase2_morning_clean.png", frameWidth: 267, frameHeight: 337, sheetWidth: 267*4, sheetHeight: 337*3, offsetY: 0, fps: 4 },
+      morning_tea: { spriteUrl: "/assets/bunny_child_phase2_morning_clean.png", frameWidth: 267, frameHeight: 337, sheetWidth: 267*4, sheetHeight: 337*3, offsetY: 337*1, fps: 4 },
+      exercise_stretch: { spriteUrl: "/assets/bunny_child_phase2_morning_clean.png", frameWidth: 267, frameHeight: 337, sheetWidth: 267*4, sheetHeight: 337*3, offsetY: 337*2, fps: 5 },
+
+      // Phase 2 Study (276x361)
+      study_laptop: { spriteUrl: "/assets/bunny_child_phase2_study_clean.png", frameWidth: 276, frameHeight: 361, sheetWidth: 276*4, sheetHeight: 361*3, offsetY: 0, fps: 5 },
+      read_floor: { spriteUrl: "/assets/bunny_child_phase2_study_clean.png", frameWidth: 276, frameHeight: 361, sheetWidth: 276*4, sheetHeight: 361*3, offsetY: 361*1, fps: 3 },
+      read_window: { spriteUrl: "/assets/bunny_child_phase2_study_clean.png", frameWidth: 276, frameHeight: 361, sheetWidth: 276*4, sheetHeight: 361*3, offsetY: 361*2, fps: 3 },
+
+      // Phase 2 Extra (276x224)
+      relax_music: { spriteUrl: "/assets/bunny_child_phase2_extra_processed.png", frameWidth: 276, frameHeight: 224, sheetWidth: 276*4, sheetHeight: 224*5, offsetY: 0, fps: 4 },
+      brush_hair: { spriteUrl: "/assets/bunny_child_phase2_extra_processed.png", frameWidth: 276, frameHeight: 224, sheetWidth: 276*4, sheetHeight: 224*5, offsetY: 224*1, fps: 5 },
+      proud_smile: { spriteUrl: "/assets/bunny_child_phase2_extra_processed.png", frameWidth: 276, frameHeight: 224, sheetWidth: 276*4, sheetHeight: 224*5, offsetY: 224*2, fps: 4 },
+      embarrassed_blush: { spriteUrl: "/assets/bunny_child_phase2_extra_processed.png", frameWidth: 276, frameHeight: 224, sheetWidth: 276*4, sheetHeight: 224*5, offsetY: 224*3, fps: 4 },
+      sleepy_yawn: { spriteUrl: "/assets/bunny_child_phase2_extra_processed.png", frameWidth: 276, frameHeight: 224, sheetWidth: 276*4, sheetHeight: 224*5, offsetY: 224*4, fps: 3 },
+
+      // Phase 4 Interaction (253x358)
+      task_celebrate: { spriteUrl: "/assets/user_interaction_phase4_clean.png", frameWidth: 253, frameHeight: 358, sheetWidth: 253*4, sheetHeight: 358*3, offsetY: 0, fps: 6 },
+      inactive_alone: { spriteUrl: "/assets/user_interaction_phase4_clean.png", frameWidth: 253, frameHeight: 358, sheetWidth: 253*4, sheetHeight: 358*3, offsetY: 358*1, fps: 3 },
+      return_cry: { spriteUrl: "/assets/user_interaction_phase4_clean.png", frameWidth: 253, frameHeight: 358, sheetWidth: 253*4, sheetHeight: 358*3, offsetY: 358*2, fps: 5 },
+
+      // Phase 5 Weather (251x361)
+      weather_rain: { spriteUrl: "/assets/weather_seasons_phase5_clean.png", frameWidth: 251, frameHeight: 361, sheetWidth: 251*4, sheetHeight: 361*3, offsetY: 0, fps: 4 },
+      weather_snow: { spriteUrl: "/assets/weather_seasons_phase5_clean.png", frameWidth: 251, frameHeight: 361, sheetWidth: 251*4, sheetHeight: 361*3, offsetY: 361*1, fps: 5 },
+      season_spring: { spriteUrl: "/assets/weather_seasons_phase5_clean.png", frameWidth: 251, frameHeight: 361, sheetWidth: 251*4, sheetHeight: 361*3, offsetY: 361*2, fps: 4 },
+
+      // Phase 5 Festivals (276x310)
+      season_autumn: { spriteUrl: "/assets/festivals_phase5_clean.png", frameWidth: 276, frameHeight: 310, sheetWidth: 276*4, sheetHeight: 310*3, offsetY: 0, fps: 4 },
+      event_christmas: { spriteUrl: "/assets/festivals_phase5_clean.png", frameWidth: 276, frameHeight: 310, sheetWidth: 276*4, sheetHeight: 310*3, offsetY: 310*1, fps: 5 },
+      event_lunar_new_year: { spriteUrl: "/assets/festivals_phase5_clean.png", frameWidth: 276, frameHeight: 310, sheetWidth: 276*4, sheetHeight: 310*3, offsetY: 310*2, fps: 4 },
+
+      // Phase 6 Rare Events 1 (271x331)
+      rare_sleep_drool: { spriteUrl: "/assets/rare_events_1_phase6_clean.png", frameWidth: 271, frameHeight: 331, sheetWidth: 271*4, sheetHeight: 331*3, offsetY: 0, fps: 3 },
+      rare_read_sleep: { spriteUrl: "/assets/rare_events_1_phase6_clean.png", frameWidth: 271, frameHeight: 331, sheetWidth: 271*4, sheetHeight: 331*3, offsetY: 331*1, fps: 2 },
+      rare_cat: { spriteUrl: "/assets/rare_events_1_phase6_clean.png", frameWidth: 271, frameHeight: 331, sheetWidth: 271*4, sheetHeight: 331*3, offsetY: 331*2, fps: 4 },
+
+      // Phase 6 Rare Events 2 (239x346)
+      rare_star: { spriteUrl: "/assets/rare_events_2_phase6_clean.png", frameWidth: 239, frameHeight: 346, sheetWidth: 239*4, sheetHeight: 346*3, offsetY: 0, fps: 4 },
+      rare_sing: { spriteUrl: "/assets/rare_events_2_phase6_clean.png", frameWidth: 239, frameHeight: 346, sheetWidth: 239*4, sheetHeight: 346*3, offsetY: 346*1, fps: 6 },
+      rare_cook_burn: { spriteUrl: "/assets/rare_events_2_phase6_clean.png", frameWidth: 239, frameHeight: 346, sheetWidth: 239*4, sheetHeight: 346*3, offsetY: 346*2, fps: 3 },
     },
   },
   5: {
     name: "Teen Bunny Girl",
-    spriteUrl: "/assets/bunny_teen_actions.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: 170, // 1024 / 6 columns (this sheet has 6 frames per row)
-    frameHeight: 205,
-    defaultScale: 1.3,
+    spriteUrl: "/assets/teen_bunny_girl_phase3_clean.png",
+    sheetWidth: 276 * 4,
+    sheetHeight: 361 * 3,
+    frameWidth: 276,
+    frameHeight: 361,
+    defaultScale: 0.8,
     roomBackground: "bg-gradient-to-b from-blue-100 via-indigo-50 to-blue-200",
-    actions: gridActions(6),
+    actions: {
+      teen_laptop: { offsetY: 0, fps: 4, totalFrames: 4 },
+      teen_yoga: { offsetY: 361 * 1, fps: 5, totalFrames: 4 },
+      teen_coffee: { offsetY: 361 * 2, fps: 3, totalFrames: 4 },
+      idle: { offsetY: 0, fps: 4, totalFrames: 4 },
+      study: { offsetY: 0, fps: 4, totalFrames: 4 },
+    },
   },
   6: {
     name: "Young Woman",
-    spriteUrl: "/assets/bunny_woman_actions.png",
-    sheetWidth: 1024,
-    sheetHeight: 1024,
-    frameWidth: 256,
-    frameHeight: 205,
-    defaultScale: 1.15,
+    spriteUrl: "/assets/young_woman_bunny_phase3_clean.png",
+    sheetWidth: 233 * 4,
+    sheetHeight: 352 * 3,
+    frameWidth: 233,
+    frameHeight: 352,
+    defaultScale: 0.9,
     roomBackground: "bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100",
-    actions: gridActions(4),
+    actions: {
+      woman_plan: { offsetY: 0, fps: 4, totalFrames: 4 },
+      woman_tea: { offsetY: 352 * 1, fps: 4, totalFrames: 4 },
+      woman_wave: { offsetY: 352 * 2, fps: 6, totalFrames: 4 },
+      idle: { offsetY: 352 * 2, fps: 6, totalFrames: 4 },
+      study: { offsetY: 0, fps: 4, totalFrames: 4 },
+      
+      // Phase 4 Streaks Milestones (253x276)
+      streak_30: { spriteUrl: "/assets/streaks_milestone_phase4_clean.png", frameWidth: 253, frameHeight: 276, sheetWidth: 253*4, sheetHeight: 276*4, offsetY: 0, fps: 4 },
+      streak_100: { spriteUrl: "/assets/streaks_milestone_phase4_clean.png", frameWidth: 253, frameHeight: 276, sheetWidth: 253*4, sheetHeight: 276*4, offsetY: 276*1, fps: 3 },
+      streak_365: { spriteUrl: "/assets/streaks_milestone_phase4_clean.png", frameWidth: 253, frameHeight: 276, sheetWidth: 253*4, sheetHeight: 276*4, offsetY: 276*2, fps: 4 },
+      streak_1000: { spriteUrl: "/assets/streaks_milestone_phase4_clean.png", frameWidth: 253, frameHeight: 276, sheetWidth: 253*4, sheetHeight: 276*4, offsetY: 276*3, fps: 5 },
+    },
   },
 };
 
@@ -176,13 +258,20 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
   if (config.actions) {
     const actionConfig = config.actions[action] || config.actions["idle"];
     
+    // Áp dụng override từ actionConfig nếu có, ngược lại dùng của stage config
+    const currentSpriteUrl = actionConfig.spriteUrl || finalSpriteUrl;
+    const currentSheetWidth = actionConfig.sheetWidth || config.sheetWidth;
+    const currentSheetHeight = actionConfig.sheetHeight || config.sheetHeight;
+    const currentFrameWidth = actionConfig.frameWidth || config.frameWidth!;
+    const currentFrameHeight = actionConfig.frameHeight || config.frameHeight!;
+
     return (
       <VirtualPet
-        spriteUrl={finalSpriteUrl}
-        sheetWidth={config.sheetWidth}
-        sheetHeight={config.sheetHeight}
-        frameWidth={config.frameWidth!}
-        frameHeight={config.frameHeight!}
+        spriteUrl={currentSpriteUrl}
+        sheetWidth={currentSheetWidth}
+        sheetHeight={currentSheetHeight}
+        frameWidth={currentFrameWidth}
+        frameHeight={currentFrameHeight}
         scale={config.defaultScale}
         offsetX={0} // Theo file AI tạo thì luôn chạy ngang từ cột 0
         offsetY={actionConfig.offsetY}

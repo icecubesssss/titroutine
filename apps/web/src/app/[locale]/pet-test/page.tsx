@@ -83,6 +83,7 @@ export default function PetTestPage() {
         {/* The Pet */}
         <div 
           className="relative z-10 flex items-end justify-center transition-transform duration-300 ease-out"
+          // eslint-disable-next-line react/forbid-dom-props
           style={{ transform: `scale(${scale})` }}
         >
           {/* Ground shadow */}

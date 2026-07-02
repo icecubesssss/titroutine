@@ -114,7 +114,11 @@ no furniture, no text, gentle gradient, tileable room backdrop.
 
 ---
 
-## Phase G5 — SỬA LỖI phát hiện khi tích hợp 🔧 (ưu tiên cao)
+## Phase G5 — SỬA LỖI phát hiện khi tích hợp ✅ ĐÃ XONG
+
+> Gemini đã vẽ lại 13 file trên nền neon phẳng. Đã xử lý: `bunny_teen_actions` lưới
+> chuẩn → cắt sạch, stage 5 giờ có đủ cảm xúc; 12 item phòng đã tách nền trong suốt.
+> Giữ mục dưới để tham chiếu.
 
 Khi ráp G1/G2/G4 vào app, phát hiện 2 lỗi cần vẽ lại:
 

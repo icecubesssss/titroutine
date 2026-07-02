@@ -11,6 +11,7 @@ export default function PetTestPage() {
   const [stage, setStage] = useState<number>(4); // Default to Stage 4 (Bunny Child) which has the most actions
   const [action, setAction] = useState<CompanionAction>("idle");
   const [scale, setScale] = useState<number>(1); // Zoom control for testing
+  const scaleId = React.useId().replace(/:/g, "");
 
   const currentConfig = STAGES_CONFIG[stage] || STAGES_CONFIG[0];
   const availableActions = currentConfig.actions ? Object.keys(currentConfig.actions) as CompanionAction[] : [];
@@ -85,10 +86,9 @@ export default function PetTestPage() {
         </div>
 
         {/* The Pet */}
-        <div 
-          className="relative z-10 flex items-end justify-center transition-transform duration-300 ease-out"
-          // eslint-disable-next-line react/forbid-dom-props
-          style={{ transform: `scale(${scale})` }}
+        <style>{`.petscale-${scaleId} { transform: scale(${scale}); }`}</style>
+        <div
+          className={`relative z-10 flex items-end justify-center transition-transform duration-300 ease-out petscale-${scaleId}`}
         >
           {/* Ground shadow */}
           <div className="absolute -bottom-4 w-48 h-8 bg-black/20 rounded-full blur-xl" />

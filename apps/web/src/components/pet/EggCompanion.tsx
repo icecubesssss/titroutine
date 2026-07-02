@@ -40,35 +40,37 @@ export const EggCompanion: React.FC<{
   const reacting = action === "happy" || action === "welcome";
   const wig = reacting ? frame + 3 : frame; // unitless multiplier; 0 = perfectly still
 
+  // Styles live in a scoped <style> block (not inline `style` attrs) so the dynamic
+  // sprite frame + wiggle can vary per render without tripping no-inline-styles.
+  const uid = React.useId().replace(/:/g, "");
+  const wrap = `egg-${uid}`;
+
   return (
     <div className={clsx("inline-block", className)}>
       <style>{`
-        @keyframes egg-wiggle {
-          0%, 100% { transform: rotate(calc(-1deg * var(--wig))); }
-          25%      { transform: rotate(calc(1deg * var(--wig))); }
-          50%      { transform: rotate(calc(-0.6deg * var(--wig))); }
-          75%      { transform: rotate(calc(0.6deg * var(--wig))); }
+        @keyframes ${wrap}-wiggle {
+          0%, 100% { transform: rotate(calc(-1deg * ${wig})); }
+          25%      { transform: rotate(calc(1deg * ${wig})); }
+          50%      { transform: rotate(calc(-0.6deg * ${wig})); }
+          75%      { transform: rotate(calc(0.6deg * ${wig})); }
+        }
+        .${wrap}-outer {
+          width: 150px;
+          height: 225px; /* keeps the ~341:512 cell ratio of the sprite */
+          transform-origin: 50% 92%;
+          ${wig > 0 ? `animation: ${wrap}-wiggle ${reacting ? 0.4 : 1.7}s ease-in-out infinite;` : ""}
+        }
+        .${wrap}-sprite {
+          width: 100%;
+          height: 100%;
+          background-image: url('/assets/egg_hatch_sprite.png');
+          background-size: 300% 200%; /* 3 columns × 2 rows */
+          background-position: ${col * 50}% ${row * 100}%;
+          background-repeat: no-repeat;
         }
       `}</style>
-      <div
-        style={{
-          width: 150,
-          height: 225, // keeps the ~341:512 cell ratio of the sprite
-          transformOrigin: "50% 92%",
-          ["--wig" as string]: String(wig),
-          animation: wig > 0 ? `egg-wiggle ${reacting ? 0.4 : 1.7}s ease-in-out infinite` : undefined,
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            backgroundImage: "url('/assets/egg_hatch_sprite.png')",
-            backgroundSize: "300% 200%", // 3 columns × 2 rows
-            backgroundPosition: `${col * 50}% ${row * 100}%`,
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+      <div className={`${wrap}-outer`}>
+        <div className={`${wrap}-sprite`} />
       </div>
     </div>
   );

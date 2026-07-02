@@ -190,20 +190,22 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     },
   },
   5: {
+    // Full emotion sheet (Gemini G5 regen — lưới đều). Rows: idle/happy/sad/sleep/study.
+    // Nhân vật teen mới (khác old teen) nên bỏ thematic cũ để đồng nhất một thiết kế.
     name: "Teen Bunny Girl",
-    spriteUrl: "/assets/teen_bunny_girl_phase3_clean.png",
-    sheetWidth: 276 * 4,
-    sheetHeight: 361 * 3,
-    frameWidth: 276,
-    frameHeight: 361,
-    defaultScale: 0.8,
+    spriteUrl: "/assets/bunny_teen_actions_clean.png",
+    sheetWidth: 141 * 4,
+    sheetHeight: 224 * 5,
+    frameWidth: 141,
+    frameHeight: 224,
+    defaultScale: 0.95,
     roomBackground: "bg-gradient-to-b from-blue-100 via-indigo-50 to-blue-200",
     actions: {
-      teen_laptop: { offsetY: 0, fps: 4, totalFrames: 4 },
-      teen_yoga: { offsetY: 361 * 1, fps: 5, totalFrames: 4 },
-      teen_coffee: { offsetY: 361 * 2, fps: 3, totalFrames: 4 },
-      idle: { offsetY: 0, fps: 4, totalFrames: 4 },
-      study: { offsetY: 0, fps: 4, totalFrames: 4 },
+      idle: { offsetY: 0, fps: 4 },
+      happy: { offsetY: 224 * 1, fps: 6 },
+      sad: { offsetY: 224 * 2, fps: 3 },
+      sleep: { offsetY: 224 * 3, fps: 2 },
+      study: { offsetY: 224 * 4, fps: 4 },
     },
   },
   6: {

@@ -53,3 +53,66 @@ body {
   60%  { transform: translateY(0) scale(1.04); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
+
+/* ── Pet room depth & care FX ─────────────────────────────────────────────── */
+
+/* Time-of-day light wash overlaid on the room (soft, non-interactive). */
+.room-lighting-morning { background: linear-gradient(180deg, rgba(255,236,190,0.45) 0%, rgba(255,255,255,0) 55%), radial-gradient(120% 60% at 75% 0%, rgba(255,214,140,0.35), transparent 60%); }
+.room-lighting-day     { background: radial-gradient(120% 60% at 50% -10%, rgba(255,255,255,0.5), transparent 55%); }
+.room-lighting-evening { background: linear-gradient(180deg, rgba(255,183,130,0.35) 0%, rgba(120,90,140,0.12) 70%), radial-gradient(120% 60% at 25% 0%, rgba(255,170,120,0.35), transparent 60%); }
+.room-lighting-night   { background: linear-gradient(180deg, rgba(30,30,70,0.35) 0%, rgba(20,20,50,0.15) 100%); }
+
+/* Soft elliptical floor plane under the pet. */
+.room-floor {
+  background: radial-gradient(80% 120% at 50% 100%, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0.05) 45%, transparent 70%);
+}
+
+/* Floating dust / light motes for ambient depth. */
+.dust-mote {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.75);
+  filter: blur(1px);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  animation-name: mote-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes mote-drift {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  25%  { opacity: 0.9; }
+  50%  { transform: translateY(-22px) translateX(8px); opacity: 0.7; }
+  75%  { opacity: 0.5; }
+  100% { transform: translateY(0) translateX(0); opacity: 0; }
+}
+
+/* "+N EXP" reward text rising off the pet. */
+.exp-float {
+  animation: exp-rise 1.4s ease-out forwards;
+}
+@keyframes exp-rise {
+  0%   { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+  20%  { transform: translate(-50%, -10px) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -70px) scale(1); opacity: 0; }
+}
+
+/* Low-satiety bar pulse (a gentle "I'm hungry" nudge). */
+.animate-pulse-low { animation: pulse-low 1.1s ease-in-out infinite; }
+@keyframes pulse-low {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Bottom-sheet slide-up for the feed picker / neighbour modal. */
+.animate-sheet-up { animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sheet-up {
+  0%   { transform: translateY(24px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Hide scrollbar on the horizontal room tabs. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

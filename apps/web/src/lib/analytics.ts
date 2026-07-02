@@ -22,7 +22,9 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("timezone, total_exp, current_streak")
+    // "EXP" now means the pet's nurture EXP (from feeding); habits no longer
+    // grant EXP so total_exp is frozen. Show the live pet_exp instead.
+    .select("timezone, pet_exp, current_streak")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -59,7 +61,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
 
   return {
     totalCompletedAllTime: totalCompletedAllTime ?? 0,
-    totalExp: profile?.total_exp ?? 0,
+    totalExp: profile?.pet_exp ?? 0,
     currentStreak: profile?.current_streak ?? 0,
     bestStreak: Math.max(profile?.current_streak ?? 0, 0), // Basic for now, we'd need history to track real best streak
     heatmapData,

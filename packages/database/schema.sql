@@ -9,9 +9,15 @@ CREATE TABLE public.profiles (
   coins INTEGER DEFAULT 0,
   streak_freezes INTEGER DEFAULT 0,
   current_streak INTEGER DEFAULT 0,
-  total_exp INTEGER DEFAULT 0, -- Dùng để tính Level cho Pet
-  pet_stage INTEGER DEFAULT 0, -- 0: Trứng, 1: Thỏ con, v.v.
-  affection_level INTEGER DEFAULT 0, -- Mức độ tình cảm với thú ảo
+  total_exp INTEGER DEFAULT 0, -- (Đóng băng) EXP habit cũ; giữ cho tương thích, không còn tăng
+  pet_stage INTEGER DEFAULT 0, -- 0: Trứng, 1: Thỏ con, v.v. (tiến hóa theo STREAK)
+  affection_level INTEGER DEFAULT 0, -- Độ thân thiết với thú (từ vuốt ve/chơi/cho ăn), 0-100
+  pet_exp INTEGER DEFAULT 0, -- EXP NUÔI (chỉ từ việc cho ăn) → tính pet level → mở khóa phòng
+  satiety INTEGER DEFAULT 100, -- Thanh No (0-100), giảm dần mỗi ngày, hồi khi cho ăn
+  last_fed_date DATE, -- Ngày cho ăn gần nhất: tính giảm No + thưởng nuôi mỗi ngày
+  last_interact_at TIMESTAMPTZ, -- Lần tương tác gần nhất (cooldown chống spam vuốt ve/chơi)
+  affection_today INTEGER DEFAULT 0, -- Affection đã nhận trong ngày (daily cap; reset khi qua ngày)
+  last_neighbor_gift_date DATE, -- Ngày nhận quà thăm hàng xóm gần nhất (1 lần/ngày)
   last_active_date DATE, -- Dùng để tự động reset/kiểm tra streak
   last_checkin_date DATE, -- Dùng để ghi nhận điểm danh mỗi ngày và thưởng xu
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -96,3 +102,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION: Pet nurture (feeding) + rooms + neighbours.
+-- Run once on an existing Supabase database. Idempotent (IF NOT EXISTS). The
+-- DEFAULTs backfill existing rows, so no one starts "starving" after rollout
+-- (satiety = 100, and NULL last_fed_date is treated as full in game.ts).
+-- ────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pet_exp INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS satiety INTEGER DEFAULT 100;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_fed_date DATE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_interact_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS affection_today INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_neighbor_gift_date DATE;

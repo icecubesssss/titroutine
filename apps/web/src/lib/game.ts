@@ -2,6 +2,12 @@
 // the UI and the server actions always agree on derived state.
 
 export const COINS_PER_HABIT = 10;
+/**
+ * @deprecated Habits no longer grant pet EXP — completing a habit awards *coins
+ * only*. The pet's growth EXP (`pet_exp`) now comes exclusively from feeding
+ * (see {@link feedExpGain}). Kept for reference; do not reintroduce into habit
+ * mutations.
+ */
 export const EXP_PER_HABIT = 10;
 
 /**
@@ -85,3 +91,115 @@ export function nextStreak(
   
   return { newStreak: 1, freezesUsed: 0 }; // Not enough freezes, streak resets
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Pet NURTURE axis (feeding). Independent from the streak-driven *appearance*
+// stage (see ratchetStage). Feeding raises `pet_exp`, which derives a "nurture
+// level" that gates room unlocks + interactions. This axis is monotonic (feeding
+// only ever adds EXP), so it never needs a ratchet and rooms never re-lock.
+// ───────────────────────────────────────────────────────────────────────────
+
+export const SATIETY_MAX = 100;
+/** Satiety lost per whole day since the pet was last fed. ~4 days from full→empty. */
+export const SATIETY_DECAY_PER_DAY = 25;
+/** Pet EXP earned per point of satiety *actually* restored by a feed. */
+export const EXP_PER_SATIETY = 1;
+/** One-off bonus EXP for the first feed of the day (rewards showing up daily). */
+export const DAILY_FEED_BONUS_EXP = 15;
+
+/**
+ * Cumulative `pet_exp` needed to reach each nurture level (index === level-1).
+ * Paced against ~25 EXP/day feeding: Lv3 ≈ 4d, Lv5 ≈ 11d, Lv8 ≈ 30d, Lv11 ≈ 68d
+ * — matching the "vừa phải" (~4 month) evolution cadence in the design bible.
+ */
+export const PET_LEVEL_THRESHOLDS = [
+  0, 60, 150, 280, 450, 680, 960, 1300, 1700, 2180, 2720, 3320, 4000, 4760, 5600,
+] as const;
+
+/** Nurture level (starts at 1) for a given cumulative feeding EXP. */
+export function levelFromExp(exp: number): number {
+  let level = 1;
+  for (let i = 0; i < PET_LEVEL_THRESHOLDS.length; i++) {
+    if (exp >= PET_LEVEL_THRESHOLDS[i]) level = i + 1;
+  }
+  return level;
+}
+
+/** Progress within the current level: EXP into it, EXP span, and 0..1 ratio. */
+export function expToNextLevel(exp: number): { current: number; needed: number; ratio: number } {
+  const level = levelFromExp(exp);
+  const base = PET_LEVEL_THRESHOLDS[level - 1] ?? 0;
+  const next = PET_LEVEL_THRESHOLDS[level]; // threshold for level+1
+  if (next === undefined) return { current: 0, needed: 0, ratio: 1 }; // maxed
+  const current = exp - base;
+  const needed = next - base;
+  return { current, needed, ratio: needed > 0 ? Math.min(1, current / needed) : 1 };
+}
+
+export interface FoodTier {
+  id: string;
+  cost: number; // coins
+  satiety: number; // satiety points restored (before capping at SATIETY_MAX)
+}
+
+/** Shop food. Bigger tiers restore more satiety (⇒ more EXP on a hungry pet) but cost more. */
+export const FOOD_TIERS: readonly FoodTier[] = [
+  { id: "carrot", cost: 10, satiety: 20 },
+  { id: "cake", cost: 30, satiety: 50 },
+  { id: "feast", cost: 60, satiety: 100 },
+] as const;
+
+export function foodTier(id: string): FoodTier | undefined {
+  return FOOD_TIERS.find((f) => f.id === id);
+}
+
+/**
+ * Effective satiety right now: the value stored at the last feed, minus daily
+ * decay since. A never-fed pet (no `lastFedDate`) is treated as full so new pets
+ * and freshly-migrated accounts don't start "starving".
+ */
+export function currentSatiety(
+  storedSatiety: number | null | undefined,
+  lastFedDate: string | null | undefined,
+  today: string
+): number {
+  if (!lastFedDate) return SATIETY_MAX;
+  const stored = storedSatiety ?? SATIETY_MAX;
+  const days = Math.max(0, daysBetween(lastFedDate, today));
+  return Math.max(0, Math.min(SATIETY_MAX, stored - days * SATIETY_DECAY_PER_DAY));
+}
+
+/**
+ * EXP a feed grants — proportional to the satiety *actually* restored (capped at
+ * the current deficit). Feeding an already-full pet yields ~0. This is the core
+ * anti-exploit: total nurture EXP per day is bounded by the decay rate, so coins
+ * can't be dumped into instant leveling — growth is paced by real days.
+ */
+export function feedExpGain(currentSat: number, tier: FoodTier): number {
+  const actualRestored = Math.max(0, Math.min(tier.satiety, SATIETY_MAX - currentSat));
+  return Math.round(EXP_PER_SATIETY * actualRestored);
+}
+
+export type PetMood = "hungry" | "content" | "happy";
+
+/** Derived mood from care stats. Drives ambient animation + the mood widget. */
+export function moodFromStats(satiety: number, affection: number): PetMood {
+  if (satiety < 25) return "hungry";
+  if (satiety >= 60 && affection >= 40) return "happy";
+  return "content";
+}
+
+// ── Interactions (pat / play / clean) — bond (affection_level) tuning ──────────
+export const AFFECTION_MAX = 100;
+export const AFFECTION_PER_FEED = 3;
+export const AFFECTION_PER_INTERACT = 4;
+/** Max affection an interaction spree can add in a single day (paces the bond). */
+export const AFFECTION_DAILY_CAP = 40;
+/** Min gap between affection-granting interactions (anti-spam). Animation still plays. */
+export const INTERACT_COOLDOWN_MS = 30_000;
+/** Playing burns a little satiety. */
+export const PLAY_SATIETY_COST = 5;
+
+// ── NPC neighbours — daily visit gift ─────────────────────────────────────────
+export const NEIGHBOR_GIFT_COINS = 20;
+export const NEIGHBOR_GIFT_AFFECTION = 5;

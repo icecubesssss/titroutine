@@ -1,3 +1,5 @@
+import type { PetMood } from "./game";
+import type { RoomId } from "./rooms";
 
 export type FrequencyType = "daily" | "specific_days" | "x_times_a_week";
 
@@ -29,12 +31,32 @@ export interface HabitWithLog {
 export interface ProfileSummary {
   coins: number;
   currentStreak: number;
+  /** Streak-driven appearance stage (egg → … → woman). Unchanged by feeding. */
   petStage: number;
   totalExp: number;
   timezone: string;
   username: string | null;
   lastCheckinDate: string | null;
   streakFreezes: number;
+  // ── Nurture axis (feeding) ──────────────────────────────────────────────
+  /** Cumulative feeding EXP. */
+  petExp: number;
+  /** Nurture level derived from petExp (gates rooms/interactions). */
+  petLevel: number;
+  /** Progress into the current level, 0..1. */
+  petLevelProgress: number;
+  /** Effective satiety right now (0..100), after daily decay. */
+  satiety: number;
+  /** Bond points with the pet (0..100). */
+  affection: number;
+  /** Derived mood from satiety + affection. */
+  mood: PetMood;
+  /** Rooms currently unlocked at petLevel. */
+  unlockedRooms: RoomId[];
+  /** True once all rooms are unlocked (neighbours available). */
+  allRoomsUnlocked: boolean;
+  /** Whether the daily neighbour gift can be claimed today. */
+  canClaimNeighborGift: boolean;
 }
 
 export interface InventorySummary {

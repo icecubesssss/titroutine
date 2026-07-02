@@ -2,7 +2,15 @@ import "server-only";
 
 import { createClient } from "@/utils/supabase/server";
 import { format, parseISO, startOfWeek, addDays } from "date-fns";
-import { ratchetStage, todayInTimezone } from "./game";
+import {
+  ratchetStage,
+  todayInTimezone,
+  currentSatiety,
+  levelFromExp,
+  expToNextLevel,
+  moodFromStats,
+} from "./game";
+import { unlockedRooms, allRoomsUnlocked } from "./rooms";
 import { eligibleMemoryKeys } from "./memories";
 import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
 
@@ -35,7 +43,9 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes")
+    .select(
+      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, affection_level, last_neighbor_gift_date"
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -45,6 +55,16 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const isToday = targetDate === today;
   const totalExp = profile?.total_exp ?? 0;
   const currentStreak = profile?.current_streak ?? 0;
+
+  // Nurture axis (feeding) — independent from the streak-driven appearance stage.
+  const petExp = profile?.pet_exp ?? 0;
+  const petLevel = levelFromExp(petExp);
+  const petLevelProgress = expToNextLevel(petExp).ratio;
+  const satiety = currentSatiety(profile?.satiety, profile?.last_fed_date ?? null, today);
+  const affection = profile?.affection_level ?? 0;
+  const mood = moodFromStats(satiety, affection);
+  const rooms = unlockedRooms(petLevel);
+  const roomsAllUnlocked = allRoomsUnlocked(petLevel);
 
   const targetDateObj = parseISO(targetDate);
   const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
@@ -137,6 +157,15 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       username: profile?.username ?? null,
       lastCheckinDate: profile?.last_checkin_date ?? null,
       streakFreezes: profile?.streak_freezes ?? 0,
+      petExp,
+      petLevel,
+      petLevelProgress,
+      satiety,
+      affection,
+      mood,
+      unlockedRooms: rooms,
+      allRoomsUnlocked: roomsAllUnlocked,
+      canClaimNeighborGift: roomsAllUnlocked && profile?.last_neighbor_gift_date !== today,
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},

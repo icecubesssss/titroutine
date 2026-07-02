@@ -175,7 +175,22 @@
     "allDone2": "Tuyệt vời! Nghỉ ngơi chút nha 💛",
     "go1": "Còn {count} việc nữa thôi, cố lên!",
     "go2": "Mình tin bạn làm được mà! ✨",
-    "go3": "Cùng nhau làm cho vui nhé~"
+    "go3": "Cùng nhau làm cho vui nhé~",
+    "level": "Cấp {level}",
+    "satiety": "No",
+    "affection": "Thân thiết",
+    "mood_hungry": "Đang đói",
+    "mood_content": "Bình thường",
+    "mood_happy": "Vui vẻ",
+    "action_feed": "Cho ăn",
+    "action_pat": "Vuốt ve",
+    "action_play": "Chơi",
+    "action_clean": "Tắm",
+    "action_sleep": "Ngủ",
+    "feedTitle": "Cho bé ăn gì nào?",
+    "food_carrot": "Cà rốt",
+    "food_cake": "Bánh ngọt",
+    "food_feast": "Đại tiệc"
   },
   "Timer": {
     "cancel": "Hủy",
@@ -200,5 +215,26 @@
     "reportError": "Gửi thất bại, thử lại sau.",
     "account": "Tài khoản",
     "signOut": "Đăng xuất"
+  },
+  "Rooms": {
+    "bedroom": "Phòng riêng",
+    "kitchen": "Nhà bếp",
+    "living": "Phòng khách",
+    "garden": "Sân vườn",
+    "bathroom": "Nhà vệ sinh",
+    "lockedHint": "Đạt cấp {level} để mở khoá",
+    "neighbors": "Hàng xóm",
+    "neighborsLocked": "Mở hết phòng để thăm hàng xóm"
+  },
+  "Neighbors": {
+    "title": "Khu hàng xóm",
+    "close": "Đóng",
+    "giftHint": "Thăm hàng xóm để nhận {coins} xu mỗi ngày!",
+    "giftClaimed": "Hôm nay đã nhận quà rồi, mai quay lại nhé!",
+    "visit": "Chơi cùng",
+    "done": "Đã nhận",
+    "mochi": "Mochi",
+    "biscuit": "Biscuit",
+    "luna": "Luna"
   }
 }

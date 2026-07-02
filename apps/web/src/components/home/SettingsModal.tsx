@@ -25,6 +25,10 @@ interface SettingsModalProps {
   setDevStageOverride?: (stage: number | null) => void;
   devStreakOverride?: number | null;
   setDevStreakOverride?: (streak: number | null) => void;
+  devLevelOverride?: number | null;
+  setDevLevelOverride?: (level: number | null) => void;
+  devSatietyOverride?: number | null;
+  setDevSatietyOverride?: (satiety: number | null) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -36,6 +40,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setDevStageOverride,
   devStreakOverride = null,
   setDevStreakOverride,
+  devLevelOverride = null,
+  setDevLevelOverride,
+  devSatietyOverride = null,
+  setDevSatietyOverride,
 }) => {
   const t = useTranslations("Settings");
   const locale = useLocale();
@@ -285,12 +293,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </select>
                 </div>
 
+                {/* Pet nurture level override (previews room unlocks) */}
+                {setDevLevelOverride && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-600 block">
+                      Giả lập Cấp độ nuôi ({devLevelOverride !== null ? devLevelOverride : "auto"}) — mở khoá phòng:
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="12"
+                      aria-label="Giả lập Cấp độ nuôi"
+                      title="Giả lập Cấp độ nuôi"
+                      value={devLevelOverride !== null ? devLevelOverride : 1}
+                      onChange={(e) => setDevLevelOverride(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                    <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+                      <span>Lv1 (Phòng riêng)</span>
+                      <span>Lv11+ (Đủ 5 phòng)</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Satiety override (previews mood: đói → buồn) */}
+                {setDevSatietyOverride && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-600 block">
+                      Giả lập thanh No ({devSatietyOverride !== null ? devSatietyOverride : "auto"}):
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      aria-label="Giả lập thanh No"
+                      title="Giả lập thanh No"
+                      value={devSatietyOverride !== null ? devSatietyOverride : 100}
+                      onChange={(e) => setDevSatietyOverride(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                    />
+                    <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+                      <span>0 (Đói → buồn)</span>
+                      <span>100 (No)</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Reset button */}
                 <button
                   type="button"
                   onClick={() => {
                     setDevStageOverride(null);
                     setDevStreakOverride(null);
+                    setDevLevelOverride?.(null);
+                    setDevSatietyOverride?.(null);
                   }}
                   className="w-full py-1.5 rounded-xl border border-red-200 bg-white font-bold text-red-500 text-xs hover:bg-red-50 transition-colors"
                 >

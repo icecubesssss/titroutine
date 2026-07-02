@@ -175,7 +175,22 @@
     "allDone2": "Wonderful! Take a little rest 💛",
     "go1": "Just {count} to go, you got this!",
     "go2": "I believe in you! ✨",
-    "go3": "Let's do it together~"
+    "go3": "Let's do it together~",
+    "level": "Lv {level}",
+    "satiety": "Fullness",
+    "affection": "Bond",
+    "mood_hungry": "Hungry",
+    "mood_content": "Content",
+    "mood_happy": "Happy",
+    "action_feed": "Feed",
+    "action_pat": "Pat",
+    "action_play": "Play",
+    "action_clean": "Clean",
+    "action_sleep": "Sleep",
+    "feedTitle": "What shall we feed?",
+    "food_carrot": "Carrot",
+    "food_cake": "Cake",
+    "food_feast": "Feast"
   },
   "Timer": {
     "cancel": "Cancel",
@@ -200,5 +215,26 @@
     "reportError": "Failed to send, try again later.",
     "account": "Account",
     "signOut": "Sign out"
+  },
+  "Rooms": {
+    "bedroom": "Bedroom",
+    "kitchen": "Kitchen",
+    "living": "Living room",
+    "garden": "Garden",
+    "bathroom": "Bathroom",
+    "lockedHint": "Reach level {level} to unlock",
+    "neighbors": "Neighbours",
+    "neighborsLocked": "Unlock every room to visit neighbours"
+  },
+  "Neighbors": {
+    "title": "Neighbourhood",
+    "close": "Close",
+    "giftHint": "Visit a neighbour for {coins} coins each day!",
+    "giftClaimed": "Already claimed today — come back tomorrow!",
+    "visit": "Visit",
+    "done": "Claimed",
+    "mochi": "Mochi",
+    "biscuit": "Biscuit",
+    "luna": "Luna"
   }
 }

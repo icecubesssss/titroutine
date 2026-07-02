@@ -18,11 +18,38 @@ import { TimerModal } from "@/components/home/TimerModal";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
+import { PetHud } from "@/components/home/PetHud";
+import { InteractionDock } from "@/components/home/InteractionDock";
+import { FeedPicker } from "@/components/home/FeedPicker";
+import { RoomSwitcher } from "@/components/home/RoomSwitcher";
+import { NeighborModal } from "@/components/home/NeighborModal";
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
-import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction, incrementCounterHabitAction } from "@/app/[locale]/actions";
-import { stageFromStreak, daysBetween } from "@/lib/game";
+import {
+  toggleHabitAction,
+  updateTimezoneAction,
+  claimDailyCheckinAction,
+  buyFreezeAction,
+  incrementCounterHabitAction,
+  feedPetAction,
+  petInteractAction,
+  claimNeighborGiftAction,
+} from "@/app/[locale]/actions";
+import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
+import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
+
+const LAST_ROOM_KEY = "titroutine:lastRoom";
+
+// Static positions for the floating dust/light motes that give the room depth.
+const DUST_MOTES = [
+  { left: "12%", top: "28%", d: "9s", delay: "0s" },
+  { left: "78%", top: "22%", d: "11s", delay: "1.5s" },
+  { left: "40%", top: "16%", d: "8s", delay: "0.8s" },
+  { left: "62%", top: "42%", d: "12s", delay: "2.2s" },
+  { left: "24%", top: "50%", d: "10s", delay: "3s" },
+  { left: "88%", top: "54%", d: "9.5s", delay: "1.1s" },
+];
 
 const LAST_STAGE_KEY = "titroutine:lastPetStage";
 
@@ -54,10 +81,29 @@ export function HomeView({ data }: { data: DashboardData }) {
   // Thời tiết thật (nếu xin được vị trí) → thỏ ngắm mưa/đắp người tuyết đúng lúc.
   const [weather, setWeather] = useState<"rain" | "snow" | null>(null);
 
+  // ── Nurture (feeding) state — optimistic mirrors of server truth ──────────
+  const [satiety, setSatiety] = useState(data.profile.satiety);
+  const [petExp, setPetExp] = useState(data.profile.petExp);
+  const [affection, setAffection] = useState(data.profile.affection);
+  const [isFeedOpen, setIsFeedOpen] = useState(false);
+  const [isNeighborOpen, setIsNeighborOpen] = useState(false);
+  // Floating "+N EXP" texts that pop over the pet when fed.
+  const [floats, setFloats] = useState<{ id: number; text: string }[]>([]);
+  const floatId = useRef(0);
+  const careInFlight = useRef(false);
+
+  // Current room the user is viewing (persisted). Clamped to an unlocked room.
+  const [currentRoomId, setCurrentRoomId] = useState<RoomId>("bedroom");
+  // Time-of-day tint for room lighting. Client-only (set in effect) so the first
+  // render matches the server and there's no hydration mismatch.
+  const [timeOfDay, setTimeOfDay] = useState<"morning" | "day" | "evening" | "night">("day");
+
   // Dev-only overrides (from the Settings → Developer Tools panel) for previewing
   // pet stages / streaks before the higher-stage art lands.
   const [devStageOverride, setDevStageOverride] = useState<number | null>(null);
   const [devStreakOverride, setDevStreakOverride] = useState<number | null>(null);
+  const [devLevelOverride, setDevLevelOverride] = useState<number | null>(null);
+  const [devSatietyOverride, setDevSatietyOverride] = useState<number | null>(null);
 
   const [celebration, setCelebration] = useState<{
     isOpen: boolean;
@@ -128,7 +174,45 @@ export function HomeView({ data }: { data: DashboardData }) {
   useEffect(() => {
     setHabits(data.habits);
     setCoins(data.profile.coins);
+    setSatiety(data.profile.satiety);
+    setPetExp(data.profile.petExp);
+    setAffection(data.profile.affection);
   }, [data]);
+
+  // Restore last-viewed room, clamped to one that's actually unlocked.
+  useEffect(() => {
+    const stored = window.localStorage.getItem(LAST_ROOM_KEY) as RoomId | null;
+    if (stored && data.profile.unlockedRooms.includes(stored)) {
+      setCurrentRoomId(stored);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If the current room ever falls outside the unlocked set, snap back to bedroom.
+  // Skipped while a dev level override is active so rooms can be previewed freely.
+  useEffect(() => {
+    if (devLevelOverride === null && !data.profile.unlockedRooms.includes(currentRoomId)) {
+      setCurrentRoomId("bedroom");
+    }
+  }, [data.profile.unlockedRooms, currentRoomId, devLevelOverride]);
+
+  // Pick a time-of-day tint once on mount (and refresh it hourly).
+  useEffect(() => {
+    const compute = () => {
+      const h = new Date().getHours();
+      setTimeOfDay(h < 6 || h >= 22 ? "night" : h < 9 ? "morning" : h < 17 ? "day" : "evening");
+    };
+    compute();
+    const id = setInterval(compute, 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const selectRoom = (id: RoomId) => {
+    playSwoosh();
+    setCurrentRoomId(id);
+    window.localStorage.setItem(LAST_ROOM_KEY, id);
+    setAmbientAction(roomDef(id).idleAction);
+  };
 
   // Capture the user's real timezone once so streaks roll over on their local day.
   useEffect(() => {
@@ -261,6 +345,62 @@ export function HomeView({ data }: { data: DashboardData }) {
     commitToggle(habit);
   };
 
+  const spawnFloat = (text: string) => {
+    const id = ++floatId.current;
+    setFloats((f) => [...f, { id, text }]);
+    setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), 1400);
+  };
+
+  const handleFeed = (tierId: string) => {
+    if (careInFlight.current) return; // ignore rapid re-taps (double-spend guard)
+    const tier = foodTier(tierId);
+    if (!tier || coins < tier.cost) return;
+    careInFlight.current = true;
+
+    // Optimistic: spend coins + restore satiety. EXP is reconciled from the server
+    // result (it depends on the real satiety deficit) then via router.refresh().
+    playTing();
+    setCoins((c) => Math.max(0, c - tier.cost));
+    setSatiety((s) => Math.min(100, s + tier.satiety));
+    setCompanionOverrideAction("eat");
+
+    startTransition(async () => {
+      try {
+        const res = await feedPetAction(tierId);
+        if (res.expGain && res.expGain > 0) spawnFloat(`+${res.expGain} EXP`);
+        if (res.leveledUp) {
+          confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
+        }
+        router.refresh();
+      } finally {
+        careInFlight.current = false;
+      }
+    });
+  };
+
+  const handleInteract = (kind: InteractionKind) => {
+    playSwoosh();
+    setCompanionOverrideAction(INTERACTION_ACTION[kind]);
+    // Optimistic tiny bond bump; server enforces cooldown/daily-cap and refresh reconciles.
+    setAffection((a) => Math.min(100, a + 2));
+    startTransition(async () => {
+      await petInteractAction(kind);
+      router.refresh();
+    });
+  };
+
+  const handleClaimNeighbor = () => {
+    if (!data.profile.canClaimNeighborGift) return;
+    playTing();
+    setCoins((c) => c + 20); // NEIGHBOR_GIFT_COINS (reconciled by refresh)
+    setIsNeighborOpen(false);
+    setCompanionOverrideAction("happy");
+    startTransition(async () => {
+      await claimNeighborGiftAction();
+      router.refresh();
+    });
+  };
+
   const currentStreak = devStreakOverride !== null ? devStreakOverride : data.profile.currentStreak;
   const normalStage = stageFromStreak(currentStreak);
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
@@ -311,12 +451,23 @@ export function HomeView({ data }: { data: DashboardData }) {
     setCompanionOverrideAction(milestone);
   }, [currentStreak]);
 
-  const activeStage = STAGES_CONFIG[currentStage] || STAGES_CONFIG[0];
-  
-  // Custom Room Theme (nếu có trang bị Wallpaper, nó ghi đè roomBackground mặc định)
+  // Nurture (feeding) derived state — optimistic mirrors drive these live.
+  // Dev Tools can override level/satiety to preview room unlocks + moods.
+  const petLevel = devLevelOverride ?? levelFromExp(petExp);
+  const levelProgress = devLevelOverride !== null ? 1 : expToNextLevel(petExp).ratio;
+  const effSatiety = devSatietyOverride ?? satiety;
+  const mood = moodFromStats(effSatiety, affection);
+  const currentRoom = roomDef(currentRoomId);
+  const roomsUnlockedList = devLevelOverride !== null ? unlockedRooms(devLevelOverride) : data.profile.unlockedRooms;
+  const roomsAllUnlocked =
+    devLevelOverride !== null ? allRoomsUnlocked(devLevelOverride) : data.profile.allRoomsUnlocked;
+
+  // Room backdrop: the bedroom honours an equipped wallpaper ("its own room");
+  // the other rooms use their themed background.
   const equippedWallpaperId = data.inventory.equippedItems["wallpaper"];
   const customWallpaper = SHOP_ITEMS.find((item) => item.id === equippedWallpaperId);
-  const roomBackground = customWallpaper ? customWallpaper.className : activeStage.roomBackground;
+  const roomBackground =
+    currentRoomId === "bedroom" && customWallpaper ? customWallpaper.className : currentRoom.bgClass;
 
   // Custom Rug
   const equippedRugId = data.inventory.equippedItems["rug"];
@@ -335,14 +486,35 @@ export function HomeView({ data }: { data: DashboardData }) {
     currentAction = "study"; // Đang bật timer thì bắt học
   } else if (totalCount > 0 && completedCount === totalCount && !companionOverrideAction) {
     currentAction = "happy"; // Hoàn thành hết task trong ngày thì vui
+  } else if (mood === "hungry" && !companionOverrideAction) {
+    currentAction = "sad"; // Đói bụng → mặt buồn (fallback lo phần thiếu sprite)
   }
 
   return (
     <main className="flex min-h-screen flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-2xl overflow-hidden relative">
       {/* Top half: Pet Room */}
       <section
-        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/20 p-6 min-h-[40vh] transition-colors duration-1000 ${roomBackground}`}
+        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/20 p-6 pb-40 min-h-[46vh] transition-colors duration-1000 ${roomBackground}`}
       >
+        {/* Depth layers (decorative, non-interactive): time-of-day light wash,
+            floating motes, and a soft floor plane under the pet. */}
+        <div className={`pointer-events-none absolute inset-0 z-0 room-lighting-${timeOfDay}`} aria-hidden />
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+          {DUST_MOTES.map((m, i) => (
+            <span
+              key={i}
+              className="dust-mote"
+              style={{ left: m.left, top: m.top, animationDuration: m.d, animationDelay: m.delay }}
+            />
+          ))}
+        </div>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-28 room-floor" aria-hidden />
+
+        {/* Care HUD — nurture level, satiety, bond, mood. */}
+        <div className="absolute left-3 top-[4.75rem] z-20">
+          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
+        </div>
+
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
           <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative">
             <Flame className="w-5 h-5 text-fire-orange" />
@@ -494,6 +666,41 @@ export function HomeView({ data }: { data: DashboardData }) {
             <div className="absolute -top-6 -right-6 animate-bounce">
               <span className="text-4xl">✨</span>
             </div>
+          )}
+
+          {/* Floating "+N EXP" rewards that rise off the pet when fed. */}
+          {floats.map((f) => (
+            <div
+              key={f.id}
+              className="exp-float pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 whitespace-nowrap text-sm font-black text-purple-600 drop-shadow"
+            >
+              {f.text}
+            </div>
+          ))}
+        </div>
+
+        {/* Room tabs + interaction dock, anchored to the bottom of the room. */}
+        <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
+          <RoomSwitcher
+            current={currentRoomId}
+            petLevel={petLevel}
+            unlocked={roomsUnlockedList}
+            allUnlocked={roomsAllUnlocked}
+            onSelect={selectRoom}
+            onOpenNeighbors={() => {
+              playSwoosh();
+              setIsNeighborOpen(true);
+            }}
+          />
+          {currentStage >= 1 && (
+            <InteractionDock
+              interactions={currentRoom.interactions}
+              onFeed={() => {
+                playSwoosh();
+                setIsFeedOpen(true);
+              }}
+              onInteract={handleInteract}
+            />
           )}
         </div>
       </section>
@@ -788,6 +995,10 @@ export function HomeView({ data }: { data: DashboardData }) {
         setDevStageOverride={setDevStageOverride}
         devStreakOverride={devStreakOverride}
         setDevStreakOverride={setDevStreakOverride}
+        devLevelOverride={devLevelOverride}
+        setDevLevelOverride={setDevLevelOverride}
+        devSatietyOverride={devSatietyOverride}
+        setDevSatietyOverride={setDevSatietyOverride}
       />
 
       <MemoryAlbumModal
@@ -818,6 +1029,20 @@ export function HomeView({ data }: { data: DashboardData }) {
         onClose={() => setJustEvolvedStage(null)}
         type="evolution"
         evolutionStageName={justEvolvedStage !== null ? tStages(`stage${justEvolvedStage}`) : undefined}
+      />
+
+      <FeedPicker
+        isOpen={isFeedOpen}
+        coins={coins}
+        onClose={() => setIsFeedOpen(false)}
+        onFeed={handleFeed}
+      />
+
+      <NeighborModal
+        isOpen={isNeighborOpen}
+        canClaim={data.profile.canClaimNeighborGift}
+        onClose={() => setIsNeighborOpen(false)}
+        onVisit={handleClaimNeighbor}
       />
     </main>
   );

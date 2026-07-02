@@ -4,11 +4,24 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import {
   COINS_PER_HABIT,
-  EXP_PER_HABIT,
   nextStreak,
   ratchetStage,
   todayInTimezone,
+  currentSatiety,
+  foodTier,
+  feedExpGain,
+  levelFromExp,
+  SATIETY_MAX,
+  DAILY_FEED_BONUS_EXP,
+  AFFECTION_MAX,
+  AFFECTION_PER_FEED,
+  AFFECTION_PER_INTERACT,
+  AFFECTION_DAILY_CAP,
+  INTERACT_COOLDOWN_MS,
+  NEIGHBOR_GIFT_COINS,
+  NEIGHBOR_GIFT_AFFECTION,
 } from "@/lib/game";
+import { allRoomsUnlocked, type InteractionKind } from "@/lib/rooms";
 import { eligibleMemoryKeys } from "@/lib/memories";
 import type { HabitType } from "@/lib/types";
 
@@ -202,11 +215,16 @@ export async function toggleHabitAction(input: {
   );
   if (logError) return { error: logError.message };
 
-  // Reconcile profile economy + streak.
+  // Reconcile profile economy + streak. Habits award COINS ONLY now — pet growth
+  // EXP comes from feeding, not tasks. Coins are also only granted/removed for
+  // *today's* completions, never backfilled past days (prevents coin farming by
+  // toggling historical dates — those still log/display, just don't pay out).
   const sign = isNegative ? -1 : 1;
   const delta = (willComplete ? 1 : -1) * sign;
-  const coins = Math.max(0, (profile?.coins ?? 0) + delta * COINS_PER_HABIT);
-  const totalExp = Math.max(0, (profile?.total_exp ?? 0) + delta * EXP_PER_HABIT);
+  const coins =
+    targetDate === today
+      ? Math.max(0, (profile?.coins ?? 0) + delta * COINS_PER_HABIT)
+      : (profile?.coins ?? 0);
 
   // Streak only advances on the first completion of a new day; the pet stage is
   // derived from the streak so the stored value always matches what's shown.
@@ -231,7 +249,6 @@ export async function toggleHabitAction(input: {
 
   const patch: Record<string, unknown> = {
     coins,
-    total_exp: totalExp,
     // Evolution never reverses: a broken streak keeps the stage already reached.
     pet_stage: targetDate === today ? ratchetStage(profile?.pet_stage, newStreak) : profile?.pet_stage,
     updated_at: new Date().toISOString(),
@@ -302,19 +319,18 @@ export async function incrementCounterHabitAction(input: {
   if (logError) return { error: logError.message };
 
   if (willComplete) {
+    // Coins only — pet EXP now comes from feeding, not habits.
     const coins = Math.max(0, (profile?.coins ?? 0) + COINS_PER_HABIT);
-    const totalExp = Math.max(0, (profile?.total_exp ?? 0) + EXP_PER_HABIT);
-    
+
     const streakResult = nextStreak(
       profile?.current_streak ?? 0,
       profile?.last_active_date ?? null,
       today,
       profile?.streak_freezes ?? 0
     );
-    
+
     await supabase.from("profiles").update({
       coins,
-      total_exp: totalExp,
       current_streak: streakResult.newStreak,
       streak_freezes: profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0,
       pet_stage: ratchetStage(profile?.pet_stage, streakResult.newStreak),
@@ -491,6 +507,170 @@ export async function equipItemAction(slot: string, itemId: string | null): Prom
     });
 
   if (updateInvError) return { error: updateInvError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pet care: feeding (grows nurture EXP) + interactions (bond) + neighbour visits.
+// All economy/eligibility is re-validated server-side against a fresh profile read
+// so a crafted client call can't cheat coins, EXP, or gate conditions.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type FeedResult = ActionResult & {
+  expGain?: number;
+  satietyGain?: number;
+  leveledUp?: boolean;
+  newLevel?: number;
+};
+
+/**
+ * Feed the pet a food tier bought with coins. Grows `pet_exp` proportional to the
+ * satiety *actually* restored (feeding a full pet ≈ 0 EXP), plus a once-daily
+ * bonus — so total nurture EXP per day is capped by decay, not by coins.
+ */
+export async function feedPetAction(foodId: string): Promise<FeedResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const tier = foodTier(foodId);
+  if (!tier) return { error: "invalid_food" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("timezone, coins, pet_exp, satiety, last_fed_date, affection_level")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileError) return { error: profileError.message };
+
+  const currentCoins = profile?.coins ?? 0;
+  if (currentCoins < tier.cost) return { error: "not_enough_coins" };
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+
+  // Effective satiety BEFORE feeding (decayed since the last feed). EXP + the new
+  // stored satiety are both computed from this, and last_fed_date is reset to today
+  // — keeping the (value, anchor) pair consistent so decay never double-counts.
+  const eff = currentSatiety(profile?.satiety, profile?.last_fed_date ?? null, today);
+  const newSatiety = Math.min(SATIETY_MAX, eff + tier.satiety);
+  const satietyGain = newSatiety - eff;
+
+  const isFirstFeedToday = profile?.last_fed_date !== today;
+  const expGain = feedExpGain(eff, tier) + (isFirstFeedToday ? DAILY_FEED_BONUS_EXP : 0);
+  const oldExp = profile?.pet_exp ?? 0;
+  const newExp = oldExp + expGain;
+
+  const newAffection = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + AFFECTION_PER_FEED);
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      coins: currentCoins - tier.cost,
+      satiety: newSatiety,
+      pet_exp: newExp,
+      affection_level: newAffection,
+      last_fed_date: today,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  const newLevel = levelFromExp(newExp);
+  return {
+    expGain,
+    satietyGain,
+    newLevel,
+    leveledUp: newLevel > levelFromExp(oldExp),
+  };
+}
+
+/**
+ * A tactile interaction (pat/play/clean/sleep). Always succeeds so the client can
+ * play the animation; affection is only granted when off cooldown AND under the
+ * daily cap. Satiety is intentionally untouched here — it is a feed-only stat so
+ * its decay anchor (last_fed_date) stays valid.
+ */
+const INTERACTION_KINDS: InteractionKind[] = ["feed", "pat", "play", "clean", "sleep"];
+
+export async function petInteractAction(kind: InteractionKind): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+  if (!INTERACTION_KINDS.includes(kind)) return { error: "invalid_interaction" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("timezone, affection_level, affection_today, last_interact_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+  const nowMs = Date.now();
+
+  const lastMs = profile?.last_interact_at ? Date.parse(profile.last_interact_at) : 0;
+  const withinCooldown = nowMs - lastMs < INTERACT_COOLDOWN_MS;
+
+  // Daily affection budget resets when the last interaction fell on a prior day.
+  const lastInteractDate = profile?.last_interact_at
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(profile.last_interact_at))
+    : null;
+  const affectionToday = lastInteractDate === today ? (profile?.affection_today ?? 0) : 0;
+
+  const patch: Record<string, unknown> = {
+    last_interact_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (!withinCooldown && affectionToday < AFFECTION_DAILY_CAP) {
+    const grant = Math.min(AFFECTION_PER_INTERACT, AFFECTION_DAILY_CAP - affectionToday);
+    patch.affection_level = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + grant);
+    patch.affection_today = affectionToday + grant;
+  } else {
+    // Keep the (possibly reset) daily counter coherent even when nothing is granted.
+    patch.affection_today = affectionToday;
+  }
+
+  const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", userId);
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+/**
+ * Claim the once-per-day gift from visiting the NPC neighbourhood. Requires every
+ * room unlocked (verified server-side from pet_exp) and not already claimed today.
+ */
+export async function claimNeighborGiftAction(): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("timezone, coins, pet_exp, affection_level, last_neighbor_gift_date")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileError) return { error: profileError.message };
+
+  if (!allRoomsUnlocked(levelFromExp(profile?.pet_exp ?? 0))) return { error: "rooms_locked" };
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+  if (profile?.last_neighbor_gift_date === today) return { error: "already_claimed" };
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      coins: (profile?.coins ?? 0) + NEIGHBOR_GIFT_COINS,
+      affection_level: Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + NEIGHBOR_GIFT_AFFECTION),
+      last_neighbor_gift_date: today,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/", "layout");
   return {};

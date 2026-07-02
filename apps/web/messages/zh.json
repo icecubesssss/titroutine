@@ -175,7 +175,22 @@
     "allDone2": "太好了！稍微休息一下吧 💛",
     "go1": "还差 {count} 个，加油！",
     "go2": "我相信你做得到！✨",
-    "go3": "我们一起来吧～"
+    "go3": "我们一起来吧～",
+    "level": "等级 {level}",
+    "satiety": "饱食",
+    "affection": "亲密",
+    "mood_hungry": "饿了",
+    "mood_content": "还好",
+    "mood_happy": "开心",
+    "action_feed": "喂食",
+    "action_pat": "抚摸",
+    "action_play": "玩耍",
+    "action_clean": "洗澡",
+    "action_sleep": "睡觉",
+    "feedTitle": "喂点什么好呢？",
+    "food_carrot": "胡萝卜",
+    "food_cake": "蛋糕",
+    "food_feast": "大餐"
   },
   "Timer": {
     "cancel": "取消",
@@ -200,5 +215,26 @@
     "reportError": "发送失败，请稍后再试。",
     "account": "账户",
     "signOut": "退出登录"
+  },
+  "Rooms": {
+    "bedroom": "卧室",
+    "kitchen": "厨房",
+    "living": "客厅",
+    "garden": "花园",
+    "bathroom": "浴室",
+    "lockedHint": "达到等级 {level} 解锁",
+    "neighbors": "邻居",
+    "neighborsLocked": "解锁所有房间后可拜访邻居"
+  },
+  "Neighbors": {
+    "title": "邻里",
+    "close": "关闭",
+    "giftHint": "拜访邻居每天领取 {coins} 金币！",
+    "giftClaimed": "今天已领取，明天再来吧！",
+    "visit": "拜访",
+    "done": "已领取",
+    "mochi": "麻糬",
+    "biscuit": "饼干",
+    "luna": "露娜"
   }
 }

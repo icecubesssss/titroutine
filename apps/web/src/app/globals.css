@@ -15,18 +15,35 @@ body {
 
 /* One-shot flash played over the pet when it evolves / hatches. */
 .evo-burst-fx {
-  width: 260px;
-  height: 260px;
+  position: relative;
+  width: 320px;
+  height: 320px;
   background-image: url('/assets/fx_evolution_burst.png');
   background-size: 300% 200%;
   background-position: 50% 100%;
   background-repeat: no-repeat;
-  animation: evo-burst 1.1s ease-out forwards;
+  animation: evo-burst 1.4s ease-out forwards;
+}
+
+/* Soft radial flash behind the sprite burst for a more cinematic pop. */
+.evo-burst-fx::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 240, 180, 0.5) 35%, transparent 70%);
+  animation: evo-flash 0.9s ease-out forwards;
 }
 
 @keyframes evo-burst {
   0%   { transform: scale(0.3); opacity: 0; }
-  25%  { opacity: 1; }
+  20%  { opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes evo-flash {
+  0%   { transform: scale(0.2); opacity: 0; }
+  30%  { opacity: 1; }
   100% { transform: scale(1.6); opacity: 0; }
 }
 

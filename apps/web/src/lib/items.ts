@@ -55,6 +55,31 @@ export const SHOP_ITEMS: ShopItem[] = [
     className: "bg-[url('/assets/items/wallpaper_beach.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_beach.png",
   },
+  {
+    id: "wallpaper_cafe",
+    price: 260,
+    slot: "wallpaper",
+    className: "bg-[url('/assets/items/wallpaper_cafe.png')] bg-cover bg-center",
+    imageUrl: "/assets/items/wallpaper_cafe.png",
+  },
+  {
+    id: "wallpaper_rainy",
+    price: 240,
+    slot: "wallpaper",
+    className: "bg-[url('/assets/items/wallpaper_rainy.png')] bg-cover bg-center",
+    imageUrl: "/assets/items/wallpaper_rainy.png",
+  },
+  {
+    id: "wallpaper_winter",
+    price: 300,
+    slot: "wallpaper",
+    className: "bg-[url('/assets/items/wallpaper_winter.png')] bg-cover bg-center",
+    imageUrl: "/assets/items/wallpaper_winter.png",
+  },
+  // Extra rugs
+  { id: "rug_round_cream", price: 130, slot: "rug", imageUrl: "/assets/items/rug_round_cream.png" },
+  { id: "rug_grass", price: 140, slot: "rug", imageUrl: "/assets/items/rug_grass.png" },
+  { id: "rug_heart", price: 170, slot: "rug", imageUrl: "/assets/items/rug_heart.png" },
   // Furniture / decor objects. Rendered as a free-standing image in the room
   // (one equipped object at a time, via the "object" slot).
   { id: "object_bed_cozy", price: 180, slot: "object", imageUrl: "/assets/items/object_bed_cozy.png" },
@@ -67,4 +92,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "object_clock_wall", price: 110, slot: "object", imageUrl: "/assets/items/object_clock_wall.png" },
   { id: "object_tea_table", price: 150, slot: "object", imageUrl: "/assets/items/object_tea_table.png" },
   { id: "object_toy_ball", price: 70, slot: "object", imageUrl: "/assets/items/object_toy_ball.png" },
+  // Outfits (Stage 6 only). Equipping swaps the woman sprite for a costumed sheet
+  // — see OUTFIT_SHEETS in RabbitCompanion. imageUrl = single-frame thumbnail.
+  { id: "outfit_summer_dress", price: 220, slot: "outfit", imageUrl: "/assets/items/outfit_summer_dress_thumb.png" },
+  { id: "outfit_winter_coat", price: 260, slot: "outfit", imageUrl: "/assets/items/outfit_winter_coat_thumb.png" },
+  { id: "outfit_chef", price: 300, slot: "outfit", imageUrl: "/assets/items/outfit_chef_thumb.png" },
 ];

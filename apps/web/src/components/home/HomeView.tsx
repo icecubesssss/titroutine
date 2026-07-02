@@ -8,7 +8,8 @@ import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
-import { RabbitCompanion, STAGES_CONFIG, CompanionAction, getDefaultActionByTime } from "@/components/pet/RabbitCompanion";
+import { RabbitCompanion, STAGES_CONFIG, CompanionAction } from "@/components/pet/RabbitCompanion";
+import { pickAmbientAction, streakMilestoneAction, weatherFromCode } from "@/lib/companion";
 import { EggCompanion } from "@/components/pet/EggCompanion";
 import { PetSpeechBubble } from "@/components/pet/PetSpeechBubble";
 import { HabitModal } from "@/components/home/HabitModal";
@@ -20,7 +21,7 @@ import { CelebrationModal } from "@/components/home/CelebrationModal";
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
 import { toggleHabitAction, updateTimezoneAction, claimDailyCheckinAction, buyFreezeAction, incrementCounterHabitAction } from "@/app/[locale]/actions";
-import { stageFromStreak } from "@/lib/game";
+import { stageFromStreak, daysBetween } from "@/lib/game";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 
 const LAST_STAGE_KEY = "titroutine:lastPetStage";
@@ -48,6 +49,10 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [isAlbumOpen, setIsAlbumOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [companionOverrideAction, setCompanionOverrideAction] = useState<CompanionAction | null>(null);
+  // "Hành động nền" do scheduler chọn theo giờ/mùa (khi không có override/timer).
+  const [ambientAction, setAmbientAction] = useState<CompanionAction>("idle");
+  // Thời tiết thật (nếu xin được vị trí) → thỏ ngắm mưa/đắp người tuyết đúng lúc.
+  const [weather, setWeather] = useState<"rain" | "snow" | null>(null);
 
   // Dev-only overrides (from the Settings → Developer Tools panel) for previewing
   // pet stages / streaks before the higher-stage art lands.
@@ -76,6 +81,10 @@ export function HomeView({ data }: { data: DashboardData }) {
     if (stored !== null && serverStage > Number(stored)) {
       setJustEvolvedStage(serverStage);
       setCompanionOverrideAction("happy");
+      // Cinematic: pháo hoa mừng khoảnh khắc tiến hoá.
+      confetti({ particleCount: 180, spread: 100, startVelocity: 45, origin: { y: 0.5 }, scalar: 1.1 });
+      setTimeout(() => confetti({ particleCount: 110, angle: 60, spread: 70, origin: { x: 0, y: 0.6 } }), 250);
+      setTimeout(() => confetti({ particleCount: 110, angle: 120, spread: 70, origin: { x: 1, y: 0.6 } }), 420);
     }
     window.localStorage.setItem(LAST_STAGE_KEY, String(serverStage));
   }, [data.profile.petStage]);
@@ -92,19 +101,27 @@ export function HomeView({ data }: { data: DashboardData }) {
     }
   }, [data.profile.lastCheckinDate, data.today, hasClaimedCheckinUI]);
 
-  // Xử lý action tự động nhả về trạng thái mặc định sau vài giây
+  // Xử lý action tự động nhả về trạng thái nền sau vài giây (các action "một lần").
   useEffect(() => {
-    if (companionOverrideAction === "welcome" || companionOverrideAction === "happy" || companionOverrideAction === "sad") {
+    const transient: CompanionAction[] = [
+      "welcome", "happy", "sad", "return_cry", "task_celebrate",
+      "proud_smile", "embarrassed_blush", "eat",
+      "streak_30", "streak_100", "streak_365", "streak_1000",
+    ];
+    if (companionOverrideAction && transient.includes(companionOverrideAction)) {
       const timer = setTimeout(() => {
         setCompanionOverrideAction(null);
-      }, 4000);
+      }, 4500);
       return () => clearTimeout(timer);
     }
   }, [companionOverrideAction]);
 
-  // Welcome back effect
+  // Lời chào khi mở app: nếu đã vắng mặt ≥ 2 ngày thì thỏ mừng tủi chạy tới (return_cry),
+  // ngược lại vẫy tay chào bình thường.
   useEffect(() => {
-    setCompanionOverrideAction("welcome");
+    const last = data.profile.lastCheckinDate;
+    const away = last ? daysBetween(last, data.today) >= 2 : false;
+    setCompanionOverrideAction(away ? "return_cry" : "welcome");
   }, []);
 
   // Re-sync whenever the server sends fresh data (after router.refresh()).
@@ -248,6 +265,52 @@ export function HomeView({ data }: { data: DashboardData }) {
   const normalStage = stageFromStreak(currentStreak);
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
 
+  // Life-sim: đổi "hành động nền" theo giờ/mùa mỗi ~11s để thỏ trông có cuộc sống
+  // riêng (uống trà sáng, đọc sách, ngủ đêm, lễ hội...). Chỉ đề xuất action mà stage
+  // hiện tại có sprite; còn lại tự về idle. Egg (stage 0) do EggCompanion lo riêng.
+  useEffect(() => {
+    if (currentStage === 0) return;
+    const available = new Set(Object.keys(STAGES_CONFIG[currentStage]?.actions ?? {}));
+    const repick = () => setAmbientAction(pickAmbientAction({ available, weather }));
+    repick();
+    const id = setInterval(repick, 11000);
+    return () => clearInterval(id);
+  }, [currentStage, weather]);
+
+  // Thời tiết thật (một lần/phiên): xin vị trí (im lặng nếu bị từ chối) → Open-Meteo
+  // (không cần API key) → map mã WMO ra mưa/tuyết cho scheduler.
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=weather_code`
+          );
+          const json = await res.json();
+          const code = json?.current?.weather_code;
+          if (!cancelled && typeof code === "number") setWeather(weatherFromCode(code));
+        } catch {
+          /* mạng lỗi → bỏ qua, dùng sinh hoạt theo giờ/mùa */
+        }
+      },
+      () => {/* từ chối vị trí → bỏ qua */},
+      { timeout: 8000, maximumAge: 3_600_000 }
+    );
+    return () => { cancelled = true; };
+  }, []);
+
+  // Ăn mừng mốc streak (30/100/365/1000) một lần duy nhất mỗi mốc.
+  useEffect(() => {
+    const milestone = streakMilestoneAction(currentStreak);
+    if (!milestone) return;
+    const key = "titroutine:celebratedStreak";
+    if (window.localStorage.getItem(key) === String(currentStreak)) return;
+    window.localStorage.setItem(key, String(currentStreak));
+    setCompanionOverrideAction(milestone);
+  }, [currentStreak]);
+
   const activeStage = STAGES_CONFIG[currentStage] || STAGES_CONFIG[0];
   
   // Custom Room Theme (nếu có trang bị Wallpaper, nó ghi đè roomBackground mặc định)
@@ -265,8 +328,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   const isEvolved = currentStage >= 1;
 
-  // Determine current companion action
-  let currentAction: CompanionAction = companionOverrideAction || getDefaultActionByTime();
+  // Determine current companion action. Ưu tiên: override (tương tác/tiến hoá/chào) >
+  // đang bấm giờ (study) > hoàn thành hết task (happy) > hành động nền (ambient).
+  let currentAction: CompanionAction = companionOverrideAction || ambientAction;
   if (timerHabit) {
     currentAction = "study"; // Đang bật timer thì bắt học
   } else if (totalCount > 0 && completedCount === totalCount && !companionOverrideAction) {
@@ -390,7 +454,9 @@ export function HomeView({ data }: { data: DashboardData }) {
           className="relative mt-2 drop-shadow-2xl z-10 transition-transform hover:scale-110 cursor-pointer"
           onClick={() => {
             playSwoosh();
-            setCompanionOverrideAction("happy"); // Bấm vào thỏ thì nó vui
+            // Bấm vào thỏ → phản ứng dễ thương ngẫu nhiên (stage thiếu sẽ tự fallback).
+            const reactions: CompanionAction[] = ["happy", "proud_smile", "embarrassed_blush", "eat"];
+            setCompanionOverrideAction(reactions[Math.floor(Math.random() * reactions.length)]);
           }}
         >
           {customRug ? (

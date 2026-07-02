@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { notFound } from "next/navigation";
 import { RabbitCompanion, CompanionAction, STAGES_CONFIG } from "@/components/pet/RabbitCompanion";
 
 export default function PetTestPage() {
+  // Dev-only tooling: ẩn hoàn toàn (404) ở bản production.
+  if (process.env.NODE_ENV === "production") notFound();
+
   const [stage, setStage] = useState<number>(4); // Default to Stage 4 (Bunny Child) which has the most actions
   const [action, setAction] = useState<CompanionAction>("idle");
   const [scale, setScale] = useState<number>(1); // Zoom control for testing

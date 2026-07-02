@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, Settings, BookOpen, BarChart3, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
@@ -19,9 +19,9 @@ import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
 import { PetHud } from "@/components/home/PetHud";
+import { BottomNav } from "@/components/home/BottomNav";
 import { InteractionDock } from "@/components/home/InteractionDock";
 import { FeedPicker } from "@/components/home/FeedPicker";
-import { RoomSwitcher } from "@/components/home/RoomSwitcher";
 import { NeighborModal } from "@/components/home/NeighborModal";
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
@@ -45,11 +45,24 @@ const LAST_ROOM_KEY = "titroutine:lastRoom";
 // (.dust-mote:nth-child(n) in globals.css); here we just render N spans.
 const DUST_MOTES = [0, 1, 2, 3, 4, 5];
 
+// The 4 always-available care actions (never gated by room/level — so nurturing
+// can never softlock) and the room each one *moves the pet to* when that room is
+// unlocked. Users think "I want to feed / bathe the pet", not "go to the kitchen".
+const CARE_ACTIONS: InteractionKind[] = ["feed", "play", "clean", "sleep"];
+const ACTION_ROOM: Record<InteractionKind, RoomId> = {
+  feed: "kitchen",
+  play: "garden",
+  clean: "bathroom",
+  sleep: "bedroom",
+  pat: "living",
+};
+
 const LAST_STAGE_KEY = "titroutine:lastPetStage";
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const tStages = useTranslations("Stages");
+  const tRooms = useTranslations("Rooms");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
@@ -206,11 +219,18 @@ export function HomeView({ data }: { data: DashboardData }) {
     return () => clearInterval(id);
   }, []);
 
-  const selectRoom = (id: RoomId) => {
-    playSwoosh();
+  const goToRoom = (id: RoomId) => {
     setCurrentRoomId(id);
     window.localStorage.setItem(LAST_ROOM_KEY, id);
     setAmbientAction(roomDef(id).idleAction);
+  };
+
+  // Move the pet to an action's room *only if it's unlocked* — the action itself
+  // always runs regardless, so care never depends on room progression.
+  const moveToRoomFor = (kind: InteractionKind) => {
+    const target = ACTION_ROOM[kind];
+    const unlocked = devLevelOverride !== null ? unlockedRooms(devLevelOverride) : data.profile.unlockedRooms;
+    if (target && target !== currentRoomId && unlocked.includes(target)) goToRoom(target);
   };
 
   // Capture the user's real timezone once so streaks roll over on their local day.
@@ -355,6 +375,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     const tier = foodTier(tierId);
     if (!tier || coins < tier.cost) return;
     careInFlight.current = true;
+    moveToRoomFor("feed");
 
     // Optimistic: spend coins + restore satiety. EXP is reconciled from the server
     // result (it depends on the real satiety deficit) then via router.refresh().
@@ -380,6 +401,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const handleInteract = (kind: InteractionKind) => {
     playSwoosh();
     setCompanionOverrideAction(INTERACTION_ACTION[kind]);
+    moveToRoomFor(kind);
     // Optimistic tiny bond bump; server enforces cooldown/daily-cap and refresh reconciles.
     setAffection((a) => Math.min(100, a + 2));
     startTransition(async () => {
@@ -457,7 +479,6 @@ export function HomeView({ data }: { data: DashboardData }) {
   const effSatiety = devSatietyOverride ?? satiety;
   const mood = moodFromStats(effSatiety, affection);
   const currentRoom = roomDef(currentRoomId);
-  const roomsUnlockedList = devLevelOverride !== null ? unlockedRooms(devLevelOverride) : data.profile.unlockedRooms;
   const roomsAllUnlocked =
     devLevelOverride !== null ? allRoomsUnlocked(devLevelOverride) : data.profile.allRoomsUnlocked;
 
@@ -493,7 +514,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     <main className="flex min-h-screen flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative">
       {/* Top half: Pet Room */}
       <section
-        className={`relative flex-1 flex flex-col items-center justify-end border-b-4 border-earth-brown/10 p-6 pb-36 min-h-[46vh] transition-colors duration-1000 ${roomBackground}`}
+        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/10 p-6 pb-28 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
       >
         {/* Depth layers (decorative, non-interactive): time-of-day light wash,
             floating motes, and a soft floor plane under the pet. */}
@@ -504,11 +525,6 @@ export function HomeView({ data }: { data: DashboardData }) {
           ))}
         </div>
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor" aria-hidden />
-
-        {/* Care HUD — nurture level, satiety, bond, mood. */}
-        <div className="absolute left-3 top-[4.75rem] z-20">
-          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
-        </div>
 
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
           <div className="bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] cursor-pointer group relative">
@@ -541,34 +557,11 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Coins — primary economy readout, kept as its own info pill. */}
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
-              <span className="text-[15px] leading-none">💰</span>
-              <span className="tabular-nums text-yellow-600">{coins}</span>
-            </div>
-
-            {/* Secondary tools — one quiet, unified cluster so the eye reads streak
-                & coins first. Uniform icon set, weight, size and muted colour. */}
-            <div className="flex items-center gap-0.5 rounded-full bg-white/70 p-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
-              {[
-                { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: () => { playSwoosh(); setIsAlbumOpen(true); } },
-                { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: () => { playSwoosh(); setIsShopOpen(true); } },
-                { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: () => { playSwoosh(); router.push(`/${locale}/analytics`); } },
-                { key: "settings", label: t("settings"), Icon: Settings, onClick: () => setIsSettingsOpen(true) },
-              ].map(({ key, label, Icon, onClick }) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={label}
-                  title={label}
-                  onClick={onClick}
-                  className="rounded-full p-1.5 text-earth-brown/55 transition-colors hover:bg-black/[0.05] hover:text-earth-brown"
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                </button>
-              ))}
-            </div>
+          {/* Coins — the only other header element. Everything else moved to the
+              bottom nav so the header stays clean (streak + coins only). */}
+          <div className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
+            <span className="text-[15px] leading-none">💰</span>
+            <span className="tabular-nums text-yellow-600">{coins}</span>
           </div>
         </div>
 
@@ -654,28 +647,36 @@ export function HomeView({ data }: { data: DashboardData }) {
           ))}
         </div>
 
-        {/* Room tabs + interaction dock, anchored to the bottom of the room. */}
-        <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
-          <RoomSwitcher
-            current={currentRoomId}
-            unlocked={roomsUnlockedList}
-            allUnlocked={roomsAllUnlocked}
-            onSelect={selectRoom}
-            onOpenNeighbors={() => {
-              playSwoosh();
-              setIsNeighborOpen(true);
-            }}
-          />
-          {currentStage >= 1 && (
-            <InteractionDock
-              interactions={currentRoom.interactions}
-              onFeed={() => {
+        {/* Status chips — the read-out sits directly under the pet (not beside it),
+            so nothing competes with the character for attention. */}
+        <div className="z-20 mt-4">
+          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
+        </div>
+
+        {/* Care actions — ALWAYS available (feeding can never softlock on room level).
+            Each action moves the pet to its room when unlocked. The neighbourhood
+            entry appears once the whole house is unlocked. */}
+        <div className="absolute bottom-4 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
+          {roomsAllUnlocked && (
+            <button
+              type="button"
+              onClick={() => {
                 playSwoosh();
-                setIsFeedOpen(true);
+                setIsNeighborOpen(true);
               }}
-              onInteract={handleInteract}
-            />
+              className="flex items-center gap-1 rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-amber-600 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105"
+            >
+              🏘️ {tRooms("neighbors")}
+            </button>
           )}
+          <InteractionDock
+            interactions={CARE_ACTIONS}
+            onFeed={() => {
+              playSwoosh();
+              setIsFeedOpen(true);
+            }}
+            onInteract={handleInteract}
+          />
         </div>
       </section>
 
@@ -924,7 +925,17 @@ export function HomeView({ data }: { data: DashboardData }) {
         )}
       </section>
 
-      <div className="absolute bottom-6 right-6 z-20">
+      {/* Single bottom navigation — keeps the header clean (streak + coins only). */}
+      <BottomNav
+        onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        onShop={() => { playSwoosh(); setIsShopOpen(true); }}
+        onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
+        onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
+        onSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Add-habit FAB, floating just above the bottom nav. */}
+      <div className="absolute bottom-24 right-6 z-30">
         <DuoButton
           variant="primary"
           size="lg"
@@ -992,6 +1003,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         coins={coins}
         unlockedItems={data.inventory.unlockedItems}
         equippedItems={data.inventory.equippedItems}
+        onSpend={(amt) => setCoins((c) => Math.max(0, c - amt))}
       />
       
       <CelebrationModal

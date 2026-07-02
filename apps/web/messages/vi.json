@@ -37,7 +37,8 @@
     "nextDay": "Ngày tiếp theo",
     "memoryAlbum": "Sổ tay kỷ niệm",
     "shop": "Cửa hàng",
-    "analytics": "Thống kê"
+    "analytics": "Thống kê",
+    "home": "Trang chủ"
   },
   "HabitModal": {
     "newTitle": "Thói quen mới",
@@ -132,7 +133,9 @@
     "item_outfit_winter_coat_name": "Áo Khoác Đông",
     "item_outfit_winter_coat_desc": "Áo len ấm áp kèm khăn choàng.",
     "item_outfit_chef_name": "Trang Phục Đầu Bếp",
-    "item_outfit_chef_desc": "Đồ bếp trắng tinh và mũ cao."
+    "item_outfit_chef_desc": "Đồ bếp trắng tinh và mũ cao.",
+    "notEnough": "Không đủ xu rồi 🥲",
+    "buyFailed": "Mua thất bại, thử lại nhé"
   },
   "Memory": {
     "title": "Sổ Tay Kỷ Niệm",

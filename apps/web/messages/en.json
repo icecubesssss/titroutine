@@ -37,7 +37,8 @@
     "nextDay": "Next day",
     "memoryAlbum": "Memory album",
     "shop": "Shop",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "home": "Home"
   },
   "HabitModal": {
     "newTitle": "New Habit",
@@ -132,7 +133,9 @@
     "item_outfit_winter_coat_name": "Winter Coat",
     "item_outfit_winter_coat_desc": "A cozy knitted coat and scarf.",
     "item_outfit_chef_name": "Chef Outfit",
-    "item_outfit_chef_desc": "Crisp chef whites and a tall hat."
+    "item_outfit_chef_desc": "Crisp chef whites and a tall hat.",
+    "notEnough": "Not enough coins 🥲",
+    "buyFailed": "Purchase failed, please try again"
   },
   "Memory": {
     "title": "Memory Album",

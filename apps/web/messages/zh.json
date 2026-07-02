@@ -37,7 +37,8 @@
     "nextDay": "后一天",
     "memoryAlbum": "回忆相册",
     "shop": "商店",
-    "analytics": "统计"
+    "analytics": "统计",
+    "home": "首页"
   },
   "HabitModal": {
     "newTitle": "新习惯",
@@ -132,7 +133,9 @@
     "item_outfit_winter_coat_name": "冬季外套",
     "item_outfit_winter_coat_desc": "温暖的针织外套与围巾。",
     "item_outfit_chef_name": "厨师装",
-    "item_outfit_chef_desc": "洁白的厨师服与高帽。"
+    "item_outfit_chef_desc": "洁白的厨师服与高帽。",
+    "notEnough": "金币不足 🥲",
+    "buyFailed": "购买失败，请重试"
   },
   "Memory": {
     "title": "回忆相册",

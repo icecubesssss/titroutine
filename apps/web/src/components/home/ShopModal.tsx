@@ -14,6 +14,8 @@ interface ShopModalProps {
   coins: number;
   unlockedItems: string[];
   equippedItems: Record<string, string>;
+  /** Optimistically adjust the parent's coin balance (reconciled by refresh). */
+  onSpend?: (amount: number) => void;
 }
 
 export const ShopModal: React.FC<ShopModalProps> = ({
@@ -22,18 +24,43 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   coins,
   unlockedItems,
   equippedItems,
+  onSpend,
 }) => {
   const t = useTranslations("Shop");
   const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
+  // Optimistic "just bought" set + a purchase error so a buy never fails silently.
+  const [justBought, setJustBought] = useState<Set<string>>(() => new Set());
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   if (!isOpen) return null;
 
   const handleBuy = (itemId: string, price: number) => {
-    if (coins < price) return;
+    if (pendingId) return;
+    setError(null);
+    if (coins < price) {
+      setError(t("notEnough"));
+      return;
+    }
+    // Optimistic: mark owned + deduct coins immediately for instant feedback.
+    setPendingId(itemId);
+    setJustBought((prev) => new Set(prev).add(itemId));
+    onSpend?.(price);
     startTransition(async () => {
-      await buyItemAction(itemId, price);
+      const res = await buyItemAction(itemId, price);
+      if (res?.error) {
+        // Revert the optimistic changes and surface why it failed.
+        setJustBought((prev) => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+        onSpend?.(-price);
+        setError(res.error === "not_enough_coins" ? t("notEnough") : t("buyFailed"));
+      }
+      setPendingId(null);
       router.refresh();
     });
   };
@@ -65,6 +92,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               <span>💰</span> {t("coins", { count: coins })}
             </div>
             <button
+              type="button"
               aria-label={t("close")}
               title={t("close")}
               onClick={onClose}
@@ -78,6 +106,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
         {/* Tabs */}
         <div className="flex px-6 pt-4 gap-4 border-b-2 border-stone-100 bg-white">
           <button
+            type="button"
             onClick={() => setActiveTab("shop")}
             className={`pb-3 px-2 font-bold text-sm flex items-center gap-2 border-b-4 transition-colors ${
               activeTab === "shop"
@@ -88,6 +117,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
             <ShoppingBag size={16} /> {t("tabShop")}
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab("inventory")}
             className={`pb-3 px-2 font-bold text-sm flex items-center gap-2 border-b-4 transition-colors ${
               activeTab === "inventory"
@@ -101,10 +131,15 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {error && (
+            <div className="rounded-xl border-2 border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-500">
+              {error}
+            </div>
+          )}
           {activeTab === "shop" && (
             <div className="grid grid-cols-2 gap-4">
               {SHOP_ITEMS.map((item) => {
-                const isOwned = unlockedItems.includes(item.id);
+                const isOwned = unlockedItems.includes(item.id) || justBought.has(item.id);
                 const canAfford = coins >= item.price;
 
                 return (
@@ -128,7 +163,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleBuy(item.id, item.price)}
-                          disabled={!canAfford}
+                          disabled={!canAfford || pendingId === item.id}
                           className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
                             canAfford
                               ? "bg-amber-100 text-amber-700 hover:bg-amber-200"

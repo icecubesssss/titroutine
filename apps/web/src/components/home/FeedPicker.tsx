@@ -1,13 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { FOOD_TIERS } from "@/lib/game";
-
-const FOOD_EMOJI: Record<string, string> = {
-  carrot: "🥕",
-  cake: "🍰",
-  feast: "🍲",
-};
 
 /**
  * Bottom-sheet food picker. Each tier restores satiety and (when the pet is
@@ -35,8 +30,9 @@ export function FeedPicker({
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-black text-earth-brown">{t("feedTitle")}</h3>
-          <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-yellow-500 shadow-sm">
-            💰 {coins}
+          <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm font-bold text-yellow-600 shadow-sm">
+            <Image src="/assets/ui/icon_coin.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+            {coins}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -57,9 +53,18 @@ export function FeedPicker({
                     : "border-gray-100 opacity-50"
                 }`}
               >
-                <span className="text-3xl">{FOOD_EMOJI[tier.id] ?? "🍚"}</span>
+                <Image
+                  src={`/assets/ui/food/food_${tier.id}.png`}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 object-contain drop-shadow-sm"
+                />
                 <span className="text-xs font-bold text-earth-text">{t(`food_${tier.id}`)}</span>
-                <span className="text-[11px] font-black text-yellow-500">💰 {tier.cost}</span>
+                <span className="flex items-center gap-0.5 text-[11px] font-black text-yellow-600">
+                  <Image src="/assets/ui/icon_coin.png" alt="" width={13} height={13} className="h-[13px] w-[13px] object-contain" />
+                  {tier.cost}
+                </span>
               </button>
             );
           })}

@@ -560,7 +560,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           {/* Coins — the only other header element. Everything else moved to the
               bottom nav so the header stays clean (streak + coins only). */}
           <div className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
-            <span className="text-[15px] leading-none">💰</span>
+            <Image src="/assets/ui/icon_coin.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
             <span className="tabular-nums text-yellow-600">{coins}</span>
           </div>
         </div>

@@ -1,13 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { PetMood } from "@/lib/game";
 
-const MOOD_EMOJI: Record<PetMood, string> = {
-  hungry: "😿",
-  content: "🙂",
-  happy: "😸",
-};
+/** Small hand-drawn chip icon (Gemini). */
+function ChipIcon({ src }: { src: string }) {
+  return <Image src={src} alt="" width={16} height={16} className="h-4 w-4 object-contain" aria-hidden />;
+}
 
 function Chip({ children, tone = "" }: { children: React.ReactNode; tone?: string }) {
   return (
@@ -43,15 +43,13 @@ export function PetHud({
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
       {/* Mood first — it's the pet's headline state. */}
       <Chip>
-        <span className="text-sm leading-none" aria-hidden>
-          {MOOD_EMOJI[mood]}
-        </span>
+        <ChipIcon src={`/assets/ui/mood_${mood}.png`} />
         {t(`mood_${mood}`)}
       </Chip>
 
       {/* Level + a tiny EXP bar (width set via ref → no inline style). */}
       <Chip tone="text-purple-600">
-        <span aria-hidden>⭐</span>
+        <ChipIcon src="/assets/ui/icon_level.png" />
         {t("level", { level })}
         <span className="ml-0.5 h-1.5 w-8 overflow-hidden rounded-full bg-black/[0.08]">
           <span
@@ -64,12 +62,12 @@ export function PetHud({
       </Chip>
 
       <Chip tone={satiety < 25 ? "text-orange-600" : "text-earth-brown/80"}>
-        <span aria-hidden>🍗</span>
+        <ChipIcon src="/assets/ui/icon_satiety.png" />
         <span className="tabular-nums">{Math.round(satiety)}</span>
       </Chip>
 
       <Chip tone="text-rose-500">
-        <span aria-hidden>❤️</span>
+        <ChipIcon src="/assets/ui/icon_bond.png" />
         <span className="tabular-nums">{Math.round(affection)}</span>
       </Chip>
     </div>

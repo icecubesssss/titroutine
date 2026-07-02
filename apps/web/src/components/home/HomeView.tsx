@@ -41,15 +41,9 @@ import type { DashboardData, HabitWithLog } from "@/lib/types";
 
 const LAST_ROOM_KEY = "titroutine:lastRoom";
 
-// Static positions for the floating dust/light motes that give the room depth.
-const DUST_MOTES = [
-  { left: "12%", top: "28%", d: "9s", delay: "0s" },
-  { left: "78%", top: "22%", d: "11s", delay: "1.5s" },
-  { left: "40%", top: "16%", d: "8s", delay: "0.8s" },
-  { left: "62%", top: "42%", d: "12s", delay: "2.2s" },
-  { left: "24%", top: "50%", d: "10s", delay: "3s" },
-  { left: "88%", top: "54%", d: "9.5s", delay: "1.1s" },
-];
+// Floating dust/light motes for room depth. Positions/timing come from CSS
+// (.dust-mote:nth-child(n) in globals.css); here we just render N spans.
+const DUST_MOTES = [0, 1, 2, 3, 4, 5];
 
 const LAST_STAGE_KEY = "titroutine:lastPetStage";
 
@@ -162,13 +156,18 @@ export function HomeView({ data }: { data: DashboardData }) {
     }
   }, [companionOverrideAction]);
 
-  // Lời chào khi mở app: nếu đã vắng mặt ≥ 2 ngày thì thỏ mừng tủi chạy tới (return_cry),
-  // ngược lại vẫy tay chào bình thường.
+  // Lời chào khi mở app: chỉ chạy MỘT lần (ref guard) — nếu đã vắng mặt ≥ 2 ngày thì
+  // thỏ mừng tủi chạy tới (return_cry), ngược lại vẫy tay chào bình thường. Ref guard
+  // cho phép khai báo đủ deps (hết cảnh báo exhaustive-deps) mà vẫn không chào lại sau
+  // mỗi lần router.refresh().
+  const greetedRef = useRef(false);
   useEffect(() => {
+    if (greetedRef.current) return;
+    greetedRef.current = true;
     const last = data.profile.lastCheckinDate;
     const away = last ? daysBetween(last, data.today) >= 2 : false;
     setCompanionOverrideAction(away ? "return_cry" : "welcome");
-  }, []);
+  }, [data.profile.lastCheckinDate, data.today]);
 
   // Re-sync whenever the server sends fresh data (after router.refresh()).
   useEffect(() => {
@@ -491,24 +490,20 @@ export function HomeView({ data }: { data: DashboardData }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-2xl overflow-hidden relative">
+    <main className="flex min-h-screen flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative">
       {/* Top half: Pet Room */}
       <section
-        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/20 p-6 pb-40 min-h-[46vh] transition-colors duration-1000 ${roomBackground}`}
+        className={`relative flex-1 flex flex-col items-center justify-end border-b-4 border-earth-brown/10 p-6 pb-36 min-h-[46vh] transition-colors duration-1000 ${roomBackground}`}
       >
         {/* Depth layers (decorative, non-interactive): time-of-day light wash,
             floating motes, and a soft floor plane under the pet. */}
         <div className={`pointer-events-none absolute inset-0 z-0 room-lighting-${timeOfDay}`} aria-hidden />
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-          {DUST_MOTES.map((m, i) => (
-            <span
-              key={i}
-              className="dust-mote"
-              style={{ left: m.left, top: m.top, animationDuration: m.d, animationDelay: m.delay }}
-            />
+          {DUST_MOTES.map((i) => (
+            <span key={i} className="dust-mote" />
           ))}
         </div>
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-28 room-floor" aria-hidden />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor" aria-hidden />
 
         {/* Care HUD — nurture level, satiety, bond, mood. */}
         <div className="absolute left-3 top-[4.75rem] z-20">
@@ -516,7 +511,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
 
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
-          <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative">
+          <div className="bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] cursor-pointer group relative">
             <Flame className="w-5 h-5 text-fire-orange" />
             <span className="text-fire-orange">
               {t("streakDays", { count: currentStreak })}
@@ -547,60 +542,33 @@ export function HomeView({ data }: { data: DashboardData }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm">
-              <span className="text-yellow-500">💰 {coins}</span>
+            {/* Coins — primary economy readout, kept as its own info pill. */}
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 font-bold shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
+              <span className="text-[15px] leading-none">💰</span>
+              <span className="tabular-nums text-yellow-600">{coins}</span>
             </div>
 
-            {/* Sổ tay kỷ niệm (Memory Album) */}
-            <button
-              type="button"
-              aria-label={t("memoryAlbum")}
-              title={t("memoryAlbum")}
-              onClick={() => {
-                playSwoosh();
-                setIsAlbumOpen(true);
-              }}
-              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-purple-500 hover:text-purple-600 animate-pulse"
-            >
-              <BookOpen className="w-5 h-5" />
-            </button>
-
-            {/* Cửa hàng (Shop) */}
-            <button
-              type="button"
-              aria-label={t("shop")}
-              title={t("shop")}
-              onClick={() => {
-                playSwoosh();
-                setIsShopOpen(true);
-              }}
-              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-amber-500 hover:text-amber-600"
-            >
-              <ShoppingBag className="w-5 h-5" />
-            </button>
-
-            {/* Thống kê (Analytics) */}
-            <button
-              type="button"
-              aria-label={t("analytics")}
-              title={t("analytics")}
-              onClick={() => {
-                playSwoosh();
-                router.push(`/${locale}/analytics`);
-              }}
-              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors text-blue-500 hover:text-blue-600"
-            >
-              <BarChart3 className="w-5 h-5" />
-            </button>
-
-            <button
-              aria-label={t("settings")}
-              title={t("settings")}
-              onClick={() => setIsSettingsOpen(true)}
-              className="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-gray-100 transition-colors"
-            >
-              <Settings className="w-5 h-5 text-gray-500" />
-            </button>
+            {/* Secondary tools — one quiet, unified cluster so the eye reads streak
+                & coins first. Uniform icon set, weight, size and muted colour. */}
+            <div className="flex items-center gap-0.5 rounded-full bg-white/70 p-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
+              {[
+                { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: () => { playSwoosh(); setIsAlbumOpen(true); } },
+                { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: () => { playSwoosh(); setIsShopOpen(true); } },
+                { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: () => { playSwoosh(); router.push(`/${locale}/analytics`); } },
+                { key: "settings", label: t("settings"), Icon: Settings, onClick: () => setIsSettingsOpen(true) },
+              ].map(({ key, label, Icon, onClick }) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-label={label}
+                  title={label}
+                  onClick={onClick}
+                  className="rounded-full p-1.5 text-earth-brown/55 transition-colors hover:bg-black/[0.05] hover:text-earth-brown"
+                >
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -623,7 +591,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         )}
 
         <div
-          className="relative mt-2 drop-shadow-2xl z-10 transition-transform hover:scale-110 cursor-pointer"
+          className="relative mt-2 drop-shadow-lg z-10 transition-transform hover:scale-105 cursor-pointer"
           onClick={() => {
             playSwoosh();
             // Bấm vào thỏ → phản ứng dễ thương ngẫu nhiên (stage thiếu sẽ tự fallback).
@@ -631,6 +599,13 @@ export function HomeView({ data }: { data: DashboardData }) {
             setCompanionOverrideAction(reactions[Math.floor(Math.random() * reactions.length)]);
           }}
         >
+          {/* Mood-tinted spotlight behind the pet — anchors it in the room and
+              carries its emotion as ambient colour (moves with the sprite). */}
+          <div
+            className={`pet-spotlight pet-spotlight-${mood} pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2`}
+            aria-hidden
+          />
+
           {customRug ? (
             <Image
               src={customRug.imageUrl}
@@ -683,7 +658,6 @@ export function HomeView({ data }: { data: DashboardData }) {
         <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
           <RoomSwitcher
             current={currentRoomId}
-            petLevel={petLevel}
             unlocked={roomsUnlockedList}
             allUnlocked={roomsAllUnlocked}
             onSelect={selectRoom}
@@ -734,7 +708,8 @@ export function HomeView({ data }: { data: DashboardData }) {
             
             <div className="flex items-center gap-2">
               {!data.isToday && (
-                <button 
+                <button
+                  type="button"
                   onClick={() => startNavigation(() => router.push(`/${locale}`))}
                   className="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wider hover:bg-blue-700"
                 >
@@ -758,6 +733,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                 
                 return (
                   <button
+                    type="button"
                     key={dateStr}
                     onClick={() => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
                     className={`flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative ${
@@ -860,6 +836,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                       ) : habit.type === "counter" ? (
                         <div className="flex items-center gap-2">
                           <button
+                            type="button"
                             disabled={pendingIds.has(habit.id)}
                             onClick={() => handleIncrementCounter(habit, -1)}
                             className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold hover:bg-gray-200 text-gray-600 disabled:opacity-50"
@@ -870,6 +847,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                             {habit.value || 0}/{habit.config.target_count || 1}
                           </span>
                           <button
+                            type="button"
                             disabled={pendingIds.has(habit.id)}
                             onClick={() => handleIncrementCounter(habit, 1)}
                             className="w-8 h-8 rounded-full bg-fire-orange flex items-center justify-center font-bold text-white hover:bg-orange-600 shadow-sm disabled:opacity-50"

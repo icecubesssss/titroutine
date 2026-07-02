@@ -62,12 +62,28 @@ body {
 .room-lighting-evening { background: linear-gradient(180deg, rgba(255,183,130,0.35) 0%, rgba(120,90,140,0.12) 70%), radial-gradient(120% 60% at 25% 0%, rgba(255,170,120,0.35), transparent 60%); }
 .room-lighting-night   { background: linear-gradient(180deg, rgba(30,30,70,0.35) 0%, rgba(20,20,50,0.15) 100%); }
 
-/* Soft elliptical floor plane under the pet. */
+/* Ground band the pet stands on: a soft floor plane + a faint horizon line so the
+   pet reads as *inside a room* rather than floating in a void (visual anchoring). */
 .room-floor {
-  background: radial-gradient(80% 120% at 50% 100%, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0.05) 45%, transparent 70%);
+  background:
+    radial-gradient(60% 90% at 50% 108%, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.04) 40%, transparent 72%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.05) 0%, transparent 100%);
 }
 
-/* Floating dust / light motes for ambient depth. */
+/* Warm spotlight behind the pet — tinted by mood so the whole scene carries the
+   pet's emotion without repainting the room (colour = feedback, not decoration). */
+.pet-spotlight {
+  width: 340px;
+  height: 340px;
+  border-radius: 9999px;
+  filter: blur(2px);
+}
+.pet-spotlight-content { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,250,235,0.28) 34%, transparent 66%); }
+.pet-spotlight-happy   { background: radial-gradient(circle, rgba(255,240,190,0.65) 0%, rgba(255,214,120,0.30) 36%, transparent 66%); }
+.pet-spotlight-hungry  { background: radial-gradient(circle, rgba(255,225,190,0.55) 0%, rgba(255,170,110,0.26) 36%, transparent 66%); }
+
+/* Floating dust / light motes for ambient depth. Positions/timing live here
+   (per nth-child) so the markup stays free of inline styles. */
 .dust-mote {
   position: absolute;
   width: 6px;
@@ -80,6 +96,12 @@ body {
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
+.dust-mote:nth-child(1) { left: 12%; top: 28%; animation-duration: 9s;   animation-delay: 0s; }
+.dust-mote:nth-child(2) { left: 78%; top: 22%; animation-duration: 11s;  animation-delay: 1.5s; }
+.dust-mote:nth-child(3) { left: 40%; top: 16%; animation-duration: 8s;   animation-delay: 0.8s; }
+.dust-mote:nth-child(4) { left: 62%; top: 42%; animation-duration: 12s;  animation-delay: 2.2s; }
+.dust-mote:nth-child(5) { left: 24%; top: 50%; animation-duration: 10s;  animation-delay: 3s; }
+.dust-mote:nth-child(6) { left: 88%; top: 54%; animation-duration: 9.5s; animation-delay: 1.1s; }
 
 @keyframes mote-drift {
   0%   { transform: translateY(0) translateX(0); opacity: 0; }
@@ -113,6 +135,6 @@ body {
   100% { transform: translateY(0); opacity: 1; }
 }
 
-/* Hide scrollbar on the horizontal room tabs. */
+/* Hide scrollbar on the horizontal room tabs (WebKit/Blink + legacy Edge). */
 .no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar { -ms-overflow-style: none; }

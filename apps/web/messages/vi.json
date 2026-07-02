@@ -135,7 +135,8 @@
     "item_outfit_chef_name": "Trang Phục Đầu Bếp",
     "item_outfit_chef_desc": "Đồ bếp trắng tinh và mũ cao.",
     "notEnough": "Không đủ xu rồi 🥲",
-    "buyFailed": "Mua thất bại, thử lại nhé"
+    "buyFailed": "Mua thất bại, thử lại nhé",
+    "equipFailed": "Trang bị thất bại, thử lại nhé"
   },
   "Memory": {
     "title": "Sổ Tay Kỷ Niệm",

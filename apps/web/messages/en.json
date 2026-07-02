@@ -135,7 +135,8 @@
     "item_outfit_chef_name": "Chef Outfit",
     "item_outfit_chef_desc": "Crisp chef whites and a tall hat.",
     "notEnough": "Not enough coins 🥲",
-    "buyFailed": "Purchase failed, please try again"
+    "buyFailed": "Purchase failed, please try again",
+    "equipFailed": "Equip failed, please try again"
   },
   "Memory": {
     "title": "Memory Album",

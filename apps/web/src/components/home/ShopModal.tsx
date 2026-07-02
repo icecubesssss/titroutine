@@ -16,6 +16,8 @@ interface ShopModalProps {
   equippedItems: Record<string, string>;
   /** Optimistically adjust the parent's coin balance (reconciled by refresh). */
   onSpend?: (amount: number) => void;
+  /** Fired optimistically when an item is (un)equipped — itemId null = unequip. */
+  onEquipped?: (slot: string, itemId: string | null) => void;
 }
 
 export const ShopModal: React.FC<ShopModalProps> = ({
@@ -25,17 +27,24 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   unlockedItems,
   equippedItems,
   onSpend,
+  onEquipped,
 }) => {
   const t = useTranslations("Shop");
   const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
   // Optimistic "just bought" set + a purchase error so a buy never fails silently.
   const [justBought, setJustBought] = useState<Set<string>>(() => new Set());
+  // Optimistic equip overrides (slot -> itemId | null) layered over server truth,
+  // so the button flips instantly instead of waiting for router.refresh().
+  const [localEquipped, setLocalEquipped] = useState<Record<string, string | null>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   if (!isOpen) return null;
+
+  const equippedFor = (slot: string): string | null =>
+    slot in localEquipped ? localEquipped[slot] : equippedItems[slot] ?? null;
 
   const handleBuy = (itemId: string, price: number) => {
     if (pendingId) return;
@@ -65,19 +74,26 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     });
   };
 
-  const handleEquip = (slot: string, itemId: string) => {
+  // Optimistic (un)equip: flip the button + notify the parent immediately, then
+  // reconcile with the server — reverting and surfacing the error if it failed.
+  const commitEquip = (slot: string, itemId: string | null) => {
+    setError(null);
+    const previous = equippedFor(slot);
+    setLocalEquipped((prev) => ({ ...prev, [slot]: itemId }));
+    onEquipped?.(slot, itemId);
     startTransition(async () => {
-      await equipItemAction(slot, itemId);
+      const res = await equipItemAction(slot, itemId);
+      if (res?.error) {
+        setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
+        setError(t("equipFailed"));
+        return;
+      }
       router.refresh();
     });
   };
 
-  const handleUnequip = (slot: string) => {
-    startTransition(async () => {
-      await equipItemAction(slot, null);
-      router.refresh();
-    });
-  };
+  const handleEquip = (slot: string, itemId: string) => commitEquip(slot, itemId);
+  const handleUnequip = (slot: string) => commitEquip(slot, null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -189,7 +205,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 </div>
               ) : (
                 SHOP_ITEMS.filter((item) => unlockedItems.includes(item.id)).map((item) => {
-                  const isEquipped = equippedItems[item.slot] === item.id;
+                  const isEquipped = equippedFor(item.slot) === item.id;
 
                   return (
                     <div

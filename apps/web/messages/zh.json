@@ -135,7 +135,8 @@
     "item_outfit_chef_name": "厨师装",
     "item_outfit_chef_desc": "洁白的厨师服与高帽。",
     "notEnough": "金币不足 🥲",
-    "buyFailed": "购买失败，请重试"
+    "buyFailed": "购买失败，请重试",
+    "equipFailed": "装备失败，请重试"
   },
   "Memory": {
     "title": "回忆相册",

@@ -5,7 +5,6 @@ export interface ShopItem {
   id: string;
   price: number;
   slot: "wallpaper" | "rug" | "object" | "outfit";
-  className?: string; // CSS class to apply when equipped (for wallpapers/rugs)
   imageUrl: string;
 }
 
@@ -15,21 +14,18 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: "wallpaper_cozy_pink",
     price: 250,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_floral.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_floral.png",
   },
   {
     id: "wallpaper_night_sky",
     price: 300,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_stars.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_stars.png",
   },
   {
     id: "wallpaper_forest",
     price: 200,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_forest.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_forest.png",
   },
   // Rugs
@@ -37,14 +33,12 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: "rug_cloud",
     price: 150,
     slot: "rug",
-    className: "bg-white/40",
     imageUrl: "/assets/items/rug_cloud.png",
   },
   {
     id: "rug_rainbow",
     price: 200,
     slot: "rug",
-    className: "bg-gradient-to-r from-red-100 via-yellow-100 to-blue-100",
     imageUrl: "/assets/items/rug_rainbow.png",
   },
   // Extra wallpaper
@@ -52,28 +46,24 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: "wallpaper_beach",
     price: 280,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_beach.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_beach.png",
   },
   {
     id: "wallpaper_cafe",
     price: 260,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_cafe.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_cafe.png",
   },
   {
     id: "wallpaper_rainy",
     price: 240,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_rainy.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_rainy.png",
   },
   {
     id: "wallpaper_winter",
     price: 300,
     slot: "wallpaper",
-    className: "bg-[url('/assets/items/wallpaper_winter.png')] bg-cover bg-center",
     imageUrl: "/assets/items/wallpaper_winter.png",
   },
   // Extra rugs

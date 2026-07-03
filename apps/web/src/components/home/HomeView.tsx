@@ -521,7 +521,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     <main className="flex h-dvh flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative">
       {/* Top half: Pet Room */}
       <section
-        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/10 p-6 pb-28 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
+        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/10 p-6 pb-36 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
       >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -661,16 +661,10 @@ export function HomeView({ data }: { data: DashboardData }) {
           ))}
         </div>
 
-        {/* Status chips — the read-out sits directly under the pet (not beside it),
-            so nothing competes with the character for attention. */}
-        <div className="z-20 mt-4">
-          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
-        </div>
-
-        {/* Care actions — ALWAYS available (feeding can never softlock on room level).
-            Each action moves the pet to its room when unlocked. The neighbourhood
-            entry appears once the whole house is unlocked. */}
+        {/* Care actions and Status HUD are grouped at the bottom to prevent overlapping. */}
         <div className="absolute bottom-4 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
+          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
+          
           {roomsAllUnlocked && (
             <button
               type="button"

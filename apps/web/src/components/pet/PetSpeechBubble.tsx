@@ -13,12 +13,13 @@ import { useTranslations } from "next-intl";
 export const PetSpeechBubble: React.FC<{
   remaining: number;
   total: number;
+  customText?: string | null;
   className?: string;
-}> = ({ remaining, total, className }) => {
+}> = ({ remaining, total, customText, className }) => {
   const t = useTranslations("Pet");
 
   const pool = total === 0 ? ["empty"] : remaining === 0 ? ["allDone1", "allDone2"] : ["go1", "go2", "go3"];
-  const poolKey = pool.join(); // identity of the current pool, for re-pop on change
+  const poolKey = customText ? "custom" : pool.join(); // identity of the current pool, for re-pop on change
 
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -26,14 +27,13 @@ export const PetSpeechBubble: React.FC<{
     return () => clearInterval(id);
   }, []);
 
-  const message = t(pool[tick % pool.length], { count: remaining });
+  const message = customText || t(pool[tick % pool.length], { count: remaining });
 
   return (
     <div
       key={poolKey}
-      style={{ animation: "bubble-pop 0.45s ease-out" }}
       className={clsx(
-        "relative max-w-[210px] rounded-2xl border border-black/5 bg-white/95 px-3 py-2 text-center text-xs font-bold text-earth-text shadow-lg",
+        "relative max-w-[210px] rounded-2xl border border-black/5 bg-white/95 px-3 py-2 text-center text-xs font-bold text-earth-text shadow-lg animate-bubble-pop",
         className
       )}
     >

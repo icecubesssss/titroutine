@@ -1,0 +1,371 @@
+# Kế hoạch Siêu Nâng Cấp Titroutine thành Ứng Dụng Chăm Sóc Bản Thân Đẳng Cấp (Finch Level)
+
+Dự án **Titroutine** hiện đã có nền tảng vững chắc với cơ chế theo dõi thói quen, chuỗi ngày (streak), cửa hàng nội thất/hình nền cơ bản, nuôi dưỡng pet qua chỉ số no (satiety) và độ thân thiết (affection). Tuy nhiên, để đạt tới đẳng cấp của **Finch** — một trong những app self-care thành công nhất thế giới, chúng ta cần giải quyết triệt để vấn đề: **Các tính năng hiện tại còn rời rạc, các nút bấm chăm sóc bị nhạt nhẽo (chỉ việc spam nút là đầy thanh mà không có tính gắn kết cảm xúc hay gameplay thật).**
+
+Bản kế hoạch cập nhật này tập trung vào **thiết kế một Vòng lặp Gamification Gắn Kết (Connected Game Loop)**, kết nối Thói quen - Cửa hàng - Nuôi thú - Chữa lành tinh thần thành một chuỗi trải nghiệm có ý nghĩa sâu sắc.
+
+---
+
+## 1. Sơ Đồ Vòng Lặp Game Gắn Kết (The Connected Game Loop)
+
+Để không còn cảm giác "spam nút nhạt nhẽo", mọi hành động trong Titroutine sẽ được liên kết chặt chẽ theo sơ đồ tuần hoàn sau:
+
+```mermaid
+graph TD
+    A[Hoàn thành Thói quen / Tập trung] -->|Nhận Xu| B(Cửa hàng Vật phẩm)
+    A -->|Nhận Năng lượng| C(Thỏ đi Thám hiểm)
+    B -->|Mua Đồ ăn / Đồ chơi vật lý| D(Kho đồ tiêu dùng)
+    D -->|Nuôi dưỡng & Chơi đùa| E(Chỉ số No & Thân thiết)
+    C -->|Trở về kể chuyện| F(Định hình Tính cách & Mở khóa sở thích)
+    E -->|Trạng thái Đói / Cô đơn| G(Hộp Sơ Cứu / Luyện thở để xoa dịu)
+    G -->|Tăng chỉ số hồi phục| E
+```
+
+### Chi tiết mối liên kết:
+1. **Không cho phép spam trực tiếp bằng xu**: Người dùng không thể nhấn nút cho ăn để trừ xu trực tiếp nữa. Họ bắt buộc phải **vào Shop mua Thức ăn/Đồ chơi cất vào Kho**, sau đó mới mở Kho ra cho Thỏ ăn/chơi. Thức ăn lúc này là một "vật thể" thuộc sở hữu của họ.
+2. **Chống spam chỉ số (Anti-Spam Dialogues)**: Thỏ sẽ phản ứng từ chối nếu người dùng cố tình spam:
+   * Khi **No đạt 100%**, cho ăn thêm thỏ sẽ xua tay: *"Tớ no căng bụng rồi, hông ăn thêm được nữa đâu! 🤰"* (không bị mất thức ăn, không tăng chỉ số).
+   * Khi **Tắm quá sạch**, thỏ nói: *"Tớ sạch bong kin kít rồi, tắm nữa là trôi hết lông mất! 🧼"*.
+   * Khi **Đói lả người (Satiety < 15%)**, nhấn "Chơi" thỏ sẽ buồn bã: *"Tớ đói lả người rồi, không còn sức chơi nữa... Hãy cho tớ ăn trước nhé! 😿"*.
+3. **Thám hiểm là động lực phát triển**: Khi thỏ đang đi thám hiểm, các nút chăm sóc (Ăn/Chơi/Tắm) sẽ tạm thời **bị khóa** (vì thỏ đang không ở nhà). Điều này tạo cảm giác bé thỏ thực sự đang có một chuyến đi riêng độc lập ngoài đời thực.
+
+---
+
+## 2. Giao diện & Tối Ưu UX/UI Cao Cấp (Cozy Premium Aesthetics - Finch Clone)
+
+Để biến web app này đạt tới độ lôi cuốn, mượt mà và dễ thương như Finch, chúng ta sẽ xây dựng các Layout UI chi tiết như sau:
+
+### A. Giao diện Thỏ đi Thám hiểm (Adventure Screen Layout)
+* Khi Thỏ đang thám hiểm (`adventure_status === 'adventuring'`), nửa trên màn hình chính (Pet Room) sẽ chuyển đổi toàn bộ sang một hoạt cảnh ngoài trời:
+  ```
+  +---------------------------------------------------+
+  |  [🔥 5 Ngày]                           [💰 120 Xu] |
+  |                                                   |
+  |  Bé thỏ đang thám hiểm tại Vườn Thông Cozy... 🌲   |
+  |  +---------------------------------------------+  |
+  |  | [=========== Thanh Tiến Trình 62% ==========] |  |
+  |  +---------------------------------------------+  |
+  |                                                   |
+  |                   * Mây trôi lơ lửng *            |
+  |                                                   |
+  |               🐰   🐰   🐰 (Thỏ đang chạy lon ton) |
+  |        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ (Nền cỏ động) |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * Sử dụng **Parallax CSS Background**: Nền mây trôi rất chậm ở xa, đồi núi chạy vừa, và thảm cỏ dưới chân chạy nhanh hơn để tạo ảo giác chuyển động 3D sâu sắc.
+    * Thỏ chuyển sang Sprite chạy/đi bộ (`happy` hoặc `walk` loop).
+    * Thỉnh thoảng nhả ra các suy nghĩ dễ thương trong bong bóng hội thoại: *"Gió hôm nay thơm mùi đất quá..."*, *"Không biết có gặp bạn bướm nào không nhỉ?"*.
+
+### B. Popup Hội Thoại Thám Hiểm Trở Về (Story Dialog Card Layout)
+* Giao diện đối thoại kể chuyện của Thỏ được thiết kế theo đúng triết lý của Finch:
+  ```
+  +---------------------------------------------------+
+  |                 XEM THU HOẠCH                     |
+  |                                                   |
+  |                 +---------------+                 |
+  |                 |               |                 |
+  |                 |  Minh hoạ Thỏ |                 |
+  |                 |  & Vật phẩm   |                 |
+  |                 |               |                 |
+  |                 +---------------+                 |
+  |                                                   |
+  |  🐰 "Hôm nay tớ nhặt được chiếc vỏ ốc lạ tai trên  |
+  |  cát. Tớ thắc mắc không biết có phải biển cả      |
+  |  đang gửi tin nhắn cho tớ không?"                 |
+  |                                                   |
+  |  +---------------------------------------------+  |
+  |  |  A. "Mỗi chiếc vỏ ốc giữ tiếng nói đại dương" |  |
+  |  |  (Nurtures: Thấu Cảm ❤️)                       |  |
+  |  +---------------------------------------------+  |
+  |  |  B. "Đó chỉ là tiếng gió lùa thôi, nhưng      |  |
+  |  |  nó rất thư giãn đấy chứ!"                    |  |
+  |  |  (Nurtures: Logic/Tò Mò 🌟)                   |  |
+  |  +---------------------------------------------+  |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * Giao diện **Glassmorphic Card** đặt trên một lớp overlay tối mờ (`bg-black/50 backdrop-blur-md`).
+    * Phần nội dung câu hỏi được đặt trong một bong bóng hội thoại bo tròn to, có đuôi chĩa về phía thỏ.
+    * Các phương án lựa chọn được thiết kế như những chiếc **nút 3D dày dặn**, bo tròn mạnh (`rounded-2xl`), có màu pastel dịu (xanh lá nhạt, hồng sữa nhạt) kèm biểu tượng chỉ số tính cách nhỏ (ví dụ: ❤️, 🌟).
+
+### C. Nhật Ký Cảm Xúc Hàng Ngày (Mood Check-in UI Layout)
+* Bảng Mood Check-in được thiết kế để hạn chế sự căng thẳng, tăng tính khích lệ:
+  ```
+  +---------------------------------------------------+
+  |               Hôm nay bạn thế nào?                |
+  |                                                   |
+  |    😭        🙁        😐        🙂        😆     |
+  |  Rất tệ  Không tốt Bình thường Khá tốt  Tuyệt vời |
+  |                                                   |
+  |  Cảm xúc này liên quan đến điều gì? (Chọn tags)   |
+  |  [Công việc 💼] [Gia đình 🏠] [Giấc ngủ 😴] [Bạn bè 👥] |
+  |  [Sức khỏe 🩺]  [Ăn uống 🍎]  [Thời tiết ⛅]           |
+  |                                                   |
+  |  Ghi chép nhanh điều bạn biết ơn hôm nay:         |
+  |  +---------------------------------------------+  |
+  |  | Gõ 1 điều nhỏ bé làm bạn cười...            |  |
+  |  +---------------------------------------------+  |
+  |                                                   |
+  |             [ HOÀN THÀNH - NHẬN 💰15 ]            |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * 5 nút Mood có kích thước lớn, màu sắc pastel khác nhau (xám, xanh dương nhạt, vàng nhạt, cam nhạt, hồng nhạt).
+    * Khi di chuột hoặc chạm vào icon mood, icon sẽ thực hiện **bouncy hover animation** (nhún nhảy nhẹ).
+    * Các pill badges tag có trạng thái Active rõ ràng (chuyển từ nền xám nhẹ sang nền màu pastel có viền sáng).
+
+### D. Đồng Hồ Luyện Thở Chánh Niệm (Box Breathing Guide Layout)
+* Thiết kế tối giản, dịu mắt giúp giảm stress, sử dụng đồng hồ đếm ngược (countdown) chạy ngược thời gian về 00:00 để người dùng dễ theo dõi thời gian còn lại:
+  ```
+  |                LUYỆN THỞ BOX BREATHING            |
+  |                                                   |
+  |                      HÍT VÀO                      |
+  |                                                   |
+  |                     /---------\                   |
+  |                    /           \                  |
+  |                   |     4s      |                 |
+  |                    \           /                  |
+  |                     \---------/                   |
+  |                                                   |
+  |               (Vòng tròn đang nở to...)           |
+  |                                                   |
+  |               [======= đếm ngược 01:59 =======]   |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * Sử dụng **background màu xanh rừng thông trầm / xanh ngọc bích tối** (`bg-[#1c2e24]`) để tạo cảm giác tĩnh tâm.
+    * Vòng tròn ở trung tâm sử dụng CSS Keyframe/Transition để **phồng to ra trong 4s (Hít vào), đứng yên 4s (Nín giữ), co nhỏ lại trong 4s (Thở ra), đứng yên 4s (Nín giữ)**.
+    * Văn bản hướng dẫn hiển thị to, rõ ràng và thay đổi mượt mà theo nhịp thở.
+    * Bổ sung âm thanh nhịp thở nhẹ nhàng hoặc nhạc nền sóng biển êm dịu (có nút tắt tiếng).
+
+### E. Khu Phố Thỏ Bạn Bè (Tree Town Layout)
+* Hiển thị danh sách bạn bè trực quan và đáng yêu:
+  ```
+  +---------------------------------------------------+
+  |               KHU PHỐ THỎ (TREE TOWN)             |
+  |                                                   |
+  |  Mã bạn bè của bạn: [  ABC-123  ] [Copy]           |
+  |  [ + Thêm hàng xóm bằng mã ]                       |
+  |                                                   |
+  |  Hàng xóm của bạn:                                |
+  |  +----------------+ +----------------+ +--------+ |
+  |  |    🍡 Mochi     | |    🍪 Biscuit   | | ...    | |
+  |  |    (Stage 2)   | |    (Stage 6)   | |        | |
+  |  |      🐰🐰      | |      🐰🐰      | |        | |
+  |  |  [ Gửi Vibe 🫂] | |  [ Gửi Vibe 💧] | |        | |
+  |  +----------------+ +----------------+ +--------+ |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * Danh sách bạn bè hiển thị dưới dạng các **Card vuông góc tròn bo mềm** nằm cạnh nhau.
+    * Mỗi card hiển thị tên người bạn, emoji đại diện, stage hiện tại của thỏ bạn bè, và một canvas nhỏ vẽ bé thỏ đó đang nhảy múa mừng rỡ.
+    * Bấm vào nút "Gửi Vibe" sẽ hiển thị một menu lướt nhẹ từ dưới lên (Bottom Sheet) cho phép chọn nhanh các biểu tượng cảm xúc gửi đi.
+
+### F. Shop Xoay Tua & Live Preview (Shop Shelf Layout)
+* Giao diện quầy hàng gỗ sinh động:
+  ```
+  +---------------------------------------------------+
+  |  CỬA HÀNG QUẦY GỖ                     ⏰ 08:24:12  |
+  |                                                   |
+  |  +---------------------------------------------+  |
+  |  |               PREVIEW PHÒNG                 |  |
+  |  |   (Xem thử đồ nội thất/trang phục đã chọn)   |  |
+  |  +---------------------------------------------+  |
+  |                                                   |
+  |     Món Đồ Hôm Nay (Flash Sale):                  |
+  |  +----------------+  +----------------+           |
+  |  | [Ảnh vật phẩm] |  | [Ảnh vật phẩm] |           |
+  |  | Giường Sồi 🪵  |  | Áo Đầu Bếp 👨‍🍳  |           |
+  |  | 💰 120 Xu      |  | 💰 200 Xu      |           |
+  |  +----------------+  +----------------+           |
+  +---------------------------------------------------+
+  ```
+  * **UI/UX Details**:
+    * Bộ khung **Preview Phòng** tích hợp trực tiếp ở nửa trên của Shop Modal. Khi người dùng click vào một món đồ trên kệ bán, món đồ đó sẽ tạm thời xuất hiện trên khung Preview (bố trí đúng slot rug/wallpaper/outfit) để người dùng thấy ngay hiệu quả hình ảnh trước khi mua.
+    * Countdown Timer chạy trực quan đếm ngược đến 00:00:00 (reset shop) được đặt ở góc trên phải với thiết kế đồng hồ cổ điển.
+
+### G. Giao diện Đếm Giờ Đồng Hành (Focus Timer UI Layout)
+* Giao diện Timer tập trung nhưng không hề đơn điệu nhờ sự đồng hành của Thỏ:
+  ```
+  +---------------------------------------------------+
+  |              ĐANG TẬP TRUNG...                    |
+  |                                                   |
+  |                  +-------------+                  |
+  |                  |    🐰📝     |                  |
+  |                  | (Thỏ viết)  |                  |
+  |                  +-------------+                  |
+  |                                                   |
+  |                      24:59                        |
+  |  +---------------------------------------------+  |
+  |  | [=========== Thanh Tiến Trình ============] |  |
+  |  +---------------------------------------------+  |
+  |                                                   |
+  |     🔊 Nhạc: [ Lofi Học Tập 🎧 ] (Có thể đổi)     |
+  |                                                   |
+  |                 [ BỎ CUỘC 🚩 ]                    |
+  +---------------------------------------------------+
+  ```
+
+### H. Giao diện Hồ Sơ Pet & Tính Cách (Pet Profile Dashboard Layout)
+* Nơi lưu trữ thông tin và cá nhân hóa chú thỏ:
+  ```
+  +---------------------------------------------------+
+  |                 HỒ SƠ BÉ THỎ                      |
+  |                                                   |
+  |              🐰 Bé Thỏ Con (Cấp 12)               |
+  |                                                   |
+  |  Tính Cách của Thỏ:                               |
+  |  🌟 Tò Mò:    [======= 42% =======]               |
+  |  ❤️ Thấu Cảm:  [============ 65% =======]          |
+  |  🛡️ Kiên Cường:[====== 35% =======]               |
+  |  ⚡ Năng Động: [==== 20% =======]                 |
+  |                                                   |
+  |  Sở Thích đã Khám phá:                            |
+  |  💚 Thích: Bánh ngọt 🍰, Nhạc Lofi 🎧, Đọc sách    |
+  |  💔 Ghét:  Trời sấm sét ⛈️, Bị đói bụng 😿          |
+  +---------------------------------------------------+
+  ```
+
+---
+
+## 3. Tái Cấu Trúc Quản Lý Giao Diện (UI State Refactoring - CRITICAL)
+
+Hiện tại, màn hình chính `HomeView.tsx` đang quản lý các hộp thoại (modal) bằng rất nhiều biến boolean độc lập (`isSettingsOpen`, `isShopOpen`, `isAlbumOpen`, `isNeighborOpen`, v.v.). Khi tích hợp thêm 4-5 modal tính năng mới của Finch, cách tiếp cận cũ sẽ bộc lộ điểm yếu chết người: **nguy cơ xung đột chồng chéo UI (chồng modal lên nhau), khó quản lý luồng chuyển cảnh (transition), và làm phình to mã nguồn.**
+
+Chúng ta sẽ thực hiện **refactor kiến trúc hoạt động của giao diện** như sau:
+
+### A. Quản lý trạng thái hộp thoại tập trung (Centralized Active Overlay State)
+Thay thế toàn bộ các biến cờ boolean độc lập bằng một biến state duy nhất quản lý bằng kiểu dữ liệu Enum:
+```typescript
+type ActiveOverlay =
+  | null            // Không mở gì (Màn hình chính thói quen + phòng Pet)
+  | "settings"      // Cài đặt hệ thống
+  | "shop"          // Cửa hàng nội thất/outfit
+  | "album"         // Sổ tay kỷ niệm
+  | "neighbor"      // Thăm hàng xóm NPC
+  | "habit_form"    // Form thêm/sửa thói quen
+  | "timer"         // Bộ đếm giờ tập trung
+  | "mood_checkin"  // Báo cáo cảm xúc hằng ngày
+  | "breathing"     // Luyện thở chánh niệm
+  | "first_aid"     // Hộp cứu hộ tâm lý khẩn cấp
+  | "pet_profile"   // Hồ sơ tính cách/sở thích của pet
+  | "celebration";  // Màn hình ăn mừng thành tựu/checkin
+```
+
+### B. Thiết kế bộ phân phối phủ màn hình (Overlay Coordinator Pattern)
+Trong `HomeView.tsx`, thay vì render đống modal song song trực tiếp, chúng ta sẽ gom chúng vào một bộ điều phối duy nhất:
+```tsx
+{/* Centralized Modals & Overlays Coordinator */}
+{activeOverlay && (
+  <div className="overlay-container">
+    {activeOverlay === "settings" && <SettingsModal ... onClose={closeOverlay} />}
+    {activeOverlay === "shop" && <ShopModal ... onClose={closeOverlay} />}
+    {activeOverlay === "album" && <MemoryAlbumModal ... onClose={closeOverlay} />}
+    {activeOverlay === "timer" && <TimerModal ... onClose={closeOverlay} />}
+    {activeOverlay === "mood_checkin" && <MoodCheckinModal ... onClose={closeOverlay} />}
+    {activeOverlay === "breathing" && <BreathingModal ... onClose={closeOverlay} />}
+    {activeOverlay === "first_aid" && <FirstAidModal ... onClose={closeOverlay} />}
+    {activeOverlay === "pet_profile" && <PetProfileModal ... onClose={closeOverlay} />}
+    {/* ... */}
+  </div>
+)}
+```
+
+---
+
+## 4. Thiết Kế Cơ Sở Dữ Liệu (DB Schema Changes)
+
+Để lưu trữ kho đồ tiêu dùng, tính cách và danh sách thích/ghét của thỏ, chúng ta sẽ áp dụng các cập nhật DB sau:
+
+### Cập nhật bảng `public.profiles`:
+```sql
+-- Chỉ số tính cách của Pet
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_curiosity INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_compassion INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_resilience INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_energy INTEGER DEFAULT 10;
+
+-- Lưu trữ kịch bản Thích/Ghét dạng Array Text
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pet_likes TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pet_dislikes TEXT[] DEFAULT '{}';
+
+-- Trạng thái phiêu lưu thám hiểm
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_energy INTEGER DEFAULT 0; -- Tích lũy từ thói quen (0-30)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_status TEXT DEFAULT 'idle'; -- 'idle', 'adventuring', 'returned'
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_start_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_story_id TEXT; -- Lưu ID câu chuyện hiện tại khi thỏ quay về
+```
+
+### Cập nhật bảng `public.inventory` (Hỗ trợ đồ tiêu dùng):
+```sql
+-- Thêm cột lưu trữ vật phẩm tiêu dùng (đồ ăn, đồ chơi) dạng JSONB
+-- ví dụ: { "carrot": 0, "cake": 0, "feast": 0, "toy_ball": 0, "toy_bear": 0 }
+ALTER TABLE public.inventory ADD COLUMN IF NOT EXISTS consumables JSONB DEFAULT '{"carrot": 0, "cake": 0, "feast": 0, "toy_ball": 0, "toy_bear": 0}'::jsonb;
+```
+
+---
+
+## 5. Kiến Trúc Kỹ Thuật & Cấu Trúc File Mới
+
+Các file sẽ được chia thành module rõ ràng:
+```
+apps/web/src/
+├── app/[locale]/
+│   └── actions.ts               <-- Server Actions: mua đồ tiêu dùng, cho ăn từ kho, thám hiểm, lưu tính cách
+├── components/
+│   ├── adventure/               <-- [NEW] Giao diện thám hiểm, câu chuyện kể
+│   ├── mindfulness/             <-- [NEW] Mini-app chánh niệm: Mood, Luyện thở, FirstAid
+│   ├── social/                  <-- Hàng xóm bạn bè (Tree Town)
+│   └── home/
+│       ├── ShopModal.tsx        <-- Bán nội thất & bán cả đồ ăn/đồ chơi
+│       ├── PetProfileModal.tsx  <-- [NEW] Xem chỉ số tính cách & Likes/Dislikes
+│       └── HomeView.tsx         <-- Ráp nối luồng điều hướng activeOverlay
+└── lib/
+    ├── adventure_stories.ts     <-- Kịch bản khám phá, lựa chọn điểm tính cách & mở khoá thích/ghét
+    └── game_interactions.ts     <-- [NEW] Xử lý logic hội thoại từ chối/đồng ý tương tác nuôi thú
+```
+
+---
+
+## 6. Kịch Bản Tương Tác Nuôi Thú (Cozy Interactions Script)
+
+Để chú thỏ sống động và tạo cảm giác gắn bó thực sự, chúng ta sẽ định nghĩa một hệ thống hội thoại phản hồi dựa trên tình trạng thực tế của thú cưng:
+
+* **Cho ăn (Feeding):**
+  * Thỏ đang đói (`satiety < 25`): *"Oa! Cảm ơn bạn nhiều nha, tớ đói rủ cả tai rồi! 🥕😋"* (+Satiety, +Affection, +EXP).
+  * Thỏ đang no (`satiety >= 90`): *"Hông ăn nổi nữa đâu, bụng tớ sắp tròn xoe như quả bóng rồi nè! 🤰"* (Từ chối, không mất vật phẩm).
+* **Chơi đùa (Playing):**
+  * Đang đói lả (`satiety < 15`): *"Tớ đói xỉu rồi, không chạy nhảy nổi đâu... Hãy cho tớ ăn chút gì đó nhé! 😿"* (Từ chối).
+  * Chơi đùa bình thường (Tiêu thụ 1 đồ chơi): *"Bóng lăn kìa! Thích quá đi mất! ⚽🐰"* (+Affection, -5 Satiety).
+* **Tắm rửa (Cleaning):**
+  * Tắm bình thường: *"Bọt xà phòng thơm phức! Lại còn có cả vịt vàng nữa! 🚿🛁"* (+Affection).
+  * Đã sạch sẽ: *"Tớ sạch lắm rồi, tắm nữa là trôi hết lớp lông mượt mất tiêu! 🧼"* (Từ chối).
+
+---
+
+## 7. Kế Hoạch Kiểm Thử & Xác Minh (Verification Plan)
+
+### Kiểm thử Tự Động (Automated Verification)
+1. **Kiểm tra biên dịch & Typecheck**:
+   ```bash
+   cd apps/web && npm run build
+   ```
+2. **Kiểm tra Logic tương tác**:
+   * Viết test unit cho hàm xử lý tương tác (`game_interactions.ts`) kiểm tra đúng các trường hợp bị chặn (spam cho ăn khi no, chơi khi đói).
+
+### Kiểm thử Thủ Công (Manual Verification)
+1. Kiếm xu từ thói quen -> Vào shop mua 2 củ Cà rốt -> Mở kho đồ xác nhận số lượng là 2.
+2. Cho thỏ ăn 1 củ -> Chỉ số no tăng lên -> Số lượng cà rốt trong kho giảm xuống 1. Thỏ hiện bóng thoại: *"Cảm ơn bạn nhiều nha..."*.
+3. Tiếp tục mua thêm cà rốt và cho ăn liên tiếp đến khi no 100% -> Nhấn cho ăn liên nữa -> Xác nhận thỏ xua tay từ chối và củ cà rốt cuối cùng không bị mất đi.
+4. Tích đủ 3 thói quen -> Thỏ tự động đi thám hiểm -> Các nút cho ăn/chơi bị khóa mờ -> Thỏ quay về -> Đối thoại kịch bản hiện lên -> Chọn câu trả lời -> Mở Hồ sơ Pet xác nhận điểm tính cách đã thay đổi và xuất hiện Sở thích mới được mở khóa.
+
+---
+
+## 8. Câu Hỏi Khảo Sát & Lựa Chọn Thiết Kế (User Review Required)
+
+> [!IMPORTANT]
+> Vui lòng phản hồi các câu hỏi dưới đây để tôi bắt đầu viết mã nguồn:
+> 1. **Cơ chế Kho đồ tiêu dùng**: Bạn thấy thiết kế bắt buộc phải mua đồ ăn/đồ chơi vào kho trước rồi mới cho ăn/chơi để tạo cảm giác thực tế này thế nào? Có cần bổ sung thêm loại vật phẩm tiêu dùng nào khác không?
+> 2. **Thời gian thám hiểm lý tưởng**: Bạn muốn thỏ thám hiểm trong bao lâu? (Khuyên dùng: **30 giây** khi chạy thử để dễ kiểm duyệt, sau đó sẽ đổi thành **30 phút - 1 tiếng** để đúng nhịp điệu của Finch khi đưa lên production).
+> 3. **Hộp thoại chúc mừng check-in**: Mood Check-in có nên tự động hiện lên ngay khi người dùng vừa mở app vào buổi sáng không?

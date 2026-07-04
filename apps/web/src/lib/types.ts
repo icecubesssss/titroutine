@@ -57,11 +57,30 @@ export interface ProfileSummary {
   allRoomsUnlocked: boolean;
   /** Whether the daily neighbour gift can be claimed today. */
   canClaimNeighborGift: boolean;
+  // ── Finch Upgrade Connected Loop axis ─────────────────────────
+  personalityCuriosity: number;
+  personalityCompassion: number;
+  personalityResilience: number;
+  personalityEnergy: number;
+  petLikes: string[];
+  petDislikes: string[];
+  adventureEnergy: number;
+  adventureStatus: "idle" | "adventuring" | "returned";
+  adventureStartAt: string | null;
+  adventureStoryId: string | null;
 }
 
 export interface InventorySummary {
   equippedItems: Record<string, string>;
   unlockedItems: string[];
+  consumables: Record<string, number>; // e.g., { "carrot": 3, "cake": 0 }
+}
+
+export interface SocialVibe {
+  id: string;
+  senderId: string;
+  senderUsername: string;
+  vibeType: string;
 }
 
 export interface DashboardData {
@@ -75,4 +94,5 @@ export interface DashboardData {
   currentDate: string;
   isToday: boolean;
   weekDates?: string[]; // Array of YYYY-MM-DD for the current week (Mon-Sun)
+  pendingVibes: SocialVibe[];
 }

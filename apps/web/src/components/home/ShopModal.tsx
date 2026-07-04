@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useMemo } from "react";
 import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { SHOP_ITEMS } from "@/lib/items";
-import { buyItemAction, equipItemAction } from "@/app/[locale]/actions";
+import { buyItemAction, equipItemAction, buyConsumableAction } from "@/app/[locale]/actions";
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -14,11 +14,18 @@ interface ShopModalProps {
   coins: number;
   unlockedItems: string[];
   equippedItems: Record<string, string>;
-  /** Optimistically adjust the parent's coin balance (reconciled by refresh). */
+  consumables?: Record<string, number>; // new prop containing count
   onSpend?: (amount: number) => void;
-  /** Fired optimistically when an item is (un)equipped — itemId null = unequip. */
   onEquipped?: (slot: string, itemId: string | null) => void;
 }
+
+const CONSUMABLES_CATALOGUE = [
+  { id: "carrot", price: 15, name: "Cà rốt tươi ngon 🥕", desc: "Đồ ăn lý tưởng (+15 No)" },
+  { id: "cake", price: 35, name: "Bánh kem ngọt 🍰", desc: "Bánh kem bơ thơm ngọt (+30 No)" },
+  { id: "feast", price: 60, name: "Đại tiệc thịnh soạn 🍲", desc: "Mâm cỗ đầy ắp (+60 No)" },
+  { id: "toy_ball", price: 25, name: "Bóng cao su ⚽", desc: "Chạy nhảy năng động (+6 Thân thiết)" },
+  { id: "toy_bear", price: 45, name: "Gấu bông ấm áp 🧸", desc: "Gấu mềm dễ thương (+10 Thân thiết)" },
+];
 
 export const ShopModal: React.FC<ShopModalProps> = ({
   isOpen,
@@ -26,26 +33,58 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   coins,
   unlockedItems,
   equippedItems,
+  consumables = { carrot: 0, cake: 0, feast: 0, toy_ball: 0, toy_bear: 0 },
   onSpend,
   onEquipped,
 }) => {
   const t = useTranslations("Shop");
   const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
-  // Optimistic "just bought" set + a purchase error so a buy never fails silently.
   const [justBought, setJustBought] = useState<Set<string>>(() => new Set());
-  // Optimistic equip overrides (slot -> itemId | null) layered over server truth,
-  // so the button flips instantly instead of waiting for router.refresh().
   const [localEquipped, setLocalEquipped] = useState<Record<string, string | null>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // 1. Quản lý trạng thái xem thử phòng (Room Preview)
+  const [previewWallpaper, setPreviewWallpaper] = useState<string | null>(equippedItems["wallpaper"] || null);
+  const [previewRug, setPreviewRug] = useState<string | null>(equippedItems["rug"] || null);
+  const [previewObject, setPreviewObject] = useState<string | null>(equippedItems["object"] || null);
+
+  const previewWallpaperItem = useMemo(() => SHOP_ITEMS.find(item => item.id === previewWallpaper), [previewWallpaper]);
+  const previewRugItem = useMemo(() => SHOP_ITEMS.find(item => item.id === previewRug), [previewRug]);
+  const previewObjectItem = useMemo(() => SHOP_ITEMS.find(item => item.id === previewObject), [previewObject]);
+
+  // Reset xem thử về trạng thái thực tế
+  const handleResetPreview = () => {
+    setPreviewWallpaper(equippedItems["wallpaper"] || null);
+    setPreviewRug(equippedItems["rug"] || null);
+    setPreviewObject(equippedItems["object"] || null);
+  };
+
+  // 2. Thuật toán xoay tua 4 món đồ nội thất ngẫu nhiên cố định theo ngày
+  const rotatedPermanentItems = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0] || "2026-07-04";
+    let hash = 0;
+    for (let i = 0; i < todayStr.length; i++) {
+      hash = todayStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const shuffle = [...SHOP_ITEMS];
+    for (let i = shuffle.length - 1; i > 0; i--) {
+      const rand = Math.abs((hash + i) % (i + 1));
+      const temp = shuffle[i]!;
+      shuffle[i] = shuffle[rand]!;
+      shuffle[rand] = temp;
+    }
+    return shuffle.slice(0, 4);
+  }, []);
 
   if (!isOpen) return null;
 
   const equippedFor = (slot: string): string | null =>
     slot in localEquipped ? localEquipped[slot] : equippedItems[slot] ?? null;
 
+  // Xử lý mua đồ nội thất vĩnh viễn
   const handleBuy = (itemId: string, price: number) => {
     if (pendingId) return;
     setError(null);
@@ -53,14 +92,12 @@ export const ShopModal: React.FC<ShopModalProps> = ({
       setError(t("notEnough"));
       return;
     }
-    // Optimistic: mark owned + deduct coins immediately for instant feedback.
     setPendingId(itemId);
     setJustBought((prev) => new Set(prev).add(itemId));
     onSpend?.(price);
     startTransition(async () => {
       const res = await buyItemAction(itemId, price);
       if (res?.error) {
-        // Revert the optimistic changes and surface why it failed.
         setJustBought((prev) => {
           const next = new Set(prev);
           next.delete(itemId);
@@ -74,8 +111,28 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     });
   };
 
-  // Optimistic (un)equip: flip the button + notify the parent immediately, then
-  // reconcile with the server — reverting and surfacing the error if it failed.
+  // Xử lý mua đồ ăn / đồ chơi tiêu dùng
+  const handleBuyConsumable = (itemId: string, price: number) => {
+    if (pendingId) return;
+    setError(null);
+    if (coins < price) {
+      setError(t("notEnough"));
+      return;
+    }
+    setPendingId(itemId);
+    onSpend?.(price);
+    startTransition(async () => {
+      const res = await buyConsumableAction(itemId, price);
+      if (res?.error) {
+        onSpend?.(-price);
+        setError(t("buyFailed"));
+      }
+      setPendingId(null);
+      router.refresh();
+    });
+  };
+
+  // Trang bị nội thất
   const commitEquip = (slot: string, itemId: string | null) => {
     setError(null);
     const previous = equippedFor(slot);
@@ -97,102 +154,224 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#fffaf0] rounded-3xl shadow-2xl overflow-hidden border-4 border-[#e8dcc7] flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-md bg-[#fdfaf6] rounded-3xl shadow-2xl overflow-hidden border-4 border-[#ebdcc5] flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-[#e8dcc7] bg-white sticky top-0 z-10">
-          <h2 className="text-2xl font-black text-amber-900 flex items-center gap-2">
-            <ShoppingBag className="text-amber-600" /> {t("title")}
+        <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-[#ebdcc5] bg-white sticky top-0 z-10">
+          <h2 className="text-xl font-black text-[#5c4033] flex items-center gap-2">
+            🛒 Cửa Hàng Cozy
           </h2>
           <div className="flex items-center gap-3">
-            <div className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-bold text-sm shadow-sm flex items-center gap-1">
-              <span>💰</span> {t("coins", { count: coins })}
+            <div className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-black text-sm shadow-sm flex items-center gap-1">
+              <Image src="/assets/ui/icon_coin.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+              <span>{coins}</span>
             </div>
             <button
               type="button"
-              aria-label={t("close")}
-              title={t("close")}
               onClick={onClose}
-              className="p-2 rounded-full bg-stone-100 hover:bg-stone-200 transition-colors text-stone-500"
+              aria-label="Đóng"
+              className="p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 transition-colors text-stone-500"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 pt-4 gap-4 border-b-2 border-stone-100 bg-white">
+        <div className="flex px-6 pt-3 gap-4 border-b border-stone-100 bg-white shadow-sm">
           <button
             type="button"
             onClick={() => setActiveTab("shop")}
-            className={`pb-3 px-2 font-bold text-sm flex items-center gap-2 border-b-4 transition-colors ${
+            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors ${
               activeTab === "shop"
-                ? "border-amber-500 text-amber-600"
+                ? "border-orange-500 text-orange-600"
                 : "border-transparent text-stone-400 hover:text-stone-600"
             }`}
           >
-            <ShoppingBag size={16} /> {t("tabShop")}
+            <ShoppingBag size={15} /> Mua sắm
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("inventory")}
-            className={`pb-3 px-2 font-bold text-sm flex items-center gap-2 border-b-4 transition-colors ${
+            onClick={() => {
+              setActiveTab("inventory");
+              handleResetPreview();
+            }}
+            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors ${
               activeTab === "inventory"
-                ? "border-amber-500 text-amber-600"
+                ? "border-orange-500 text-orange-600"
                 : "border-transparent text-stone-400 hover:text-stone-600"
             }`}
           >
-            <Package size={16} /> {t("tabInventory")} ({unlockedItems.length})
+            <Package size={15} /> Kho đồ nội thất
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+        <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-[#fdfaf6]">
           {error && (
-            <div className="rounded-xl border-2 border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-500">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-500">
               {error}
             </div>
           )}
-          {activeTab === "shop" && (
-            <div className="grid grid-cols-2 gap-4">
-              {SHOP_ITEMS.map((item) => {
-                const isOwned = unlockedItems.includes(item.id) || justBought.has(item.id);
-                const canAfford = coins >= item.price;
 
-                return (
-                  <div
-                    key={item.id}
-                    className="bg-white rounded-2xl border-2 border-[#f0e6d2] p-3 flex flex-col shadow-sm"
-                  >
-                    <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                      <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-stone-700 text-sm">{t(`item_${item.id}_name`)}</h3>
-                      <p className="text-xs text-stone-500 line-clamp-1">{t(`item_${item.id}_desc`)}</p>
-                    </div>
-                    <div className="mt-3">
-                      {isOwned ? (
-                        <div className="w-full text-center py-1.5 bg-stone-100 text-stone-500 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
-                          <CheckCircle size={14} /> {t("owned")}
+          {/* 1. ROOM PREVIEW CONTAINER: Hiển thị khi ở tab Shop */}
+          {activeTab === "shop" && (
+            <div className="relative w-full h-36 bg-[#f0e6d2]/50 rounded-2xl overflow-hidden border-2 border-[#ebdcc5] shadow-inner flex items-center justify-center">
+              {/* Preview Wallpaper */}
+              {previewWallpaperItem ? (
+                <Image src={previewWallpaperItem.imageUrl} alt="" fill className="object-cover pointer-events-none" />
+              ) : (
+                <div className="absolute inset-0 bg-[#e3d3b7] opacity-80" />
+              )}
+              
+              {/* Preview Rug */}
+              {previewRugItem && (
+                <Image
+                  src={previewRugItem.imageUrl}
+                  alt=""
+                  width={140}
+                  height={70}
+                  className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 object-contain pointer-events-none drop-shadow-sm"
+                />
+              )}
+
+              {/* Preview Object */}
+              {previewObjectItem && (
+                <Image
+                  src={previewObjectItem.imageUrl}
+                  alt=""
+                  width={60}
+                  height={60}
+                  className="absolute bottom-2 left-4 w-12 h-12 object-contain pointer-events-none drop-shadow-sm"
+                />
+              )}
+
+              <div className="absolute bottom-2 right-2 text-[9px] bg-black/60 text-white rounded-full px-2 py-0.5 font-bold z-10">
+                🐰 Phòng Thử Đồ
+              </div>
+
+              {(previewWallpaper !== equippedItems["wallpaper"] ||
+                previewRug !== equippedItems["rug"] ||
+                previewObject !== equippedItems["object"]) && (
+                <button
+                  onClick={handleResetPreview}
+                  className="absolute top-2 right-2 text-[9px] bg-orange-500 hover:bg-orange-600 text-white rounded-full px-2 py-0.5 font-bold z-10 transition-colors"
+                >
+                  Đặt lại
+                </button>
+              )}
+            </div>
+          )}
+
+          {activeTab === "shop" && (
+            <div className="space-y-6">
+              {/* Bánh kẹo & Đồ chơi */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+                  🍭 Quầy đồ ăn & đồ chơi tiêu dùng
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {CONSUMABLES_CATALOGUE.map((item) => {
+                    const canAfford = coins >= item.price;
+                    const countInInv = consumables[item.id] ?? 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-2xl border-2 border-[#ebdcc5] p-3 flex flex-col justify-between shadow-sm"
+                      >
+                        <div className="flex gap-2.5 items-start">
+                          <span className="text-3xl select-none pt-0.5">
+                            {item.id === "carrot" ? "🥕" : item.id === "cake" ? "🍰" : item.id === "feast" ? "🍲" : item.id === "toy_ball" ? "⚽" : "🧸"}
+                          </span>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">{item.name}</h4>
+                            <p className="text-[9px] text-[#8b7355] mt-0.5 leading-tight">{item.desc}</p>
+                            <span className="inline-block mt-1 text-[8px] bg-stone-100 text-stone-500 px-1 rounded font-bold">
+                              Trong kho: {countInInv}
+                            </span>
+                          </div>
                         </div>
-                      ) : (
                         <button
                           type="button"
-                          onClick={() => handleBuy(item.id, item.price)}
+                          onClick={() => handleBuyConsumable(item.id, item.price)}
                           disabled={!canAfford || pendingId === item.id}
-                          className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                          className={`w-full mt-3 py-1.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-0.5 transition-colors ${
                             canAfford
-                              ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                              ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
                               : "bg-stone-100 text-stone-400 cursor-not-allowed"
                           }`}
                         >
-                          💰 {t("price", { price: item.price })}
+                          <Image src="/assets/ui/icon_coin.png" alt="" width={12} height={12} className="h-3 w-3 object-contain" />
+                          {item.price}
                         </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Kệ nội thất xoay tua ngày */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                  <span>🪵 Quầy nội thất xoay tua hôm nay</span>
+                  <span className="text-[9px] font-normal text-orange-500 italic">Làm mới sau 00:00</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {rotatedPermanentItems.map((item) => {
+                    const isOwned = unlockedItems.includes(item.id) || justBought.has(item.id);
+                    const canAfford = coins >= item.price;
+
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          if (item.slot === "wallpaper") setPreviewWallpaper(item.id);
+                          if (item.slot === "rug") setPreviewRug(item.id);
+                          if (item.slot === "object") setPreviewObject(item.id);
+                        }}
+                        className={`bg-white rounded-2xl border-2 p-3 flex flex-col justify-between shadow-sm cursor-pointer transition-all hover:scale-[1.02] ${
+                          previewWallpaper === item.id || previewRug === item.id || previewObject === item.id
+                            ? "border-orange-400 ring-2 ring-orange-200"
+                            : "border-[#ebdcc5]"
+                        }`}
+                      >
+                        <div className="aspect-square bg-stone-50 rounded-xl mb-2 flex items-center justify-center border border-stone-100 relative overflow-hidden">
+                          <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">{t(`item_${item.id}_name`)}</h4>
+                          <span className="text-[8px] text-gray-400 uppercase font-black tracking-wider block mt-0.5">
+                            {t(`slot_${item.slot}`)}
+                          </span>
+                        </div>
+                        <div className="mt-2.5">
+                          {isOwned ? (
+                            <div className="w-full text-center py-1 bg-stone-100 text-stone-500 rounded-lg text-[9px] font-bold flex items-center justify-center gap-0.5">
+                              <CheckCircle size={10} /> Đã có
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBuy(item.id, item.price);
+                              }}
+                              disabled={!canAfford || pendingId === item.id}
+                              className={`w-full py-1 rounded-lg text-[9px] font-black flex items-center justify-center gap-0.5 transition-colors ${
+                                canAfford
+                                  ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                  : "bg-stone-100 text-stone-400 cursor-not-allowed"
+                              }`}
+                            >
+                              <Image src="/assets/ui/icon_coin.png" alt="" width={12} height={12} className="h-3 w-3 object-contain" />
+                              {item.price}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
@@ -200,8 +379,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               {unlockedItems.length === 0 ? (
                 <div className="col-span-2 py-12 text-center text-stone-400 font-medium flex flex-col items-center gap-2">
-                  <Package className="w-12 h-12 text-stone-300" />
-                  {t("emptyInventory")}
+                  <Package className="w-10 h-10 text-stone-300" />
+                  Bạn chưa sở hữu món nội thất nào.
                 </div>
               ) : (
                 SHOP_ITEMS.filter((item) => unlockedItems.includes(item.id)).map((item) => {
@@ -211,7 +390,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     <div
                       key={item.id}
                       className={`bg-white rounded-2xl border-2 p-3 flex flex-col shadow-sm transition-all ${
-                        isEquipped ? "border-amber-400 bg-amber-50/30" : "border-[#f0e6d2]"
+                        isEquipped ? "border-amber-400 bg-amber-50/20" : "border-[#ebdcc5]"
                       }`}
                     >
                       <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
@@ -230,7 +409,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                             onClick={() => handleUnequip(item.slot)}
                             className="w-full py-1.5 rounded-lg text-xs font-bold border-2 border-stone-200 text-stone-500 hover:bg-stone-50 transition-colors"
                           >
-                            {t("unequip")}
+                            Tháo
                           </button>
                         ) : (
                           <button
@@ -238,7 +417,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                             onClick={() => handleEquip(item.slot, item.id)}
                             className="w-full py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-200 transition-colors"
                           >
-                            {t("equip")}
+                            Dùng
                           </button>
                         )}
                       </div>

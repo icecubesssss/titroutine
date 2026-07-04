@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
@@ -22,7 +22,7 @@ import { PetHud } from "@/components/home/PetHud";
 import { BottomNav } from "@/components/home/BottomNav";
 import { InteractionDock } from "@/components/home/InteractionDock";
 import { FeedPicker } from "@/components/home/FeedPicker";
-import { NeighborModal } from "@/components/home/NeighborModal";
+
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
 import {
@@ -33,11 +33,21 @@ import {
   incrementCounterHabitAction,
   feedPetAction,
   petInteractAction,
-  claimNeighborGiftAction,
+  startAdventureAction,
 } from "@/app/[locale]/actions";
 import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
 import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
+
+// Import các Modal & Action mới cho tính năng nâng cấp (Finch Level)
+import { MoodCheckinModal } from "@/components/mindfulness/MoodCheckinModal";
+import { BreathingModal } from "@/components/mindfulness/BreathingModal";
+import { FirstAidModal } from "@/components/mindfulness/FirstAidModal";
+import { PetProfileModal } from "@/components/home/PetProfileModal";
+import { AdventureView } from "@/components/adventure/AdventureView";
+import { StoryDialogModal } from "@/components/adventure/StoryDialogModal";
+import { TreeTownModal } from "@/components/social/TreeTownModal";
+import { VibeInboxModal } from "@/components/social/VibeInboxModal";
 
 const LAST_ROOM_KEY = "titroutine:lastRoom";
 
@@ -78,12 +88,65 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [, startTransition] = useTransition();
   const [isNavigating, startNavigation] = useTransition();
 
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<HabitWithLog | null>(null);
-  const [timerHabit, setTimerHabit] = useState<HabitWithLog | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAlbumOpen, setIsAlbumOpen] = useState(false);
-  const [isShopOpen, setIsShopOpen] = useState(false);
+  type ActiveOverlay =
+    | null
+    | "settings"
+    | "shop"
+    | "album"
+    | "neighbor"
+    | "timer"
+    | "mood_checkin"
+    | "breathing"
+    | "first_aid"
+    | "pet_profile"
+    | "add_habit"
+    | "edit_habit"
+    | "feed"
+    | "celebration"
+    | "friendships"
+    | "adventure_story"
+    | "vibe_inbox"
+    | "mindfulness_menu";
+
+  const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
+
+  const isAddOpen = activeOverlay === "add_habit";
+  const setIsAddOpen = (val: boolean) => setActiveOverlay(val ? "add_habit" : null);
+
+  const [editingHabit, _setEditingHabit] = useState<HabitWithLog | null>(null);
+  const setEditingHabit = (val: HabitWithLog | null) => {
+    _setEditingHabit(val);
+    setActiveOverlay(val ? "edit_habit" : null);
+  };
+
+  const [timerHabit, _setTimerHabit] = useState<HabitWithLog | null>(null);
+  const setTimerHabit = (val: HabitWithLog | null) => {
+    _setTimerHabit(val);
+    setActiveOverlay(val ? "timer" : null);
+  };
+
+  const isSettingsOpen = activeOverlay === "settings";
+  const setIsSettingsOpen = (val: boolean) => setActiveOverlay(val ? "settings" : null);
+
+  const isAlbumOpen = activeOverlay === "album";
+  const setIsAlbumOpen = (val: boolean) => setActiveOverlay(val ? "album" : null);
+
+  const isShopOpen = activeOverlay === "shop";
+  const setIsShopOpen = (val: boolean) => setActiveOverlay(val ? "shop" : null);
+
+  const [petDialogue, setPetDialogue] = useState<string | null>(null);
+  const dialogueTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const showPetDialogue = (text: string) => {
+    if (dialogueTimerRef.current) clearTimeout(dialogueTimerRef.current);
+    setPetDialogue(text);
+    dialogueTimerRef.current = setTimeout(() => {
+      setPetDialogue(null);
+    }, 6000);
+  };
+
+  const [pendingVibesOpen, setPendingVibesOpen] = useState(true);
+  const [showStoryDialog, setShowStoryDialog] = useState(false);
+
   const [companionOverrideAction, setCompanionOverrideAction] = useState<CompanionAction | null>(null);
   // "Hành động nền" do scheduler chọn theo giờ/mùa (khi không có override/timer).
   const [ambientAction, setAmbientAction] = useState<CompanionAction>("idle");
@@ -94,8 +157,12 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [satiety, setSatiety] = useState(data.profile.satiety);
   const [petExp, setPetExp] = useState(data.profile.petExp);
   const [affection, setAffection] = useState(data.profile.affection);
-  const [isFeedOpen, setIsFeedOpen] = useState(false);
-  const [isNeighborOpen, setIsNeighborOpen] = useState(false);
+
+  const isFeedOpen = activeOverlay === "feed";
+  const setIsFeedOpen = (val: boolean) => setActiveOverlay(val ? "feed" : null);
+
+  const isNeighborOpen = activeOverlay === "neighbor";
+  const setIsNeighborOpen = (val: boolean) => setActiveOverlay(val ? "neighbor" : null);
   // Floating "+N EXP" texts that pop over the pet when fed.
   const [floats, setFloats] = useState<{ id: number; text: string }[]>([]);
   const floatId = useRef(0);
@@ -373,25 +440,30 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   const handleFeed = (tierId: string) => {
-    if (careInFlight.current) return; // ignore rapid re-taps (double-spend guard)
+    if (careInFlight.current) return;
     const tier = foodTier(tierId);
-    if (!tier || coins < tier.cost) return;
+    if (!tier) return;
     careInFlight.current = true;
     moveToRoomFor("feed");
 
-    // Optimistic: spend coins + restore satiety. EXP is reconciled from the server
-    // result (it depends on the real satiety deficit) then via router.refresh().
+    // Optimistic: tăng satiety tạm thời, không trừ tiền trực tiếp ở client nữa
     playTing();
-    setCoins((c) => Math.max(0, c - tier.cost));
     setSatiety((s) => Math.min(100, s + tier.satiety));
     setCompanionOverrideAction("eat");
 
     startTransition(async () => {
       try {
         const res = await feedPetAction(tierId);
-        if (res.expGain && res.expGain > 0) spawnFloat(`+${res.expGain} EXP`);
-        if (res.leveledUp) {
-          confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
+        if (res.dialogue) {
+          showPetDialogue(res.dialogue);
+        }
+        if (res.error) {
+          setCompanionOverrideAction("sad");
+        } else {
+          if (res.expGain && res.expGain > 0) spawnFloat(`+${res.expGain} EXP`);
+          if (res.leveledUp) {
+            confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
+          }
         }
         router.refresh();
       } finally {
@@ -400,26 +472,22 @@ export function HomeView({ data }: { data: DashboardData }) {
     });
   };
 
-  const handleInteract = (kind: InteractionKind) => {
+  const handleInteract = (kind: InteractionKind, itemId?: string) => {
     playSwoosh();
     setCompanionOverrideAction(INTERACTION_ACTION[kind]);
     moveToRoomFor(kind);
-    // Optimistic tiny bond bump; server enforces cooldown/daily-cap and refresh reconciles.
-    setAffection((a) => Math.min(100, a + 2));
-    startTransition(async () => {
-      await petInteractAction(kind);
-      router.refresh();
-    });
-  };
 
-  const handleClaimNeighbor = () => {
-    if (!data.profile.canClaimNeighborGift) return;
-    playTing();
-    setCoins((c) => c + 20); // NEIGHBOR_GIFT_COINS (reconciled by refresh)
-    setIsNeighborOpen(false);
-    setCompanionOverrideAction("happy");
+    // Optimistic tiny bond bump
+    setAffection((a) => Math.min(100, a + 2));
+
     startTransition(async () => {
-      await claimNeighborGiftAction();
+      const res = await petInteractAction(kind, itemId);
+      if (res.dialogue) {
+        showPetDialogue(res.dialogue);
+      }
+      if (res.error) {
+        setCompanionOverrideAction("sad");
+      }
       router.refresh();
     });
   };
@@ -599,7 +667,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Encouragement chat — only once the egg has hatched into a companion. */}
         {currentStage >= 1 && (
           <div className="z-30 mb-1">
-            <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} />
+            <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} customText={petDialogue} />
           </div>
         )}
 
@@ -665,25 +733,68 @@ export function HomeView({ data }: { data: DashboardData }) {
         <div className="absolute bottom-4 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
           <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
           
-          {roomsAllUnlocked && (
+          <div className="flex gap-1.5 flex-wrap justify-center mb-1">
             <button
               type="button"
               onClick={() => {
                 playSwoosh();
-                setIsNeighborOpen(true);
+                setActiveOverlay("pet_profile");
               }}
-              className="flex items-center gap-1 rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-amber-600 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105"
+              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-[#5c4033] shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
             >
-              🏘️ {tRooms("neighbors")}
+              📊 Hồ sơ Thỏ
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("mindfulness_menu");
+              }}
+              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-emerald-800 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
+            >
+              🧘 Tự chăm sóc
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("adventure_story");
+              }}
+              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-orange-800 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
+            >
+              🧭 Phiêu lưu {data.profile.adventureEnergy >= 30 && "🔥"}
+            </button>
+
+            {roomsAllUnlocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSwoosh();
+                  setIsNeighborOpen(true);
+                }}
+                className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
+              >
+                🏘️ {tRooms("neighbors")}
+              </button>
+            )}
+          </div>
+
           <InteractionDock
             interactions={CARE_ACTIONS}
             onFeed={() => {
               playSwoosh();
               setIsFeedOpen(true);
             }}
-            onInteract={handleInteract}
+            onInteract={(kind) => {
+              if (kind === "play") {
+                setIsFeedOpen(true); // Open care inventory picker instead of immediate play
+              } else {
+                handleInteract(kind);
+              }
+            }}
+            disabled={data.profile.adventureStatus === "adventuring"}
           />
         </div>
       </section>
@@ -1011,6 +1122,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         coins={coins}
         unlockedItems={data.inventory.unlockedItems}
         equippedItems={data.inventory.equippedItems}
+        consumables={data.inventory.consumables}
         onSpend={(amt) => setCoins((c) => Math.max(0, c - amt))}
         onEquipped={(slot, itemId) => {
           // Jump to the bedroom so a freshly equipped wallpaper is visible right away
@@ -1036,17 +1148,152 @@ export function HomeView({ data }: { data: DashboardData }) {
 
       <FeedPicker
         isOpen={isFeedOpen}
-        coins={coins}
+        consumables={data.inventory.consumables}
         onClose={() => setIsFeedOpen(false)}
         onFeed={handleFeed}
+        onPlay={(toyId) => handleInteract("play", toyId)}
       />
 
-      <NeighborModal
+      {/* TreeTownModal thay thế cho NeighborModal */}
+      <TreeTownModal
         isOpen={isNeighborOpen}
-        canClaim={data.profile.canClaimNeighborGift}
         onClose={() => setIsNeighborOpen(false)}
-        onVisit={handleClaimNeighbor}
+        myFriendCode={data.profile.username || data.email || "ABC-123"}
       />
+
+      {/* MODAL CO-ORDINATORS CHO CÁC TÍNH NĂNG NÂNG CẤP MỚI */}
+      
+      {/* 1. Nhật ký cảm xúc */}
+      <MoodCheckinModal
+        isOpen={activeOverlay === "mood_checkin"}
+        onClose={() => setActiveOverlay(null)}
+      />
+
+      {/* 2. Luyện thở chánh niệm */}
+      <BreathingModal
+        isOpen={activeOverlay === "breathing"}
+        onClose={() => setActiveOverlay(null)}
+      />
+
+      {/* 3. Sơ cứu tâm lý SOS */}
+      <FirstAidModal
+        isOpen={activeOverlay === "first_aid"}
+        onClose={() => setActiveOverlay(null)}
+      />
+
+      {/* 4. Hồ sơ pet cưng */}
+      <PetProfileModal
+        isOpen={activeOverlay === "pet_profile"}
+        onClose={() => setActiveOverlay(null)}
+        petLevel={petLevel}
+        petLevelProgress={levelProgress}
+        personalityCuriosity={data.profile.personalityCuriosity}
+        personalityCompassion={data.profile.personalityCompassion}
+        personalityResilience={data.profile.personalityResilience}
+        personalityEnergy={data.profile.personalityEnergy}
+        petLikes={data.profile.petLikes}
+        petDislikes={data.profile.petDislikes}
+      />
+
+      {/* 5. Giao diện Thám hiểm & Phiêu lưu */}
+      {activeOverlay === "adventure_story" && !showStoryDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in" onClick={() => setActiveOverlay(null)}>
+          <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setActiveOverlay(null)}
+              aria-label="Đóng"
+              className="absolute top-4 right-4 z-30 p-2 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors"
+            >
+              <X size={16} />
+            </button>
+            <AdventureView
+              adventureEnergy={data.profile.adventureEnergy}
+              adventureStatus={data.profile.adventureStatus}
+              adventureStartAt={data.profile.adventureStartAt}
+              currentStage={currentStage}
+              currentStreak={currentStreak}
+              equippedOutfit={data.inventory.equippedItems["outfit"]}
+              onStartAdventure={() => {
+                startTransition(async () => {
+                  await startAdventureAction();
+                  router.refresh();
+                });
+              }}
+              onOpenStory={() => {
+                setShowStoryDialog(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Kịch bản lựa chọn thám hiểm */}
+      <StoryDialogModal
+        isOpen={activeOverlay === "adventure_story" && showStoryDialog}
+        storyId={data.profile.adventureStoryId}
+        onClose={() => {
+          setShowStoryDialog(false);
+          setActiveOverlay(null);
+        }}
+      />
+
+      {/* 6. Hòm thư Rung cảm (Vibes Inbox) */}
+      <VibeInboxModal
+        isOpen={pendingVibesOpen && data.pendingVibes && data.pendingVibes.length > 0}
+        vibes={data.pendingVibes || []}
+        onClose={() => setPendingVibesOpen(false)}
+      />
+
+      {/* 7. Trình đơn Tự chăm sóc (Mindfulness Menu Bottom Sheet) */}
+      {activeOverlay === "mindfulness_menu" && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setActiveOverlay(null)}>
+          <div
+            className="w-full max-w-md rounded-3xl bg-[#fdfaf6] p-6 shadow-2xl border border-[#efe9dc] animate-sheet-up text-[#5c4033]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between border-b border-orange-100 pb-3">
+              <h3 className="text-lg font-black flex items-center gap-2">
+                🧘 Hộp Công Cụ Chánh Niệm
+              </h3>
+              <button onClick={() => setActiveOverlay(null)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={() => setActiveOverlay("mood_checkin")}
+                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+              >
+                <span className="text-3xl">💭</span>
+                <div>
+                  <div className="text-xs font-black">Báo cáo cảm xúc hằng ngày</div>
+                  <div className="text-[10px] text-gray-400 leading-tight">Nhìn nhận cảm xúc của bản thân và ghi chép biết ơn (+15 xu)</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveOverlay("breathing")}
+                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+              >
+                <span className="text-3xl">🌬️</span>
+                <div>
+                  <div className="text-xs font-black">Luyện thở Box Breathing</div>
+                  <div className="text-[10px] text-gray-400 leading-tight">2 phút tập thở khoa học giúp xoa dịu stress tức thì (+10 xu)</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveOverlay("first_aid")}
+                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+              >
+                <span className="text-3xl">🚑</span>
+                <div>
+                  <div className="text-xs font-black">Sơ cứu tâm lý khẩn cấp</div>
+                  <div className="text-[10px] text-gray-400 leading-tight">Kết nối giác quan, bóp bóng xả giận, thẻ đọc chữa lành</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -115,3 +115,44 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_fed_date DATE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_interact_at TIMESTAMPTZ;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS affection_today INTEGER DEFAULT 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_neighbor_gift_date DATE;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 04: Finch-level Cozy Connected Loop Upgrade
+-- ────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_curiosity INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_compassion INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_resilience INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS personality_energy INTEGER DEFAULT 10;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pet_likes TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pet_dislikes TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_energy INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_status TEXT DEFAULT 'idle';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_start_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS adventure_story_id TEXT;
+
+ALTER TABLE public.inventory ADD COLUMN IF NOT EXISTS consumables JSONB DEFAULT '{"carrot": 0, "cake": 0, "feast": 0, "toy_ball": 0, "toy_bear": 0}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS public.friendships (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  friend_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, friend_id)
+);
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own friendships" ON public.friendships FOR SELECT USING (auth.uid() = user_id OR auth.uid() = friend_id);
+CREATE POLICY "Users can manage own friendships" ON public.friendships FOR ALL USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS public.social_vibes (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  vibe_type TEXT NOT NULL,
+  claimed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.social_vibes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own received vibes" ON public.social_vibes FOR SELECT USING (auth.uid() = receiver_id);
+CREATE POLICY "Users can send vibes" ON public.social_vibes FOR INSERT WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Users can update own received vibes" ON public.social_vibes FOR UPDATE USING (auth.uid() = receiver_id);
+

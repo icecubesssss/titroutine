@@ -24,6 +24,8 @@ import {
 import { allRoomsUnlocked, type InteractionKind } from "@/lib/rooms";
 import { eligibleMemoryKeys } from "@/lib/memories";
 import type { HabitType } from "@/lib/types";
+import { ADVENTURE_STORIES, getRandomStory } from "@/lib/adventure_stories";
+import { getFeedFeedback, getPlayFeedback, getCleanFeedback, getSleepFeedback } from "@/lib/game_interactions";
 
 type ActionResult = { error?: string };
 
@@ -175,7 +177,7 @@ export async function toggleHabitAction(input: {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status")
     .eq("id", userId)
     .maybeSingle();
   if (profileError) return { error: profileError.message };
@@ -247,8 +249,19 @@ export async function toggleHabitAction(input: {
     }
   }
 
+  // Tích lũy năng lượng thám hiểm: Mỗi habit thường hoàn thành +10 (tối đa 30) khi pet đang ở nhà
+  let adventureEnergy = profile?.adventure_energy ?? 0;
+  if (targetDate === today && !isNegative) {
+    if (willComplete && profile?.adventure_status === "idle") {
+      adventureEnergy = Math.min(30, adventureEnergy + 10);
+    } else if (!willComplete && profile?.adventure_status === "idle") {
+      adventureEnergy = Math.max(0, adventureEnergy - 10);
+    }
+  }
+
   const patch: Record<string, unknown> = {
     coins,
+    adventure_energy: adventureEnergy,
     // Evolution never reverses: a broken streak keeps the stage already reached.
     pet_stage: targetDate === today ? ratchetStage(profile?.pet_stage, newStreak) : profile?.pet_stage,
     updated_at: new Date().toISOString(),
@@ -285,7 +298,7 @@ export async function incrementCounterHabitAction(input: {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage, adventure_energy, adventure_status")
     .eq("id", userId)
     .maybeSingle();
 
@@ -329,12 +342,18 @@ export async function incrementCounterHabitAction(input: {
       profile?.streak_freezes ?? 0
     );
 
+    let adventureEnergy = profile?.adventure_energy ?? 0;
+    if (profile?.adventure_status === "idle") {
+      adventureEnergy = Math.min(30, adventureEnergy + 10);
+    }
+
     await supabase.from("profiles").update({
       coins,
       current_streak: streakResult.newStreak,
       streak_freezes: profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0,
       pet_stage: ratchetStage(profile?.pet_stage, streakResult.newStreak),
       last_active_date: today,
+      adventure_energy: adventureEnergy,
       updated_at: new Date().toISOString(),
     }).eq("id", userId);
 
@@ -523,12 +542,12 @@ type FeedResult = ActionResult & {
   satietyGain?: number;
   leveledUp?: boolean;
   newLevel?: number;
+  dialogue?: string;
 };
 
 /**
- * Feed the pet a food tier bought with coins. Grows `pet_exp` proportional to the
- * satiety *actually* restored (feeding a full pet ≈ 0 EXP), plus a once-daily
- * bonus — so total nurture EXP per day is capped by decay, not by coins.
+ * Cho thỏ ăn từ kho đồ tiêu dùng (không trừ tiền trực tiếp nữa).
+ * Kiểm tra xem có thức ăn trong kho không và thỏ có bị no quá không.
  */
 export async function feedPetAction(foodId: string): Promise<FeedResult> {
   const { supabase, userId } = await getUserId();
@@ -537,23 +556,43 @@ export async function feedPetAction(foodId: string): Promise<FeedResult> {
   const tier = foodTier(foodId);
   if (!tier) return { error: "invalid_food" };
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("timezone, coins, pet_exp, satiety, last_fed_date, affection_level")
-    .eq("id", userId)
-    .maybeSingle();
-  if (profileError) return { error: profileError.message };
+  // 1. Lấy thông tin profile và kho đồ tiêu dùng
+  const [{ data: profile, error: profileError }, { data: inventory, error: invError }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("timezone, coins, pet_exp, satiety, last_fed_date, affection_level, last_interact_at")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("inventory")
+      .select("consumables")
+      .eq("user_id", userId)
+      .maybeSingle()
+  ]);
 
-  const currentCoins = profile?.coins ?? 0;
-  if (currentCoins < tier.cost) return { error: "not_enough_coins" };
+  if (profileError) return { error: profileError.message };
+  if (invError) return { error: invError.message };
+
+  const consumables = (inventory?.consumables as Record<string, number>) || {};
+  const currentCount = consumables[foodId] ?? 0;
+
+  if (currentCount <= 0) {
+    return { error: "no_food_in_inventory", dialogue: `Hết ${foodId === "carrot" ? "Cà rốt" : foodId === "cake" ? "Bánh ngọt" : "Đại tiệc"} rồi! Bạn hãy ghé cửa hàng để mua thêm nhé! 🛒` };
+  }
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
 
-  // Effective satiety BEFORE feeding (decayed since the last feed). EXP + the new
-  // stored satiety are both computed from this, and last_fed_date is reset to today
-  // — keeping the (value, anchor) pair consistent so decay never double-counts.
+  // Tính độ no hiệu dụng trước khi cho ăn
   const eff = currentSatiety(profile?.satiety, profile?.last_fed_date ?? null, today);
+
+  // 2. Kiểm tra giới hạn no chống spam (Satiety >= 95)
+  const feedback = getFeedFeedback(foodId, eff);
+  if (!feedback.canProceed) {
+    return { error: "too_full", dialogue: feedback.message };
+  }
+
+  // 3. Tiến hành cho ăn: cộng chỉ số và giảm thức ăn trong kho
   const newSatiety = Math.min(SATIETY_MAX, eff + tier.satiety);
   const satietyGain = newSatiety - eff;
 
@@ -564,10 +603,10 @@ export async function feedPetAction(foodId: string): Promise<FeedResult> {
 
   const newAffection = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + AFFECTION_PER_FEED);
 
-  const { error: updateError } = await supabase
+  // Cập nhật profile
+  const { error: updateProfileError } = await supabase
     .from("profiles")
     .update({
-      coins: currentCoins - tier.cost,
       satiety: newSatiety,
       pet_exp: newExp,
       affection_level: newAffection,
@@ -575,7 +614,20 @@ export async function feedPetAction(foodId: string): Promise<FeedResult> {
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId);
-  if (updateError) return { error: updateError.message };
+
+  if (updateProfileError) return { error: updateProfileError.message };
+
+  // Giảm vật phẩm tiêu dùng trong kho
+  const updatedConsumables = { ...consumables, [foodId]: currentCount - 1 };
+  const { error: updateInvError } = await supabase
+    .from("inventory")
+    .update({
+      consumables: updatedConsumables,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (updateInvError) return { error: updateInvError.message };
 
   revalidatePath("/", "layout");
   const newLevel = levelFromExp(newExp);
@@ -584,36 +636,89 @@ export async function feedPetAction(foodId: string): Promise<FeedResult> {
     satietyGain,
     newLevel,
     leveledUp: newLevel > levelFromExp(oldExp),
+    dialogue: feedback.message,
   };
 }
 
 /**
- * A tactile interaction (pat/play/clean/sleep). Always succeeds so the client can
- * play the animation; affection is only granted when off cooldown AND under the
- * daily cap. Satiety is intentionally untouched here — it is a feed-only stat so
- * its decay anchor (last_fed_date) stays valid.
+ * Tương tác với thỏ (pat/play/clean/sleep).
+ * Cho phép chỉ định đồ chơi khi chơi đùa và kiểm tra đói/no/cooldown để kích hoạt phản hồi tương ứng.
  */
-const INTERACTION_KINDS: InteractionKind[] = ["feed", "pat", "play", "clean", "sleep"];
+type InteractResult = ActionResult & {
+  dialogue?: string;
+};
 
-export async function petInteractAction(kind: InteractionKind): Promise<ActionResult> {
+export async function petInteractAction(kind: InteractionKind, itemId?: string): Promise<InteractResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
-  if (!INTERACTION_KINDS.includes(kind)) return { error: "invalid_interaction" };
+  const interactionKinds: InteractionKind[] = ["feed", "pat", "play", "clean", "sleep"];
+  if (!interactionKinds.includes(kind)) return { error: "invalid_interaction" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("timezone, affection_level, affection_today, last_interact_at")
-    .eq("id", userId)
-    .maybeSingle();
+  // 1. Load profile và inventory
+  const [{ data: profile, error: profileError }, { data: inventory, error: invError }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("timezone, affection_level, affection_today, last_interact_at, satiety, last_fed_date")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("inventory")
+      .select("consumables")
+      .eq("user_id", userId)
+      .maybeSingle()
+  ]);
+
+  if (profileError) return { error: profileError.message };
+  if (invError) return { error: invError.message };
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
   const nowMs = Date.now();
+  const effSatiety = currentSatiety(profile?.satiety, profile?.last_fed_date ?? null, today);
 
+  const consumables = (inventory?.consumables as Record<string, number>) || {};
+  const updatedConsumables = { ...consumables };
+
+  let dialogueMessage = "🐰 *Bạn xoa đầu bé thỏ, thỏ cọ cọ tay mừng rỡ!*";
+  
+  // 2. Xử lý logic cụ thể từng loại tương tác
+  if (kind === "play") {
+    const toyId = itemId || "toy_ball";
+    const currentToyCount = consumables[toyId] ?? 0;
+    
+    if (currentToyCount <= 0) {
+      return { 
+        error: "no_toy_in_inventory", 
+        dialogue: `Bạn không có món đồ chơi ${toyId === "toy_ball" ? "Bóng cao su" : "Gấu bông"} nào cả! Hãy vào quầy mua trước nhé! 🧸` 
+      };
+    }
+
+    const feedback = getPlayFeedback(toyId, effSatiety);
+    if (!feedback.canProceed) {
+      return { error: "too_hungry", dialogue: feedback.message };
+    }
+
+    dialogueMessage = feedback.message;
+    updatedConsumables[toyId] = currentToyCount - 1;
+  } else if (kind === "clean") {
+    const feedback = getCleanFeedback(profile?.last_interact_at ?? null);
+    if (!feedback.canProceed) {
+      return { error: "too_clean", dialogue: feedback.message };
+    }
+    dialogueMessage = feedback.message;
+  } else if (kind === "sleep") {
+    const currentHour = new Date(nowMs).toLocaleString("en-US", { timeZone: timezone, hour: "numeric", hour12: false });
+    const feedback = getSleepFeedback(parseInt(currentHour, 10));
+    if (!feedback.canProceed) {
+      return { error: "not_sleepy", dialogue: feedback.message };
+    }
+    dialogueMessage = feedback.message;
+  }
+
+  // 3. Tính toán cộng Affection (chỉ số thân thiết)
   const lastMs = profile?.last_interact_at ? Date.parse(profile.last_interact_at) : 0;
   const withinCooldown = nowMs - lastMs < INTERACT_COOLDOWN_MS;
 
-  // Daily affection budget resets when the last interaction fell on a prior day.
   const lastInteractDate = profile?.last_interact_at
     ? new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(profile.last_interact_at))
     : null;
@@ -624,20 +729,35 @@ export async function petInteractAction(kind: InteractionKind): Promise<ActionRe
     updated_at: new Date().toISOString(),
   };
 
+  // Nếu chơi đùa, độ no satiety bị giảm đi 5 (chạy nhảy hao năng lượng!)
+  if (kind === "play") {
+    patch.satiety = Math.max(0, effSatiety - 5);
+    patch.last_fed_date = today; // reset decay anchor
+  }
+
   if (!withinCooldown && affectionToday < AFFECTION_DAILY_CAP) {
     const grant = Math.min(AFFECTION_PER_INTERACT, AFFECTION_DAILY_CAP - affectionToday);
     patch.affection_level = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + grant);
     patch.affection_today = affectionToday + grant;
   } else {
-    // Keep the (possibly reset) daily counter coherent even when nothing is granted.
     patch.affection_today = affectionToday;
   }
 
-  const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", userId);
-  if (updateError) return { error: updateError.message };
+  // Cập nhật profile
+  const { error: updateProfileError } = await supabase.from("profiles").update(patch).eq("id", userId);
+  if (updateProfileError) return { error: updateProfileError.message };
+
+  // Cập nhật kho đồ nếu có tiêu hao
+  if (kind === "play") {
+    const { error: updateInvError } = await supabase.from("inventory").update({
+      consumables: updatedConsumables,
+      updated_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+    if (updateInvError) return { error: updateInvError.message };
+  }
 
   revalidatePath("/", "layout");
-  return {};
+  return { dialogue: dialogueMessage };
 }
 
 /**
@@ -671,6 +791,305 @@ export async function claimNeighborGiftAction(): Promise<ActionResult> {
     })
     .eq("id", userId);
   if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function buyConsumableAction(itemId: string, price: number): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("coins")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+  const currentCoins = profile?.coins ?? 0;
+
+  if (currentCoins < price) return { error: "not_enough_coins" };
+
+  const { data: inventory, error: invError } = await supabase
+    .from("inventory")
+    .select("consumables")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (invError) return { error: invError.message };
+
+  const consumables = (inventory?.consumables as Record<string, number>) || {};
+  const newCount = (consumables[itemId] ?? 0) + 1;
+  const updatedConsumables = { ...consumables, [itemId]: newCount };
+
+  const { error: updateProfileError } = await supabase
+    .from("profiles")
+    .update({ coins: currentCoins - price })
+    .eq("id", userId);
+
+  if (updateProfileError) return { error: updateProfileError.message };
+
+  const { error: updateInvError } = await supabase
+    .from("inventory")
+    .update({
+      consumables: updatedConsumables,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (updateInvError) return { error: updateInvError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function startAdventureAction(): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("adventure_energy, adventure_status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+  if ((profile?.adventure_energy ?? 0) < 30) return { error: "not_enough_energy" };
+  if (profile?.adventure_status !== "idle") return { error: "already_adventuring" };
+
+  const story = getRandomStory();
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      adventure_status: "adventuring",
+      adventure_energy: 0,
+      adventure_start_at: new Date().toISOString(),
+      adventure_story_id: story.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function completeAdventureAction(choiceIndex: "A" | "B"): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("adventure_status, adventure_story_id, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, coins")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+  if (profile?.adventure_status !== "adventuring") return { error: "not_adventuring" };
+
+  const storyId = profile?.adventure_story_id;
+  if (!storyId) return { error: "no_story_active" };
+
+  const story = ADVENTURE_STORIES.find((s) => s.id === storyId);
+  if (!story) return { error: "story_not_found" };
+
+  const choice = choiceIndex === "A" ? story.choiceA : story.choiceB;
+
+  const currentCuriosity = profile?.personality_curiosity ?? 10;
+  const currentCompassion = profile?.personality_compassion ?? 10;
+  const currentResilience = profile?.personality_resilience ?? 10;
+  const currentEnergy = profile?.personality_energy ?? 10;
+
+  const patch: Record<string, unknown> = {
+    adventure_status: "idle",
+    adventure_story_id: null,
+    adventure_start_at: null,
+    coins: (profile?.coins ?? 0) + 15,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (choice.trait === "curiosity") patch.personality_curiosity = currentCuriosity + choice.value;
+  if (choice.trait === "compassion") patch.personality_compassion = currentCompassion + choice.value;
+  if (choice.trait === "resilience") patch.personality_resilience = currentResilience + choice.value;
+  if (choice.trait === "energy") patch.personality_energy = currentEnergy + choice.value;
+
+  const currentLikes = profile?.pet_likes || [];
+  const currentDislikes = profile?.pet_dislikes || [];
+
+  if (choice.like && !currentLikes.includes(choice.like)) {
+    patch.pet_likes = [...currentLikes, choice.like];
+  }
+  if (choice.dislike && !currentDislikes.includes(choice.dislike)) {
+    patch.pet_dislikes = [...currentDislikes, choice.dislike];
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update(patch)
+    .eq("id", userId);
+
+  if (updateError) return { error: updateError.message };
+
+  await supabase
+    .from("memories")
+    .upsert({
+      user_id: userId,
+      memory_key: `adventure_${storyId}`,
+    }, { onConflict: "user_id,memory_key", ignoreDuplicates: true });
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function logMoodAction(_mood: string, _tags: string[], _reflection: string): Promise<ActionResult> {
+  void _mood;
+  void _tags;
+  void _reflection;
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("coins, satiety, affection_level")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+
+  const newCoins = (profile?.coins ?? 0) + 15;
+  const newAffection = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + 10);
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      coins: newCoins,
+      affection_level: newAffection,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function completeBreathingAction(): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("coins, affection_level, satiety")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) return { error: profileError.message };
+
+  const newCoins = (profile?.coins ?? 0) + 10;
+  const newAffection = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + 10);
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      coins: newCoins,
+      affection_level: newAffection,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function addFriendAction(friendCode: string): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const fCode = friendCode.trim();
+  if (!fCode) return { error: "empty_code" };
+
+  const { data: friendProfile, error: friendError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", fCode)
+    .maybeSingle();
+
+  if (friendError || !friendProfile) {
+    return { error: "friend_not_found" };
+  }
+
+  if (friendProfile.id === userId) {
+    return { error: "cannot_add_self" };
+  }
+
+  const { error: fError } = await supabase
+    .from("friendships")
+    .insert([
+      { user_id: userId, friend_id: friendProfile.id },
+      { user_id: friendProfile.id, friend_id: userId }
+    ]);
+
+  // friendships unique constraint may trigger conflict which is fine
+  if (fError && !fError.message.includes("unique")) return { error: fError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function sendVibeAction(friendId: string, vibeType: string): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { error } = await supabase
+    .from("social_vibes")
+    .insert({
+      sender_id: userId,
+      receiver_id: friendId,
+      vibe_type: vibeType,
+    });
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+export async function claimVibeAction(vibeId: string): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: vibe, error: vibeError } = await supabase
+    .from("social_vibes")
+    .select("sender_id, claimed_at")
+    .eq("id", vibeId)
+    .eq("receiver_id", userId)
+    .maybeSingle();
+
+  if (vibeError || !vibe) return { error: "vibe_not_found" };
+  if (vibe.claimed_at) return { error: "already_claimed" };
+
+  const { error: updateVibeError } = await supabase
+    .from("social_vibes")
+    .update({ claimed_at: new Date().toISOString() })
+    .eq("id", vibeId);
+
+  if (updateVibeError) return { error: updateVibeError.message };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("affection_level")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const newAffection = Math.min(100, (profile?.affection_level ?? 0) + 5);
+  await supabase
+    .from("profiles")
+    .update({ affection_level: newAffection })
+    .eq("id", userId);
 
   revalidatePath("/", "layout");
   return {};

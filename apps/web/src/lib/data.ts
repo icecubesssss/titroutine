@@ -44,7 +44,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, affection_level, last_neighbor_gift_date"
+      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -70,7 +70,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }).map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
 
-  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }] = await Promise.all([
+  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config, frequency, time_of_day")
@@ -85,13 +85,18 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .lte("date", weekDates[6]),
     supabase
       .from("inventory")
-      .select("equipped_items, unlocked_items")
+      .select("equipped_items, unlocked_items, consumables")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
       .from("memories")
       .select("memory_key")
       .eq("user_id", user.id),
+    supabase
+      .from("social_vibes")
+      .select("id, sender_id, vibe_type, profiles!social_vibes_sender_id_fkey(username)")
+      .eq("receiver_id", user.id)
+      .is("claimed_at", null)
   ]);
 
   // Persisted keepsakes plus anything the *current* streak earns right now, so a
@@ -166,10 +171,27 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       unlockedRooms: rooms,
       allRoomsUnlocked: roomsAllUnlocked,
       canClaimNeighborGift: roomsAllUnlocked && profile?.last_neighbor_gift_date !== today,
+      personalityCuriosity: profile?.personality_curiosity ?? 10,
+      personalityCompassion: profile?.personality_compassion ?? 10,
+      personalityResilience: profile?.personality_resilience ?? 10,
+      personalityEnergy: profile?.personality_energy ?? 10,
+      petLikes: profile?.pet_likes ?? [],
+      petDislikes: profile?.pet_dislikes ?? [],
+      adventureEnergy: profile?.adventure_energy ?? 0,
+      adventureStatus: (profile?.adventure_status as "idle" | "adventuring" | "returned") ?? "idle",
+      adventureStartAt: profile?.adventure_start_at ?? null,
+      adventureStoryId: profile?.adventure_story_id ?? null,
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
       unlockedItems: (inventoryData?.unlocked_items as string[]) || [],
+      consumables: (inventoryData?.consumables as Record<string, number>) || {
+        carrot: 0,
+        cake: 0,
+        feast: 0,
+        toy_ball: 0,
+        toy_bear: 0,
+      },
     },
     unlockedMemories,
     habits,
@@ -178,5 +200,14 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     isToday,
     email: user.email ?? null,
     weekDates,
+    pendingVibes: (vibeRows ?? []).map((v) => {
+      const senderProfile = (v as unknown as { profiles: { username: string } | null }).profiles;
+      return {
+        id: v.id,
+        senderId: v.sender_id,
+        senderUsername: senderProfile?.username || "Một người bạn",
+        vibeType: v.vibe_type,
+      };
+    }),
   };
 }

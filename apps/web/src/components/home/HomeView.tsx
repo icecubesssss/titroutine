@@ -22,6 +22,7 @@ import { PetHud } from "@/components/home/PetHud";
 import { BottomNav } from "@/components/home/BottomNav";
 import { InteractionDock } from "@/components/home/InteractionDock";
 import { FeedPicker } from "@/components/home/FeedPicker";
+import { DesktopSidebar } from "@/components/home/DesktopSidebar";
 
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
@@ -598,11 +599,24 @@ export function HomeView({ data }: { data: DashboardData }) {
     // App-shell: the shell is exactly one viewport tall (h-dvh) and never grows —
     // the habits section scrolls internally, so the bottom nav + FAB stay on
     // screen no matter how long the habit list gets.
-    <main className={`flex h-dvh flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative theme-${theme}`}>
-      {/* Top half: Pet Room */}
-      <section
-        className={`relative flex-1 flex flex-col items-center justify-center border-b border-theme-border p-6 pb-24 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
-      >
+    <main className={`flex h-dvh md:h-[85vh] w-full max-w-md md:max-w-5xl flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-2xl md:rounded-[32px] overflow-hidden relative theme-${theme}`}>
+      {/* Desktop Sidebar (Notion-style) */}
+      <DesktopSidebar
+        onHome={() => habitsRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+        onShop={() => { playSwoosh(); setIsShopOpen(true); }}
+        onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
+        onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
+        onSettings={() => setIsSettingsOpen(true)}
+        coins={coins}
+        streak={currentStreak}
+      />
+
+      {/* Main Workspace split panel */}
+      <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full relative">
+        {/* Top half: Pet Room */}
+        <section
+          className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-6 pb-24 min-h-[52vh] md:min-h-0 h-full transition-colors duration-1000 ${roomBackground}`}
+        >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
           <Image
@@ -1093,17 +1107,21 @@ export function HomeView({ data }: { data: DashboardData }) {
         )}
       </section>
 
+      </div> {/* Close Main Workspace split panel */}
+
       {/* Single bottom navigation — keeps the header clean (streak + coins only). */}
-      <BottomNav
-        onHome={() => habitsRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-        onShop={() => { playSwoosh(); setIsShopOpen(true); }}
-        onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
-        onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
-        onSettings={() => setIsSettingsOpen(true)}
-      />
+      <div className="md:hidden shrink-0">
+        <BottomNav
+          onHome={() => habitsRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+          onShop={() => { playSwoosh(); setIsShopOpen(true); }}
+          onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
+          onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
+          onSettings={() => setIsSettingsOpen(true)}
+        />
+      </div>
 
       {/* Add-habit FAB, floating just above the bottom nav. */}
-      <div className="absolute bottom-24 right-6 z-30">
+      <div className="absolute bottom-24 md:bottom-6 right-6 z-30">
         <DuoButton
           variant="primary"
           size="lg"

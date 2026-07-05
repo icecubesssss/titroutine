@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { X, Heart, HelpCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface FirstAidModalProps {
   isOpen: boolean;
@@ -18,24 +19,27 @@ const AFFIRMATIONS = [
 export const FirstAidModal: React.FC<FirstAidModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<"grounding" | "bubble" | "cards">("grounding");
   const [groundingStep, setGroundingStep] = useState(1);
-  const [bubbleScale, setBubbleScale] = useState(1);
   const [popCount, setPopCount] = useState(0);
   const [cardIndex, setCardIndex] = useState(0);
-
-  const bubbleRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (activeTab === "bubble" && bubbleRef.current) {
-      bubbleRef.current.style.transform = `scale(${bubbleScale})`;
-    }
-  }, [bubbleScale, activeTab]);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([]);
 
   if (!isOpen) return null;
 
   const handlePopBubble = () => {
     setPopCount(p => p + 1);
-    setBubbleScale(0.9);
-    setTimeout(() => setBubbleScale(1), 100);
+    
+    // Generate random particles
+    const newParticles = Array.from({ length: 5 }).map((_, i) => ({
+      id: Date.now() + i + Math.random(),
+      x: (Math.random() - 0.5) * 100,
+      y: (Math.random() - 0.5) * 100 - 60, // float upwards
+      color: ["#f472b6", "#fbbf24", "#34d399", "#60a5fa", "#c084fc"][Math.floor(Math.random() * 5)]
+    }));
+    setParticles(p => [...p, ...newParticles]);
+
+    setTimeout(() => {
+      setParticles(p => p.filter(x => !newParticles.find(n => n.id === x.id)));
+    }, 600);
   };
 
   const groundingDetails = [
@@ -150,15 +154,28 @@ export const FirstAidModal: React.FC<FirstAidModalProps> = ({ isOpen, onClose })
 
               {/* Stress Bubble Jelly */}
               <div className="relative py-8 flex flex-col items-center">
-                <button
-                  ref={bubbleRef}
+                {/* Render flying particles */}
+                {particles.map((p) => (
+                  <motion.span
+                    key={p.id}
+                    initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                    animate={{ x: p.x, y: p.y, scale: 0.2, opacity: 0 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="absolute w-3.5 h-3.5 rounded-full pointer-events-none z-40 shadow-sm"
+                    style={{ backgroundColor: p.color, top: "50%", left: "50%", marginTop: "-7px", marginLeft: "-7px" }}
+                  />
+                ))}
+
+                <motion.button
                   onClick={handlePopBubble}
+                  whileTap={{ scaleX: 1.28, scaleY: 0.72, rotate: -2 }}
+                  transition={{ type: "spring", stiffness: 600, damping: 10 }}
                   aria-label="Bóng xả stress"
-                  className="h-32 w-32 rounded-full bg-gradient-to-tr from-pink-400 via-rose-300 to-amber-300 border-4 border-white/60 shadow-[0_10px_30px_rgba(244,63,94,0.3),inset_0_4px_8px_rgba(255,255,255,0.8)] focus:outline-none transition-transform duration-100 cursor-pointer flex items-center justify-center relative overflow-hidden"
+                  className="h-32 w-32 rounded-full bg-gradient-to-tr from-pink-400 via-rose-300 to-amber-300 border-4 border-white/60 shadow-[0_10px_30px_rgba(244,63,94,0.3),inset_0_4px_8px_rgba(255,255,255,0.8)] focus:outline-none cursor-pointer flex items-center justify-center relative overflow-hidden"
                 >
                   <div className="absolute top-3 left-4 h-4 w-4 bg-white/60 rounded-full blur-[1px]" />
                   <span className="text-3xl select-none animate-pulse">💖</span>
-                </button>
+                </motion.button>
                 <div className="mt-4 bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1 rounded-full text-xs font-mono font-bold shadow-sm">
                   Đã ấn: <span className="text-sm font-black">{popCount}</span> lần
                 </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { X, Play, Pause, Volume2, VolumeX, Award } from "lucide-react";
+import { motion } from "framer-motion";
 import { completeBreathingAction } from "@/app/[locale]/actions";
 import { useRouter } from "next/navigation";
 
@@ -159,17 +160,47 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
               {/* Outer pulsing ring */}
               <div className="absolute h-56 w-56 rounded-full border border-emerald-500/20 animate-ping opacity-30" />
 
-              {/* Central Circle */}
-              <div
-                className={`h-40 w-40 rounded-full flex flex-col items-center justify-center transition-all duration-4000 ease-in-out shadow-[0_0_50px_rgba(16,185,129,0.2)] ${activeStage.scaleClass}`}
+              {/* Central Circle with Spring & Timing Physics */}
+              <motion.div
+                animate={isActive ? {
+                  scale: breatheState === "inhale" || breatheState === "holdIn" ? 1.18 : 0.75,
+                  backgroundColor: breatheState === "inhale"
+                    ? "#34d399"
+                    : breatheState === "holdIn"
+                    ? "#2dd4bf"
+                    : breatheState === "exhale"
+                    ? "#66b38c"
+                    : "#3a6850",
+                  boxShadow: breatheState === "holdIn"
+                    ? [
+                        "0 0 30px rgba(45,212,191,0.3)",
+                        "0 0 60px rgba(45,212,191,0.6)",
+                        "0 0 30px rgba(45,212,191,0.3)"
+                      ]
+                    : "0 0 30px rgba(52,211,153,0.2)"
+                } : {
+                  scale: 1.0,
+                  backgroundColor: "#20362b",
+                  boxShadow: "0 0 20px rgba(16,185,129,0.1)"
+                }}
+                transition={isActive ? {
+                  scale: { duration: 4, ease: "easeInOut" },
+                  backgroundColor: { duration: 4, ease: "linear" },
+                  boxShadow: breatheState === "holdIn" ? {
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "easeInOut"
+                  } : { duration: 1 }
+                } : { duration: 0.5 }}
+                className="h-40 w-40 rounded-full flex flex-col items-center justify-center text-[#0f1713] select-none"
               >
-                <span className="text-[10px] tracking-widest font-black text-[#0f1713] opacity-80 uppercase">
+                <span className="text-[10px] tracking-widest font-black opacity-80 uppercase">
                   {isActive ? activeStage.label : "CHƯA BẮT ĐẦU"}
                 </span>
-                <span className="text-3xl font-black text-[#0f1713] mt-1 select-none">
+                <span className="text-3xl font-black mt-1">
                   {isActive ? `${stageSecondsLeft}s` : "⏳"}
                 </span>
-              </div>
+              </motion.div>
               
               <span className="mt-8 text-sm text-stone-400 text-center font-medium max-w-[250px]">
                 {isActive 

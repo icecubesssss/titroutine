@@ -181,7 +181,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         if (res?.error) {
           setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
         }
-      } catch (err) {
+      } catch {
         setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
       }
       router.refresh();

@@ -599,7 +599,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     // App-shell: the shell is exactly one viewport tall (h-dvh) and never grows —
     // the habits section scrolls internally, so the bottom nav + FAB stay on
     // screen no matter how long the habit list gets.
-    <main className={`flex h-dvh md:h-[85vh] w-full max-w-md md:max-w-5xl flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-2xl md:rounded-[32px] overflow-hidden relative theme-${theme}`}>
+    <main className={`flex h-dvh md:h-[90vh] md:max-h-[820px] w-full max-w-md md:max-w-5xl lg:max-w-6xl flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-2xl md:rounded-[32px] overflow-hidden relative theme-${theme}`}>
       {/* Desktop Sidebar (Notion-style) */}
       <DesktopSidebar
         onHome={() => habitsRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
@@ -607,8 +607,6 @@ export function HomeView({ data }: { data: DashboardData }) {
         onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
         onSettings={() => setIsSettingsOpen(true)}
-        coins={coins}
-        streak={currentStreak}
       />
 
       {/* Main Workspace split panel */}
@@ -905,7 +903,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
           </div>
 
-          {/* Days of Week row */}
+          {/* DailyBean Mood Grid: Days of Week row */}
           {data.weekDates && (
             <div className="flex justify-between bg-theme-card-bg p-2 rounded-3xl shadow-sm border border-theme-card-border">
               {data.weekDates.map((dateStr, i) => {
@@ -914,22 +912,76 @@ export function HomeView({ data }: { data: DashboardData }) {
                 const isRealToday = dateStr === data.today;
                 const dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
                 
+                // Trích xuất thông tin cảm xúc từ logs
+                const moodLog = data.moodLogs?.[dateStr];
+                
+                const MOOD_DESIGNS: Record<string, { bg: string; border: string; text: string; emoji: string }> = {
+                  awesome: { bg: "bg-pink-100 hover:bg-pink-200 border-pink-200", border: "border-pink-300", text: "text-pink-700", emoji: "😆" },
+                  good: { bg: "bg-emerald-100 hover:bg-emerald-200 border-emerald-200", border: "border-emerald-300", text: "text-emerald-700", emoji: "🙂" },
+                  neutral: { bg: "bg-amber-100 hover:bg-amber-200 border-amber-200", border: "border-amber-300", text: "text-amber-700", emoji: "😐" },
+                  bad: { bg: "bg-blue-100 hover:bg-blue-200 border-blue-200", border: "border-blue-300", text: "text-blue-700", emoji: "🙁" },
+                  awful: { bg: "bg-red-100 hover:bg-red-200 border-red-200", border: "border-red-300", text: "text-red-700", emoji: "😭" },
+                };
+                
+                const moodDesign = moodLog ? MOOD_DESIGNS[moodLog.mood] : null;
+                
+                let btnStyles = "hover:bg-theme-accent-light text-theme-text/60 border-transparent";
+                if (isSelected) {
+                  btnStyles = "bg-theme-accent text-white shadow-md scale-105 border-transparent";
+                } else if (moodDesign) {
+                  btnStyles = `${moodDesign.bg} ${moodDesign.text} border-2 ${moodDesign.border}`;
+                }
+
                 return (
                   <button
                     type="button"
                     key={dateStr}
                     onClick={() => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
-                    className={`flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative ${
-                      isSelected 
-                        ? "bg-theme-accent text-white shadow-md scale-105" 
-                        : "hover:bg-theme-accent-light text-theme-text/60"
-                    }`}
+                    className={`group flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative border ${btnStyles}`}
                   >
                     {isRealToday && !isSelected && (
-                      <span className="absolute -top-1 w-2 h-2 bg-amber-400 rounded-full"></span>
+                      <span className="absolute -top-1 w-2 h-2 bg-amber-400 rounded-full z-10 animate-pulse"></span>
                     )}
-                    <span className={`text-[10px] font-bold mb-0.5 ${isSelected ? "text-blue-200" : ""}`}>{dayNames[i]}</span>
-                    <span className="text-base font-black leading-none">{format(dateObj, "dd")}</span>
+                    
+                    <span className={`text-[9px] font-bold mb-0.5 uppercase tracking-wider ${isSelected ? "text-white/70" : "text-theme-text/40"}`}>
+                      {dayNames[i]}
+                    </span>
+                    
+                    {moodDesign ? (
+                      <span className="text-lg leading-none animate-bounce-slow mt-0.5 select-none">{moodDesign.emoji}</span>
+                    ) : (
+                      <span className="text-base font-black leading-none">{format(dateObj, "dd")}</span>
+                    )}
+
+                    {/* Dotted placeholder for missing mood */}
+                    {!moodDesign && !isSelected && (
+                      <span className="w-1 h-1 rounded-full bg-black/10 mt-1"></span>
+                    )}
+
+                    {/* Interactive CSS Tooltip Card */}
+                    {moodLog && moodDesign && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-48 hidden group-hover:block bg-white/95 border border-amber-900/10 p-3 rounded-2xl shadow-xl z-50 text-left pointer-events-none text-theme-text animate-fade-in">
+                        <div className="text-[9px] font-black text-theme-text/35 uppercase tracking-wider mb-1">Nhật ký hôm đó</div>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="text-base leading-none">{moodDesign.emoji}</span>
+                          <span className={`text-xs font-black capitalize ${moodDesign.text}`}>{moodLog.mood}</span>
+                        </div>
+                        {moodLog.activities.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {moodLog.activities.map(act => (
+                              <span key={act} className="text-[8px] font-bold bg-black/[0.04] px-1.5 py-0.5 rounded-full text-theme-text/60">
+                                {act}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {moodLog.note && (
+                          <p className="text-[10px] font-medium text-theme-text/75 leading-relaxed italic border-t border-black/[0.03] pt-1.5">
+                            &ldquo;{moodLog.note}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </button>
                 )
               })}
@@ -1060,42 +1112,35 @@ export function HomeView({ data }: { data: DashboardData }) {
                       )}
                       </div>
 
-                      {/* Mini Weekly Calendar */}
+                      {/* Mini Weekly Beans Progress */}
                       {data.weekDates && (
-                        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between px-2">
-                          {data.weekDates.map((dateStr, i) => {
-                            const isPast = dateStr < data.today;
-                            const isFuture = dateStr > data.today;
-                            const completed = habit.weeklyLogs?.[dateStr];
-                            const dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-                            
-                            let bgClass = "bg-gray-50 border border-gray-100"; 
-                            let textClass = "text-gray-400";
-                            let checkIcon = null;
-
-                            if (completed) {
-                              bgClass = "bg-green-100 border border-green-200";
-                              textClass = "text-green-600 font-bold";
-                              checkIcon = "✓";
-                            } else if (isPast) {
-                              bgClass = "bg-red-50 border border-red-200";
-                              textClass = "text-red-500";
-                              checkIcon = "×";
-                            } else if (!isFuture && !completed) {
-                              // Today and not completed
-                              bgClass = "bg-gray-100 border border-gray-300";
-                              textClass = "text-gray-500";
-                            }
-                            
-                            return (
-                              <div key={dateStr} className="flex flex-col items-center gap-1.5" title={format(parseISO(dateStr), "dd/MM/yyyy")}>
-                                <span className={`text-[9px] uppercase tracking-wider font-bold ${textClass}`}>{dayNames[i]}</span>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${bgClass} ${textClass}`}>
-                                  {checkIcon}
-                                </div>
-                              </div>
-                            );
-                          })}
+                        <div className="mt-3 pt-2.5 border-t border-black/[0.03] flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-theme-text/40 uppercase tracking-wider">Hiệu suất tuần</span>
+                          <div className="flex gap-1.5">
+                            {data.weekDates.map((dateStr, i) => {
+                              const isPast = dateStr < data.today;
+                              const completed = habit.weeklyLogs?.[dateStr];
+                              const dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                              
+                              let bgClass = "bg-black/[0.04]";
+                              let tooltipText = `${dayNames[i]}: Chưa làm`;
+                              
+                              if (completed) {
+                                bgClass = "bg-theme-accent";
+                                tooltipText = `${dayNames[i]}: Đã hoàn thành 🎉`;
+                              } else if (isPast) {
+                                bgClass = "bg-black/[0.12]";
+                              }
+                              
+                              return (
+                                <div
+                                  key={dateStr}
+                                  className={`w-6 h-2 rounded-full transition-all duration-300 ${bgClass}`}
+                                  title={tooltipText}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

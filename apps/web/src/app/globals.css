@@ -54,6 +54,17 @@ body {
   font-family: var(--font-quicksand), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
+@media (min-width: 768px) {
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* Prevent double scrollbars on page body */
+    padding: 1.5rem;
+  }
+}
+
 /* One-shot flash played over the pet when it evolves / hatches. */
 .evo-burst-fx {
   position: relative;

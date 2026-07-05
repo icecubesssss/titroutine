@@ -95,4 +95,5 @@ export interface DashboardData {
   isToday: boolean;
   weekDates?: string[]; // Array of YYYY-MM-DD for the current week (Mon-Sun)
   pendingVibes: SocialVibe[];
+  moodLogs?: Record<string, { mood: string; activities: string[]; note: string | null }>;
 }

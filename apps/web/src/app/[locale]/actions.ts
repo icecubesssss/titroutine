@@ -944,24 +944,25 @@ export async function completeAdventureAction(choiceIndex: "A" | "B"): Promise<A
   return {};
 }
 
-export async function logMoodAction(_mood: string, _tags: string[], _reflection: string): Promise<ActionResult> {
-  void _mood;
-  void _tags;
-  void _reflection;
+export async function logMoodAction(mood: string, tags: string[], reflection: string): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("coins, satiety, affection_level")
+    .select("coins, satiety, affection_level, timezone")
     .eq("id", userId)
     .maybeSingle();
 
   if (profileError) return { error: profileError.message };
 
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+
   const newCoins = (profile?.coins ?? 0) + 15;
   const newAffection = Math.min(AFFECTION_MAX, (profile?.affection_level ?? 0) + 10);
 
+  // 1. Cập nhật profiles
   const { error: updateError } = await supabase
     .from("profiles")
     .update({
@@ -972,6 +973,20 @@ export async function logMoodAction(_mood: string, _tags: string[], _reflection:
     .eq("id", userId);
 
   if (updateError) return { error: updateError.message };
+
+  // 2. Ghi thực tế vào daily_bean_logs
+  const { error: logError } = await supabase
+    .from("daily_bean_logs")
+    .upsert({
+      user_id: userId,
+      logged_date: today,
+      mood: mood,
+      activities: tags,
+      note: reflection,
+      created_at: new Date().toISOString()
+    }, { onConflict: "user_id,logged_date" });
+
+  if (logError) return { error: logError.message };
 
   revalidatePath("/", "layout");
   return {};

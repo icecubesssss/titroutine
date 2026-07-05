@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { X } from "lucide-react";
+import { motion } from "framer-motion";
 import { logMoodAction } from "@/app/[locale]/actions";
 import { useRouter } from "next/navigation";
 
@@ -83,19 +84,22 @@ export const MoodCheckinModal: React.FC<MoodCheckinModalProps> = ({ isOpen, onCl
               {MOODS.map((mood) => {
                 const isActive = selectedMood === mood.value;
                 return (
-                  <button
+                  <motion.button
                     key={mood.value}
                     type="button"
                     onClick={() => setSelectedMood(mood.value)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-2xl border-2 transition-all hover:scale-105 ${
+                    whileHover={{ scale: 1.12, y: -4 }}
+                    whileTap={{ scale: 0.88 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 12 }}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-2xl border-2 transition-colors ${
                       isActive
-                        ? `${mood.color} ring-4 ring-orange-200 scale-105 font-black border-transparent`
+                        ? `${mood.color} ring-4 ring-orange-200 font-black border-transparent`
                         : "border-[#f0e6d2] bg-white text-stone-600"
                     }`}
                   >
-                    <span className="text-3xl select-none animate-bounce-slow">{mood.emoji}</span>
+                    <span className="text-3xl select-none">{mood.emoji}</span>
                     <span className="text-[10px] font-bold mt-0.5">{mood.label}</span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -110,10 +114,13 @@ export const MoodCheckinModal: React.FC<MoodCheckinModalProps> = ({ isOpen, onCl
               {TAGS.map((tag) => {
                 const isSelected = selectedTags.includes(tag.id);
                 return (
-                  <button
+                  <motion.button
                     key={tag.id}
                     type="button"
                     onClick={() => toggleTag(tag.id)}
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.94 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                       isSelected
                         ? "bg-orange-500 text-white border-orange-600 shadow-sm"
@@ -121,7 +128,7 @@ export const MoodCheckinModal: React.FC<MoodCheckinModalProps> = ({ isOpen, onCl
                     }`}
                   >
                     {tag.label}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

@@ -10,16 +10,12 @@ export function DesktopSidebar({
   onAlbum,
   onAnalytics,
   onSettings,
-  coins,
-  streak,
 }: {
   onHome: () => void;
   onShop: () => void;
   onAlbum: () => void;
   onAnalytics: () => void;
   onSettings: () => void;
-  coins: number;
-  streak: number;
 }) {
   const t = useTranslations("Home");
 
@@ -63,17 +59,14 @@ export function DesktopSidebar({
         </nav>
       </div>
 
-      {/* Footer info widget */}
-      <div className="flex flex-col gap-2.5 bg-white/60 border border-white/40 p-4 rounded-[22px] shadow-sm backdrop-blur-sm">
-        <div className="flex items-center justify-between text-xs font-bold text-theme-text/60">
-          <span>Chuỗi ngày:</span>
-          <span className="text-orange-500 font-extrabold">🔥 {streak} ngày</span>
-        </div>
-        <div className="h-px bg-black/[0.04]" />
-        <div className="flex items-center justify-between text-xs font-bold text-theme-text/60">
-          <span>Tài khoản xu:</span>
-          <span className="text-amber-600 font-extrabold">🪙 {coins}</span>
-        </div>
+      {/* Footer Vibe signature */}
+      <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4.5 rounded-[22px] shadow-sm backdrop-blur-sm text-center">
+        <span className="text-xs font-black text-theme-text/80 leading-snug">
+          Chúc bạn một ngày an yên! 🌱
+        </span>
+        <span className="text-[9px] font-bold text-theme-text/45 tracking-wide">
+          Cùng thỏ cưng xây dựng thói quen tốt
+        </span>
       </div>
     </aside>
   );

@@ -70,7 +70,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }).map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
 
-  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }] = await Promise.all([
+  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }, { data: beanRows }] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config, frequency, time_of_day")
@@ -96,8 +96,24 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .from("social_vibes")
       .select("id, sender_id, vibe_type, profiles!social_vibes_sender_id_fkey(username)")
       .eq("receiver_id", user.id)
-      .is("claimed_at", null)
+      .is("claimed_at", null),
+    supabase
+      .from("daily_bean_logs")
+      .select("logged_date, mood, activities, note")
+      .eq("user_id", user.id)
+      .gte("logged_date", weekDates[0])
+      .lte("logged_date", weekDates[6])
   ]);
+
+  // Map mood logs by date
+  const moodLogs: Record<string, { mood: string; activities: string[]; note: string | null }> = {};
+  for (const row of (beanRows ?? []) as { logged_date: string; mood: string; activities: string[] | null; note: string | null }[]) {
+    moodLogs[row.logged_date] = {
+      mood: row.mood,
+      activities: row.activities ?? [],
+      note: row.note || null
+    };
+  }
 
   // Persisted keepsakes plus anything the *current* streak earns right now, so a
   // memory shows the moment it's reached even before the next mutation writes it.
@@ -200,6 +216,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     isToday,
     email: user.email ?? null,
     weekDates,
+    moodLogs,
     pendingVibes: (vibeRows ?? []).map((v) => {
       const senderProfile = (v as unknown as { profiles: { username: string } | null }).profiles;
       return {

@@ -91,6 +91,9 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
           background-size: ${bgWidth}px ${bgHeight}px;
           background-position: -${posX}px -${posY}px;
           background-repeat: no-repeat;
+          image-rendering: pixelated;
+          image-rendering: -moz-crisp-edges;
+          image-rendering: crisp-edges;
         }
       `}</style>
       <div

@@ -67,6 +67,9 @@ export const EggCompanion: React.FC<{
           background-size: 300% 200%; /* 3 columns × 2 rows */
           background-position: ${col * 50}% ${row * 100}%;
           background-repeat: no-repeat;
+          image-rendering: pixelated;
+          image-rendering: -moz-crisp-edges;
+          image-rendering: crisp-edges;
         }
       `}</style>
       <div className={`${wrap}-outer`}>

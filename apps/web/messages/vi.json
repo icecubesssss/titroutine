@@ -54,7 +54,8 @@
     "footerSub": "Cùng thỏ cưng xây dựng thói quen tốt",
     "weeklyPerformance": "Hiệu suất tuần",
     "notDone": "Chưa làm",
-    "completedText": "Đã hoàn thành"
+    "completedText": "Đã hoàn thành",
+    "weekdaysShort": "T2,T3,T4,T5,T6,T7,CN"
   },
   "HabitModal": {
     "newTitle": "Thói quen mới",

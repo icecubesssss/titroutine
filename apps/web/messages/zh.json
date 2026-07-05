@@ -54,7 +54,8 @@
     "footerSub": "与你的宠物伙伴一同养成好习惯",
     "weeklyPerformance": "本周表现",
     "notDone": "未完成",
-    "completedText": "已完成"
+    "completedText": "已完成",
+    "weekdaysShort": "一,二,三,四,五,六,日"
   },
   "HabitModal": {
     "newTitle": "新习惯",

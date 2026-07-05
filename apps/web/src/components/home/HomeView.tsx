@@ -627,7 +627,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     // App-shell: the shell is exactly one viewport tall (h-dvh) and never grows —
     // the habits section scrolls internally, so the bottom nav + FAB stay on
     // screen no matter how long the habit list gets.
-    <main className={`flex h-dvh md:h-[90vh] md:max-h-[820px] w-full max-w-md md:max-w-5xl lg:max-w-6xl flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-2xl md:rounded-[32px] overflow-hidden relative theme-${theme}`}>
+    <main className={`flex h-dvh w-full max-w-md md:max-w-none flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-none overflow-hidden relative theme-${theme}`}>
       {/* Desktop Sidebar (Notion-style) */}
       <DesktopSidebar
         onHome={() => habitsRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
@@ -1077,7 +1077,7 @@ export function HomeView({ data }: { data: DashboardData }) {
       </section>
 
       {/* Bottom half: Habits (scrolls internally — min-h-0 lets it shrink inside the shell) */}
-      <section ref={habitsRef} className={`flex-[1.2] min-h-0 bg-earth-bg p-6 pb-24 overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
+      <section ref={habitsRef} className={`flex-[1.3] min-h-0 bg-earth-bg p-6 md:p-8 pb-28 overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
         {/* Weekly Header */}
         <div className="mb-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -1126,7 +1126,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                 const dateObj = parseISO(dateStr);
                 const isSelected = dateStr === data.currentDate;
                 const isRealToday = dateStr === data.today;
-                const dayNames = t("HabitModal.weekdaysShort").split(",");
+                const dayNames = t("weekdaysShort").split(",");
                 
                 // Trích xuất thông tin cảm xúc từ logs
                 const moodLog = data.moodLogs?.[dateStr];
@@ -1227,7 +1227,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                   {section.items.map((habit) => (
                     <div
                       key={habit.id}
-                      className={`bg-theme-card-bg p-4 rounded-3xl border flex flex-col transition-all shadow-sm ${
+                      className={`bg-theme-card-bg p-4 rounded-3xl border flex flex-col transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
                         habit.isCompleted
                           ? "border-theme-card-border opacity-60"
                           : habit.type === "negative"
@@ -1336,7 +1336,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                             {data.weekDates.map((dateStr, i) => {
                               const isPast = dateStr < data.today;
                               const completed = habit.weeklyLogs?.[dateStr];
-                              const dayNames = t("HabitModal.weekdaysShort").split(",");
+                              const dayNames = t("weekdaysShort").split(",");
                               
                               let bgClass = "bg-black/[0.04]";
                               let tooltipText = `${dayNames[i]}: ${t("notDone")}`;
@@ -1351,7 +1351,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                               return (
                                 <div
                                   key={dateStr}
-                                  className={`w-6 h-2 rounded-full transition-all duration-300 ${bgClass}`}
+                                  className={`w-7 h-2.5 rounded-full transition-all duration-300 ${bgClass}`}
                                   title={tooltipText}
                                 />
                               );

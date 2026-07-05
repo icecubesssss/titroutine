@@ -28,8 +28,8 @@ export function DesktopSidebar({
   ];
 
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col justify-between border-r border-black/[0.06] bg-white/50 backdrop-blur-md p-6 h-full text-theme-text select-none">
-      <div className="flex flex-col gap-8">
+    <aside className="hidden md:flex w-56 shrink-0 flex-col justify-between border-r border-theme-border bg-white/50 backdrop-blur-md p-5 h-full text-theme-text select-none">
+      <div className="flex flex-col gap-7">
         {/* Logo / Brand */}
         <div className="flex items-center gap-2.5 px-2">
           <span className="text-3xl">🐰</span>
@@ -46,7 +46,7 @@ export function DesktopSidebar({
               key={key}
               type="button"
               onClick={onClick}
-              className={`flex items-center gap-3 w-full px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+              className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-2xl transition-all font-bold text-sm ${
                 active
                   ? "bg-theme-accent text-white shadow-sm"
                   : "text-theme-text/65 hover:bg-theme-accent-light hover:text-theme-accent"
@@ -60,7 +60,7 @@ export function DesktopSidebar({
       </div>
 
       {/* Footer Vibe signature */}
-      <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4.5 rounded-[22px] shadow-sm backdrop-blur-sm text-center">
+      <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4 rounded-[20px] shadow-sm backdrop-blur-sm text-center">
         <span className="text-xs font-black text-theme-text/80 leading-snug">
           {t("footerGreeting")}
         </span>

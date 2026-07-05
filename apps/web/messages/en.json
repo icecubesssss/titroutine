@@ -54,7 +54,8 @@
     "footerSub": "Build good habits with your pet companion",
     "weeklyPerformance": "Weekly Performance",
     "notDone": "Not completed",
-    "completedText": "Completed"
+    "completedText": "Completed",
+    "weekdaysShort": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
   },
   "HabitModal": {
     "newTitle": "New Habit",

@@ -62,10 +62,10 @@ export function DesktopSidebar({
       {/* Footer Vibe signature */}
       <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4.5 rounded-[22px] shadow-sm backdrop-blur-sm text-center">
         <span className="text-xs font-black text-theme-text/80 leading-snug">
-          Chúc bạn một ngày an yên! 🌱
+          {t("footerGreeting")}
         </span>
         <span className="text-[9px] font-bold text-theme-text/45 tracking-wide">
-          Cùng thỏ cưng xây dựng thói quen tốt
+          {t("footerSub")}
         </span>
       </div>
     </aside>

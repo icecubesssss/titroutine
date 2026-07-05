@@ -29,4 +29,4 @@ ALTER TABLE public.ai_pet_diaries ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 CREATE POLICY "Users can manage own bean logs" ON public.daily_bean_logs FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can view own AI diaries" ON public.ai_pet_diaries FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own AI diaries" ON public.ai_pet_diaries FOR ALL USING (auth.uid() = user_id);

@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Play, X, Smartphone, AlertTriangle } from "lucide-react";
+import { Play, X, Smartphone, AlertTriangle, Music } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
+import { claimKeepsakeAction } from "@/app/[locale]/actions";
 import type { HabitWithLog } from "@/lib/types";
 
 interface TimerModalProps {
@@ -31,7 +32,13 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
   const [penaltySeconds, setPenaltySeconds] = useState<number | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<"prompt" | "granted" | "denied">("prompt");
   
+  // Background music audio state & keepsake reward
+  const [audioVibe, setAudioVibe] = useState<"none" | "lofi" | "rain">("none");
+  const [earnedKeepsake, setEarnedKeepsake] = useState<string | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+  
   const progressRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Reset state when a new habit is opened
   useEffect(() => {
@@ -42,8 +49,51 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
       setFailed(false);
       setPenaltySeconds(null);
       setIsFaceDown(false);
+      setEarnedKeepsake(null);
     }
   }, [habit]);
+
+  // Audio track switching during focusing
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.loop = true;
+    }
+
+    const requiresFlip = permissionStatus === "granted";
+    const isRunning = hasStarted && !finished && !failed && (!requiresFlip || isFaceDown);
+
+    if (isRunning && audioVibe !== "none") {
+      audioRef.current.src =
+        audioVibe === "lofi"
+          ? "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+          : "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3";
+      audioRef.current.play().catch((e) => console.log("Audio play failed:", e));
+    } else {
+      audioRef.current.pause();
+    }
+  }, [hasStarted, finished, failed, isFaceDown, audioVibe, permissionStatus]);
+
+  // Audio cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Keepsake select once finished
+  useEffect(() => {
+    if (finished && !earnedKeepsake) {
+      const keepsakes = ["keepsake_clover", "keepsake_pencil", "keepsake_magnifying_glass", "keepsake_hourglass"];
+      const random = keepsakes[Math.floor(Math.random() * keepsakes.length)];
+      setEarnedKeepsake(random);
+    }
+  }, [finished, earnedKeepsake]);
 
   const requestPermissionAndStart = async () => {
     type IOSDeviceOrientationEvent = { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -158,7 +208,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border-4 border-earth-brown/10 p-6 flex flex-col items-center">
+      <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border-4 border-earth-brown/10 p-6 flex flex-col items-center animate-bubble-pop">
         <div className="w-full flex items-center justify-between mb-2">
           <h2 className="text-lg font-black text-earth-text truncate pr-2">{habit.title}</h2>
           <button
@@ -174,47 +224,107 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
         {/* Status UI */}
         <div className="flex flex-col items-center justify-center min-h-[200px] w-full text-center">
           {!hasStarted ? (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4">
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 w-full">
               <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto text-fire-orange">
                 <Smartphone size={40} />
               </div>
-              <p className="text-stone-600 font-medium px-4">
-                Chế độ Tập Trung Nghiêm Ngặt. Bạn sẽ cần <b>úp màn hình</b> điện thoại xuống mặt bàn để đếm giờ.
+              <p className="text-stone-600 font-medium text-xs px-4">
+                {t("strictFocus")}
               </p>
-              <DuoButton variant="primary" fullWidth size="lg" onClick={requestPermissionAndStart}>
-                <span className="flex items-center gap-2 justify-center">
-                  <Play size={20} /> Bắt Đầu Tập Trung
+
+              {/* BGM Audio Selection */}
+              <div className="w-full border-t border-black/[0.05] pt-4 mt-2 flex flex-col gap-2 text-left px-4">
+                <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1">
+                  <Music size={12} /> {t("audioBgm")}
                 </span>
-              </DuoButton>
+                <div className="flex gap-1.5 w-full bg-stone-100 p-1 rounded-xl">
+                  {(["none", "lofi", "rain"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setAudioVibe(mode)}
+                      className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${
+                        audioVibe === mode
+                          ? "bg-white text-earth-text shadow-sm"
+                          : "text-stone-400 hover:text-stone-600"
+                      }`}
+                    >
+                      {mode === "none" ? t("audioNone") : mode === "lofi" ? t("audioLofi") : t("audioRain")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-4 pt-2">
+                <DuoButton variant="primary" fullWidth size="lg" onClick={requestPermissionAndStart}>
+                  <span className="flex items-center gap-2 justify-center">
+                    <Play size={20} /> {t("startFocus")}
+                  </span>
+                </DuoButton>
+              </div>
             </div>
           ) : failed ? (
             <div className="space-y-4 animate-in zoom-in-95">
               <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-500">
                 <AlertTriangle size={40} />
               </div>
-              <h3 className="text-xl font-bold text-red-600">Thất bại!</h3>
-              <p className="text-stone-600 font-medium">
-                Bạn đã mất tập trung (rời khỏi ứng dụng hoặc lật màn hình lên).
+              <h3 className="text-xl font-bold text-red-600">{t("failed")}</h3>
+              <p className="text-stone-600 font-medium text-xs">
+                {t("failedSub")}
               </p>
               <DuoButton variant="danger" fullWidth size="lg" onClick={onClose}>
-                Thoát
+                {t("quit")}
               </DuoButton>
             </div>
           ) : finished ? (
-            <div className="space-y-4 animate-in zoom-in-95">
-              <div className="text-6xl mb-4">🎉</div>
-              <h3 className="text-2xl font-bold text-green-600">Hoàn Thành!</h3>
-              <p className="text-stone-600 font-medium">Bạn đã tập trung rất xuất sắc.</p>
-              <DuoButton variant="primary" fullWidth size="lg" onClick={() => onComplete(total)}>
-                Nhận Phần Thưởng
+            <div className="space-y-4 animate-in zoom-in-95 flex flex-col items-center w-full">
+              <div className="text-6xl mb-2 animate-bounce">🎉</div>
+              <h3 className="text-2xl font-black text-green-600">{t("completed")}</h3>
+              <p className="text-stone-600 font-medium text-xs">{t("completedSub")}</p>
+              
+              {earnedKeepsake && (
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 my-2 flex flex-col items-center shadow-inner max-w-xs w-full animate-bubble-pop">
+                  <span className="text-[10px] font-black text-amber-800/80 mb-2 uppercase tracking-wide">{t("keepsakeEarned")}</span>
+                  <span className="text-4xl mb-1 select-none">
+                    {earnedKeepsake === "keepsake_clover"
+                      ? "🍀"
+                      : earnedKeepsake === "keepsake_pencil"
+                      ? "✏️"
+                      : earnedKeepsake === "keepsake_magnifying_glass"
+                      ? "🔍"
+                      : "⏳"}
+                  </span>
+                  <span className="text-xs font-black text-amber-900">{t(earnedKeepsake)}</span>
+                </div>
+              )}
+
+              <DuoButton
+                variant="primary"
+                fullWidth
+                size="lg"
+                disabled={isClaiming}
+                onClick={async () => {
+                  if (earnedKeepsake) {
+                    setIsClaiming(true);
+                    try {
+                      await claimKeepsakeAction(earnedKeepsake);
+                    } catch (e) {
+                      console.error("Keepsake unlock failed:", e);
+                    }
+                    setIsClaiming(false);
+                  }
+                  onComplete(total);
+                }}
+              >
+                {isClaiming ? t("done") : t("claimReward")}
               </DuoButton>
             </div>
           ) : (
             <div className="space-y-8 w-full">
               {penaltySeconds !== null ? (
                 <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 animate-pulse">
-                  <h3 className="text-red-600 font-bold text-lg mb-1">Cảnh Báo!</h3>
-                  <p className="text-red-500 font-medium mb-2">Hãy úp màn hình xuống ngay!</p>
+                  <h3 className="text-red-600 font-bold text-lg mb-1">{t("warning")}</h3>
+                  <p className="text-red-500 font-medium mb-2 text-xs">{t("warningSub")}</p>
                   <div className="text-4xl font-black text-red-600">{penaltySeconds}s</div>
                 </div>
               ) : (
@@ -228,8 +338,29 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                       className="h-full bg-fire-orange transition-[width] duration-1000 ease-linear"
                     />
                   </div>
+                  
+                  {/* BGM Toggle Switch during Focus */}
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <div className="flex gap-2 justify-center bg-stone-50 border border-stone-100 p-1 rounded-lg">
+                      {(["none", "lofi", "rain"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setAudioVibe(mode)}
+                          className={`px-3 py-1 rounded text-[9px] font-black transition-all ${
+                            audioVibe === mode
+                              ? "bg-white text-earth-text shadow-sm border border-stone-200"
+                              : "text-stone-400 hover:text-stone-500"
+                          }`}
+                        >
+                          {mode === "none" ? t("audioNone") : mode === "lofi" ? "Lofi 🎧" : "Rain 🌧️"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {permissionStatus === "granted" && (
-                    <p className="text-green-600 font-bold flex items-center gap-2 whitespace-pre-wrap">
+                    <p className="text-green-600 font-bold text-xs flex items-center gap-2 whitespace-pre-wrap">
                       <Smartphone className="rotate-180" size={18} /> Đang úp màn hình
                     </p>
                   )}
@@ -241,7 +372,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                 onClick={() => setFailed(true)}
                 className="w-full py-3 text-sm font-bold text-gray-400 hover:text-red-500 transition-colors"
               >
-                Bỏ Cuộc
+                {t("giveUp")}
               </button>
             </div>
           )}

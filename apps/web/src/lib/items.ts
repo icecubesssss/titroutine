@@ -87,4 +87,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "outfit_summer_dress", price: 220, slot: "outfit", imageUrl: "/assets/items/outfit_summer_dress_thumb.png" },
   { id: "outfit_winter_coat", price: 260, slot: "outfit", imageUrl: "/assets/items/outfit_winter_coat_thumb.png" },
   { id: "outfit_chef", price: 300, slot: "outfit", imageUrl: "/assets/items/outfit_chef_thumb.png" },
+  // New items added for the special upgrade
+  { id: "wallpaper_autumn", price: 220, slot: "wallpaper", imageUrl: "/assets/items/wallpaper_autumn.png" },
+  { id: "rug_star", price: 180, slot: "rug", imageUrl: "/assets/items/rug_star.png" },
+  { id: "object_cozy_sofa", price: 170, slot: "object", imageUrl: "/assets/items/object_cozy_sofa.png" },
+  { id: "object_scented_candle", price: 90, slot: "object", imageUrl: "/assets/items/object_scented_candle.png" },
 ];

@@ -194,3 +194,14 @@ body {
 /* Hide scrollbar on the horizontal room tabs (WebKit/Blink + legacy Edge). */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; }
+
+/* Dynamic CSS Rain Overlay */
+.room-rain-overlay {
+  background: repeating-linear-gradient(0deg, rgba(174,207,238,0) 0px, rgba(174,207,238,0) 120px, rgba(174,207,238,0.18) 121px, rgba(174,207,238,0.18) 140px);
+  background-size: 100% 280px;
+  animation: rain-fall 0.8s linear infinite;
+}
+@keyframes rain-fall {
+  0% { background-position: 0px 0px; }
+  100% { background-position: 20px 280px; }
+}

@@ -59,9 +59,9 @@ export function PetHud({
   const t = useTranslations("Pet");
   const lowSatiety = satiety < 25;
   return (
-    <div className="inline-flex max-w-full items-center gap-2.5 rounded-2xl border border-white/70 bg-white/65 px-3.5 py-2 shadow-[0_10px_28px_-10px_rgba(93,64,28,0.35),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl">
+    <div className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-white/40 bg-white/60 px-2.5 py-1.5 shadow-sm backdrop-blur-xl text-theme-text">
       {/* Mood first — it's the pet's headline state. */}
-      <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-bold text-earth-brown/85">
+      <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-bold text-theme-text/85">
         <ChipIcon src={`/assets/ui/mood_${mood}.png`} />
         {t(`mood_${mood}`)}
       </span>

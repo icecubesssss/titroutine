@@ -12,13 +12,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#FDFBF7", // Trắng Ngà
-        foreground: "#4B4B4B", // Xám đen
-        "earth-bg": "#FDFBF7",
-        "earth-text": "#4B4B4B",
+        background: "var(--theme-bg)",
+        foreground: "var(--theme-text)",
+        "earth-bg": "var(--theme-bg)",
+        "earth-text": "var(--theme-text)",
         "fire-red": "#FF3B30",
-        "earth-brown": "#8B4513",
+        "earth-brown": "var(--theme-accent)",
         "fire-orange": "#FF9500",
+        "theme-bg": "var(--theme-bg)",
+        "theme-text": "var(--theme-text)",
+        "theme-border": "var(--theme-border)",
+        "theme-accent": "var(--theme-accent)",
+        "theme-accent-light": "var(--theme-accent-light)",
+        "theme-accent-dark": "var(--theme-accent-dark)",
+        "theme-card-bg": "var(--theme-card-bg)",
+        "theme-card-border": "var(--theme-card-border)",
+        "theme-btn-bg": "var(--theme-btn-bg)",
+        "theme-btn-text": "var(--theme-btn-text)",
+        "theme-btn-border": "var(--theme-btn-border)",
       },
     },
   },

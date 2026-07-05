@@ -72,7 +72,6 @@ const LAST_STAGE_KEY = "titroutine:lastPetStage";
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const tStages = useTranslations("Stages");
-  const tRooms = useTranslations("Rooms");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
@@ -81,6 +80,19 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [habits, setHabits] = useState(data.habits);
   const [coins, setCoins] = useState(data.profile.coins);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  
+  // Theme state: default is 'matcha' to highlight the upgraded aesthetic!
+  const [theme, setTheme] = useState<"neutral" | "matcha" | "ube">("matcha");
+  
+  useEffect(() => {
+    const saved = window.localStorage.getItem("titroutine:theme") as "neutral" | "matcha" | "ube" | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  const handleThemeChange = (newTheme: "neutral" | "matcha" | "ube") => {
+    setTheme(newTheme);
+    window.localStorage.setItem("titroutine:theme", newTheme);
+  };
   // Synchronous guard so a rapid double-tap can't double-award coins/EXP.
   const inFlight = useRef<Set<string>>(new Set());
   // The internally-scrolling habits pane (the shell itself never scrolls).
@@ -586,10 +598,10 @@ export function HomeView({ data }: { data: DashboardData }) {
     // App-shell: the shell is exactly one viewport tall (h-dvh) and never grows —
     // the habits section scrolls internally, so the bottom nav + FAB stay on
     // screen no matter how long the habit list gets.
-    <main className="flex h-dvh flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative">
+    <main className={`flex h-dvh flex-col bg-earth-bg text-earth-text max-w-md mx-auto shadow-xl overflow-hidden relative theme-${theme}`}>
       {/* Top half: Pet Room */}
       <section
-        className={`relative flex-1 flex flex-col items-center justify-center border-b-4 border-earth-brown/10 p-6 pb-36 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
+        className={`relative flex-1 flex flex-col items-center justify-center border-b border-theme-border p-6 pb-24 min-h-[52vh] transition-colors duration-1000 ${roomBackground}`}
       >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -615,28 +627,28 @@ export function HomeView({ data }: { data: DashboardData }) {
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor" aria-hidden />
 
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
-          <div className="bg-white/70 border border-white/70 backdrop-blur-xl px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-[0_6px_16px_-8px_rgba(93,64,28,0.4),inset_0_1px_0_rgba(255,255,255,0.8)] cursor-pointer group relative">
-            <Flame className="w-5 h-5 text-fire-orange" />
-            <span className="text-fire-orange">
+          <div className="bg-white/60 border border-white/40 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative text-theme-text">
+            <Flame className="w-5 h-5 text-orange-500" />
+            <span className="text-orange-500">
               {t("streakDays", { count: currentStreak })}
             </span>
             {data.profile.streakFreezes > 0 && (
-              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-100 px-1.5 rounded" title={t("freezeTitle")}>
+              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-50 px-1.5 rounded" title={t("freezeTitle")}>
                 ❄️ {data.profile.streakFreezes}
               </span>
             )}
             {/* Tooltip mua thẻ */}
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <p className="text-xs text-gray-500 mb-2">{t("freezeTooltip", { price: 50 })}</p>
+            <div className="absolute top-full left-0 mt-2 w-48 bg-theme-card-bg rounded-xl border border-theme-card-border shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <p className="text-xs text-theme-text/45 mb-2">{t("freezeTooltip", { price: 50 })}</p>
               <button
                 type="button"
-                className="w-full bg-blue-100 text-blue-600 hover:bg-blue-200 text-xs font-bold py-1.5 rounded-lg disabled:opacity-50"
+                className="w-full bg-theme-accent-light text-theme-accent hover:bg-theme-border/20 text-xs font-bold py-1.5 rounded-lg disabled:opacity-50"
                 disabled={coins < 50}
                 onClick={() => {
                   setCoins(c => c - 50);
                   startTransition(async () => {
-                    await buyFreezeAction();
-                    router.refresh();
+                     await buyFreezeAction();
+                     router.refresh();
                   });
                 }}
               >
@@ -647,11 +659,78 @@ export function HomeView({ data }: { data: DashboardData }) {
 
           {/* Coins — the only other header element. Everything else moved to the
               bottom nav so the header stays clean (streak + coins only). */}
-          <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-white/70 px-3 py-1.5 font-bold shadow-[0_6px_16px_-8px_rgba(93,64,28,0.4),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl">
+          <div className="flex items-center gap-1.5 rounded-full bg-white/60 border border-white/40 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
             <Image src="/assets/ui/icon_coin.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
-            <span className="tabular-nums text-yellow-600">{coins}</span>
+            <span className="tabular-nums text-amber-600">{coins}</span>
           </div>
         </div>
+
+        {/* Floating HUD & Quick Menu at the top center */}
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-full max-w-[95%] pointer-events-none animate-bubble-pop">
+          <div className="pointer-events-auto">
+            <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
+          </div>
+          
+          {/* Quick Menu horizontal row */}
+          <div className="pointer-events-auto flex items-center justify-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("pet_profile");
+              }}
+              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-150 active:scale-95"
+            >
+              <span>📊</span>
+              <span>Hồ sơ</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("mindfulness_menu");
+              }}
+              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
+            >
+              <span>🧘</span>
+              <span>Tự chăm sóc</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("adventure_story");
+              }}
+              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
+            >
+              <span className="relative">
+                🧭
+                {data.profile.adventureEnergy >= 30 && (
+                  <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
+                )}
+              </span>
+              <span>Phiêu lưu</span>
+            </button>
+
+            {roomsAllUnlocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSwoosh();
+                  setIsNeighborOpen(true);
+                }}
+                className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
+              >
+                <span>🏘️</span>
+                <span>Hàng xóm</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right-aligned vertical glassmorphic menu (REPLACED by Quick Menu) */}
 
         {/* Equipped decor object, tucked into the bottom-left corner of the room. */}
         {customObject && (
@@ -664,15 +743,8 @@ export function HomeView({ data }: { data: DashboardData }) {
           />
         )}
 
-        {/* Encouragement chat — only once the egg has hatched into a companion. */}
-        {currentStage >= 1 && (
-          <div className="z-30 mb-1">
-            <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} customText={petDialogue} />
-          </div>
-        )}
-
         <div
-          className="relative mt-2 drop-shadow-lg z-10 transition-transform hover:scale-105 cursor-pointer"
+          className="relative mt-2 drop-shadow-lg z-10 transition-transform hover:scale-105 cursor-pointer animate-sheet-up"
           onClick={() => {
             playSwoosh();
             // Bấm vào thỏ → phản ứng dễ thương ngẫu nhiên (stage thiếu sẽ tự fallback).
@@ -680,6 +752,16 @@ export function HomeView({ data }: { data: DashboardData }) {
             setCompanionOverrideAction(reactions[Math.floor(Math.random() * reactions.length)]);
           }}
         >
+          {/* Encouragement chat — only once the egg has hatched into a companion. */}
+          {currentStage >= 1 && (
+            <div
+              className="absolute bottom-[105%] left-1/2 -translate-x-1/2 z-30 mb-2 whitespace-nowrap pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} customText={petDialogue} />
+            </div>
+          )}
+
           {/* Mood-tinted spotlight behind the pet — anchors it in the room and
               carries its emotion as ambient colour (moves with the sprite). */}
           <div
@@ -729,58 +811,8 @@ export function HomeView({ data }: { data: DashboardData }) {
           ))}
         </div>
 
-        {/* Care actions and Status HUD are grouped at the bottom to prevent overlapping. */}
-        <div className="absolute bottom-4 left-0 right-0 z-20 flex flex-col items-center gap-2 px-3">
-          <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
-          
-          <div className="flex gap-1.5 flex-wrap justify-center mb-1">
-            <button
-              type="button"
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("pet_profile");
-              }}
-              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-[#5c4033] shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
-            >
-              📊 Hồ sơ Thỏ
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("mindfulness_menu");
-              }}
-              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-emerald-800 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
-            >
-              🧘 Tự chăm sóc
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("adventure_story");
-              }}
-              className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-orange-800 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
-            >
-              🧭 Phiêu lưu {data.profile.adventureEnergy >= 30 && "🔥"}
-            </button>
-
-            {roomsAllUnlocked && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSwoosh();
-                  setIsNeighborOpen(true);
-                }}
-                className="flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md hover:brightness-105 active:scale-95 transition-all"
-              >
-                🏘️ {tRooms("neighbors")}
-              </button>
-            )}
-          </div>
-
+        {/* Care actions are grouped at the bottom in a spacious dock. */}
+        <div className="absolute bottom-4 left-0 right-0 z-20 flex flex-col items-center px-3">
           <InteractionDock
             interactions={CARE_ACTIONS}
             onFeed={() => {
@@ -804,25 +836,25 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Weekly Header */}
         <div className="mb-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-full shadow-sm border border-gray-100">
+            <div className="flex items-center gap-1 bg-theme-card-bg px-2 py-1 rounded-full shadow-sm border border-theme-card-border">
               <button
                 type="button"
                 aria-label={t("prevDay")}
                 onClick={() => startNavigation(() => router.push(`/${locale}?date=${format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`))}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-500" />
+                <ChevronLeft className="w-5 h-5 text-theme-text/60" />
               </button>
-              <div className="text-sm font-bold text-earth-brown text-center min-w-[110px]">
+              <div className="text-sm font-bold text-theme-accent text-center min-w-[110px]">
                 {data.weekDates ? `${format(parseISO(data.weekDates[0]), "dd/MM")} - ${format(parseISO(data.weekDates[6]), "dd/MM")}` : format(parseISO(data.currentDate), "dd/MM/yyyy")}
               </div>
               <button
                 type="button"
                 aria-label={t("nextDay")}
                 onClick={() => startNavigation(() => router.push(`/${locale}?date=${format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd")}`))}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
               >
-                <ChevronRight className="w-5 h-5 text-gray-500" />
+                <ChevronRight className="w-5 h-5 text-theme-text/60" />
               </button>
             </div>
             
@@ -831,12 +863,12 @@ export function HomeView({ data }: { data: DashboardData }) {
                 <button
                   type="button"
                   onClick={() => startNavigation(() => router.push(`/${locale}`))}
-                  className="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wider hover:bg-blue-700"
+                  className="bg-theme-accent text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wider hover:brightness-110"
                 >
                   Hôm nay
                 </button>
               )}
-              <span className="text-sm font-bold text-gray-500 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+              <span className="text-sm font-bold text-theme-text bg-theme-card-bg px-3 py-1.5 rounded-full shadow-sm border border-theme-card-border">
                 {t("completed", { completed: completedCount, total: totalCount })}
               </span>
             </div>
@@ -844,7 +876,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
           {/* Days of Week row */}
           {data.weekDates && (
-            <div className="flex justify-between bg-white p-2 rounded-3xl shadow-sm border border-gray-100">
+            <div className="flex justify-between bg-theme-card-bg p-2 rounded-3xl shadow-sm border border-theme-card-border">
               {data.weekDates.map((dateStr, i) => {
                 const dateObj = parseISO(dateStr);
                 const isSelected = dateStr === data.currentDate;
@@ -858,8 +890,8 @@ export function HomeView({ data }: { data: DashboardData }) {
                     onClick={() => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
                     className={`flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative ${
                       isSelected 
-                        ? "bg-blue-600 text-white shadow-md scale-105" 
-                        : "hover:bg-gray-50 text-gray-500"
+                        ? "bg-theme-accent text-white shadow-md scale-105" 
+                        : "hover:bg-theme-accent-light text-theme-text/60"
                     }`}
                   >
                     {isRealToday && !isSelected && (
@@ -896,12 +928,12 @@ export function HomeView({ data }: { data: DashboardData }) {
                   {section.items.map((habit) => (
                     <div
                       key={habit.id}
-                      className={`bg-white p-4 rounded-2xl border-2 flex flex-col transition-all ${
+                      className={`bg-theme-card-bg p-4 rounded-3xl border flex flex-col transition-all shadow-sm ${
                         habit.isCompleted
-                          ? "border-gray-100 opacity-60"
+                          ? "border-theme-card-border opacity-60"
                           : habit.type === "negative"
-                          ? "border-red-200 border-b-4 bg-red-50"
-                          : "border-gray-200 border-b-4"
+                          ? "border-red-200 bg-red-50/50"
+                          : "border-theme-card-border"
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
@@ -912,14 +944,14 @@ export function HomeView({ data }: { data: DashboardData }) {
                           title={t("edit")}
                           onClick={() => setEditingHabit(habit)}
                           className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 transition-colors group relative ${
-                            habit.type === "negative" ? "bg-red-100 hover:bg-red-200" : "bg-blue-100 hover:bg-blue-200"
+                            habit.type === "negative" ? "bg-red-100 hover:bg-red-200" : "bg-theme-accent-light hover:bg-theme-border/20"
                           }`}
                         >
                           <span className="group-hover:opacity-0 transition-opacity">
                             {habit.type === "timer" ? "⏳" : habit.type === "negative" ? "💥" : "💧"}
                           </span>
                           <Pencil className={`w-5 h-5 absolute opacity-0 group-hover:opacity-100 transition-opacity ${
-                            habit.type === "negative" ? "text-red-500" : "text-blue-500"
+                            habit.type === "negative" ? "text-red-500" : "text-theme-accent"
                           }`} />
                         </button>
                         <div className="min-w-0">
@@ -1099,6 +1131,8 @@ export function HomeView({ data }: { data: DashboardData }) {
           petStage: isEvolved ? "rabbit" : "egg",
         }}
         email={data.email}
+        currentTheme={theme}
+        onThemeChange={handleThemeChange}
         devStageOverride={devStageOverride}
         setDevStageOverride={setDevStageOverride}
         devStreakOverride={devStreakOverride}
@@ -1248,46 +1282,46 @@ export function HomeView({ data }: { data: DashboardData }) {
       {activeOverlay === "mindfulness_menu" && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setActiveOverlay(null)}>
           <div
-            className="w-full max-w-md rounded-3xl bg-[#fdfaf6] p-6 shadow-2xl border border-[#efe9dc] animate-sheet-up text-[#5c4033]"
+            className="w-full max-w-md rounded-3xl bg-theme-bg p-6 shadow-2xl border border-theme-card-border animate-sheet-up text-theme-text"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between border-b border-orange-100 pb-3">
+            <div className="mb-4 flex items-center justify-between border-b border-theme-card-border pb-3">
               <h3 className="text-lg font-black flex items-center gap-2">
                 🧘 Hộp Công Cụ Chánh Niệm
               </h3>
-              <button onClick={() => setActiveOverlay(null)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+              <button onClick={() => setActiveOverlay(null)} className="text-theme-text/45 hover:text-theme-text/80 font-bold">✕</button>
             </div>
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setActiveOverlay("mood_checkin")}
-                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
               >
                 <span className="text-3xl">💭</span>
                 <div>
                   <div className="text-xs font-black">Báo cáo cảm xúc hằng ngày</div>
-                  <div className="text-[10px] text-gray-400 leading-tight">Nhìn nhận cảm xúc của bản thân và ghi chép biết ơn (+15 xu)</div>
+                  <div className="text-[10px] text-theme-text/45 leading-tight">Nhìn nhận cảm xúc của bản thân và ghi chép biết ơn (+15 xu)</div>
                 </div>
               </button>
 
               <button
                 onClick={() => setActiveOverlay("breathing")}
-                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
               >
                 <span className="text-3xl">🌬️</span>
                 <div>
                   <div className="text-xs font-black">Luyện thở Box Breathing</div>
-                  <div className="text-[10px] text-gray-400 leading-tight">2 phút tập thở khoa học giúp xoa dịu stress tức thì (+10 xu)</div>
+                  <div className="text-[10px] text-theme-text/45 leading-tight">2 phút tập thở khoa học giúp xoa dịu stress tức thì (+10 xu)</div>
                 </div>
               </button>
 
               <button
                 onClick={() => setActiveOverlay("first_aid")}
-                className="w-full text-left p-4 bg-white hover:bg-orange-50/50 border-2 border-[#ebdcc5] rounded-2xl transition-all flex items-center gap-3 active:scale-98"
+                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
               >
                 <span className="text-3xl">🚑</span>
                 <div>
                   <div className="text-xs font-black">Sơ cứu tâm lý khẩn cấp</div>
-                  <div className="text-[10px] text-gray-400 leading-tight">Kết nối giác quan, bóp bóng xả giận, thẻ đọc chữa lành</div>
+                  <div className="text-[10px] text-theme-text/45 leading-tight">Kết nối giác quan, bóp bóng xả giận, thẻ đọc chữa lành</div>
                 </div>
               </button>
             </div>

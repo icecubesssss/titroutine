@@ -33,12 +33,12 @@ export const PetSpeechBubble: React.FC<{
     <div
       key={poolKey}
       className={clsx(
-        "relative max-w-[210px] rounded-2xl border border-black/5 bg-white/95 px-3 py-2 text-center text-xs font-bold text-earth-text shadow-lg animate-bubble-pop",
+        "relative max-w-[210px] rounded-2xl border border-white/70 bg-white/80 px-3 py-2 text-center text-xs font-bold text-earth-text shadow-[0_8px_24px_-4px_rgba(93,64,28,0.15),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-md animate-bubble-pop",
         className
       )}
     >
       {message}
-      <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-black/5 bg-white/95" />
+      <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-white/70 bg-white/80" />
     </div>
   );
 };

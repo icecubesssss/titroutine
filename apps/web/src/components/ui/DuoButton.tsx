@@ -23,10 +23,10 @@ export const DuoButton = React.forwardRef<HTMLButtonElement, DuoButtonProps>(
       "relative inline-flex items-center justify-center font-bold uppercase tracking-wider rounded-2xl transition-all active:translate-y-1 active:border-b-0 disabled:opacity-50 disabled:cursor-not-allowed";
 
     const variants = {
-      primary: "bg-fire-red text-white border-b-4 border-earth-brown hover:brightness-110",
-      secondary: "bg-earth-bg text-earth-text border-2 border-b-4 border-gray-300 hover:bg-gray-50",
+      primary: "bg-theme-accent text-white border-b-4 border-theme-accent-dark hover:brightness-110",
+      secondary: "bg-theme-bg text-theme-text border-2 border-b-4 border-theme-card-border hover:bg-theme-accent-light",
       danger: "bg-fire-orange text-white border-b-4 border-orange-700 hover:brightness-110",
-      ghost: "bg-transparent text-earth-text hover:bg-gray-100 active:border-b-0",
+      ghost: "bg-transparent text-theme-text hover:bg-theme-accent-light active:border-b-0",
     };
 
     const sizes = {

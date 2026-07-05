@@ -21,6 +21,8 @@ interface SettingsModalProps {
   onClose: () => void;
   report: ReportData;
   email: string | null;
+  currentTheme?: "neutral" | "matcha" | "ube";
+  onThemeChange?: (theme: "neutral" | "matcha" | "ube") => void;
   devStageOverride?: number | null;
   setDevStageOverride?: (stage: number | null) => void;
   devStreakOverride?: number | null;
@@ -36,6 +38,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   report,
   email,
+  currentTheme = "neutral",
+  onThemeChange,
   devStageOverride = null,
   setDevStageOverride,
   devStreakOverride = null,
@@ -109,16 +113,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-100 max-h-[90vh] overflow-y-auto">
-        <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-gray-100 sticky top-0 bg-white z-10">
-          <h2 className="text-2xl font-black text-earth-text flex items-center gap-2">
+      <div className="w-full max-w-sm bg-theme-card-bg rounded-3xl shadow-2xl overflow-hidden border-4 border-theme-card-border max-h-[90vh] overflow-y-auto text-theme-text">
+        <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-theme-card-border sticky top-0 bg-theme-card-bg z-10">
+          <h2 className="text-2xl font-black text-theme-text flex items-center gap-2">
             ⚙️ {t("title")}
           </h2>
           <button
             aria-label={t("close")}
             title={t("close")}
             onClick={onClose}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-500"
+            className="p-2 rounded-full bg-theme-accent-light hover:bg-theme-border/20 transition-colors text-theme-text/70"
           >
             <X size={20} />
           </button>
@@ -141,12 +145,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={() => changeLanguage(lang.code)}
                   className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
                     locale === lang.code
-                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                      : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+                      ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                      : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
                   }`}
                 >
                   <span className="text-2xl">{lang.flag}</span>
                   <span className="text-xs">{lang.code.toUpperCase()}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Theme */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              🎨 {t("theme")}
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { code: "neutral", label: t("themeNeutral"), emoji: "🧈" },
+                { code: "matcha", label: t("themeMatcha"), emoji: "🍵" },
+                { code: "ube", label: t("themeUbe"), emoji: "🍠" },
+              ].map((tItem) => (
+                <button
+                  key={tItem.code}
+                  onClick={() => onThemeChange?.(tItem.code as "neutral" | "matcha" | "ube")}
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
+                    currentTheme === tItem.code
+                      ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                      : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
+                  }`}
+                >
+                  <span className="text-2xl">{tItem.emoji}</span>
+                  <span className="text-xs">{tItem.label}</span>
                 </button>
               ))}
             </div>

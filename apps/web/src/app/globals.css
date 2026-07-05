@@ -3,8 +3,49 @@
 @import "tailwindcss/utilities";
 
 :root {
-  --background: #FDFBF7;
-  --foreground: #4B4B4B;
+  /* Neutral theme by default */
+  --theme-bg: #FDFBF7;
+  --theme-text: #4B4B4B;
+  --theme-border: rgba(139, 69, 19, 0.1);
+  --theme-accent: #8B4513;
+  --theme-accent-light: #F5EFEB;
+  --theme-accent-dark: #5C2D0C;
+  --theme-card-bg: #FFFFFF;
+  --theme-card-border: #EFE9DC;
+  --theme-btn-bg: #FDFBF7;
+  --theme-btn-text: #8B4513;
+  --theme-btn-border: rgba(139, 69, 19, 0.15);
+
+  --background: var(--theme-bg);
+  --foreground: var(--theme-text);
+}
+
+.theme-matcha {
+  --theme-bg: #F4F3ED;
+  --theme-text: #1C2A1E;
+  --theme-border: rgba(28, 42, 30, 0.15);
+  --theme-accent: #3D5A40;
+  --theme-accent-light: #E9EAE3;
+  --theme-accent-dark: #223524;
+  --theme-card-bg: #FFFFFF;
+  --theme-card-border: #DCDAD0;
+  --theme-btn-bg: #F4F3ED;
+  --theme-btn-text: #1C2A1E;
+  --theme-btn-border: rgba(28, 42, 30, 0.15);
+}
+
+.theme-ube {
+  --theme-bg: #FAF5F7;
+  --theme-text: #2B1E29;
+  --theme-border: rgba(43, 30, 41, 0.15);
+  --theme-accent: #6C4B64;
+  --theme-accent-light: #F2E9EC;
+  --theme-accent-dark: #473042;
+  --theme-card-bg: #FFFFFF;
+  --theme-card-border: #EADCE4;
+  --theme-btn-bg: #FAF5F7;
+  --theme-btn-text: #2B1E29;
+  --theme-btn-border: rgba(43, 30, 41, 0.15);
 }
 
 body {

@@ -32,16 +32,16 @@ export function FeedPicker({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-3xl bg-[#fdfaf6] p-6 shadow-2xl border border-[#efe9dc] animate-sheet-up"
+        className="w-full max-w-md rounded-3xl bg-theme-bg p-6 shadow-2xl border border-theme-card-border animate-sheet-up text-theme-text"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between border-b border-orange-100 pb-3">
-          <h3 className="text-lg font-black text-[#5c4033] flex items-center gap-2">
+        <div className="mb-4 flex items-center justify-between border-b border-theme-card-border pb-3">
+          <h3 className="text-lg font-black flex items-center gap-2">
             🎒 Balo Vật Phẩm Chăm Sóc
           </h3>
           <button 
             onClick={onClose} 
-            className="text-gray-400 hover:text-gray-600 font-bold h-8 w-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+            className="text-theme-text/45 hover:text-theme-text/80 font-bold h-8 w-8 rounded-full hover:bg-theme-accent-light/50 flex items-center justify-center transition-colors"
           >
             ✕
           </button>
@@ -49,7 +49,7 @@ export function FeedPicker({
 
         {/* Section 1: Thức ăn */}
         <div className="mb-6">
-          <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+          <h4 className="text-[11px] font-black text-theme-text/45 uppercase tracking-wider mb-2.5 flex items-center gap-1">
             🥕 Đồ ăn dinh dưỡng
           </h4>
           <div className="grid grid-cols-3 gap-3">
@@ -65,14 +65,14 @@ export function FeedPicker({
                     onFeed(tier.id);
                     onClose();
                   }}
-                  className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 border-b-4 bg-white p-3 transition-all ${
+                  className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 border-b-4 bg-theme-card-bg p-3 transition-all ${
                     hasItem
-                      ? "border-[#ebdcc5] hover:border-orange-300 active:translate-y-0.5 active:border-b-2"
-                      : "border-gray-100 opacity-40 cursor-not-allowed"
+                      ? "border-theme-card-border hover:border-theme-accent active:translate-y-0.5 active:border-b-2"
+                      : "border-theme-card-border/40 opacity-40 cursor-not-allowed"
                   }`}
                 >
                   <span className={`absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black border shadow-sm ${
-                    hasItem ? "bg-orange-500 text-white border-orange-600" : "bg-gray-200 text-gray-500 border-gray-300"
+                    hasItem ? "bg-theme-accent text-white border-theme-accent-dark" : "bg-theme-card-border text-theme-text/40 border-theme-card-border"
                   }`}>
                     {count}
                   </span>
@@ -83,8 +83,8 @@ export function FeedPicker({
                     height={48}
                     className="h-12 w-12 object-contain drop-shadow-sm"
                   />
-                  <span className="text-[11px] font-bold text-[#5c4033]">{t(`food_${tier.id}`)}</span>
-                  <span className="text-[9px] font-medium text-gray-400">+{tier.satiety} No</span>
+                  <span className="text-[11px] font-bold text-theme-text">{t(`food_${tier.id}`)}</span>
+                  <span className="text-[9px] font-medium text-theme-text/45">+{tier.satiety} No</span>
                 </button>
               );
             })}
@@ -93,7 +93,7 @@ export function FeedPicker({
 
         {/* Section 2: Đồ chơi */}
         <div>
-          <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+          <h4 className="text-[11px] font-black text-theme-text/45 uppercase tracking-wider mb-2.5 flex items-center gap-1">
             🧸 Đồ chơi cho thỏ
           </h4>
           <div className="grid grid-cols-2 gap-3">
@@ -109,21 +109,21 @@ export function FeedPicker({
                     onPlay(toy.id);
                     onClose();
                   }}
-                  className={`relative flex items-center gap-3 rounded-2xl border-2 border-b-4 bg-white p-3 transition-all ${
+                  className={`relative flex items-center gap-3 rounded-2xl border-2 border-b-4 bg-theme-card-bg p-3 transition-all ${
                     hasItem
-                      ? "border-[#ebdcc5] hover:border-orange-300 active:translate-y-0.5 active:border-b-2"
-                      : "border-gray-100 opacity-40 cursor-not-allowed"
+                      ? "border-theme-card-border hover:border-theme-accent active:translate-y-0.5 active:border-b-2"
+                      : "border-theme-card-border/40 opacity-40 cursor-not-allowed"
                   }`}
                 >
                   <span className={`absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black border shadow-sm ${
-                    hasItem ? "bg-orange-500 text-white border-orange-600" : "bg-gray-200 text-gray-500 border-gray-300"
+                    hasItem ? "bg-theme-accent text-white border-theme-accent-dark" : "bg-theme-card-border text-theme-text/40 border-theme-card-border"
                   }`}>
                     {count}
                   </span>
                   <span className="text-3xl select-none">{toy.emoji}</span>
                   <div className="text-left flex flex-col">
-                    <span className="text-[11px] font-bold text-[#5c4033]">{toy.label}</span>
-                    <span className="text-[9px] text-gray-400 leading-tight">{toy.desc}</span>
+                    <span className="text-[11px] font-bold text-theme-text">{toy.label}</span>
+                    <span className="text-[9px] text-theme-text/45 leading-tight">{toy.desc}</span>
                   </div>
                 </button>
               );

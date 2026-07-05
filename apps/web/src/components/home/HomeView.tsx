@@ -665,69 +665,86 @@ export function HomeView({ data }: { data: DashboardData }) {
           </div>
         </div>
 
-        {/* Floating HUD & Quick Menu at the top center */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 w-full max-w-[95%] pointer-events-none animate-bubble-pop">
+        {/* Floating HUD at the top center */}
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none animate-bubble-pop">
           <div className="pointer-events-auto">
             <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
           </div>
-          
-          {/* Quick Menu horizontal row */}
-          <div className="pointer-events-auto flex items-center justify-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("pet_profile");
-              }}
-              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-150 active:scale-95"
-            >
-              <span>📊</span>
-              <span>Hồ sơ</span>
-            </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("mindfulness_menu");
-              }}
-              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
-            >
-              <span>🧘</span>
-              <span>Tự chăm sóc</span>
-            </button>
+        {/* Left Side Buttons */}
+        <div className="absolute left-4 top-24 z-20 flex flex-col gap-3 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => {
+              playSwoosh();
+              setActiveOverlay("pet_profile");
+            }}
+            className="pointer-events-auto flex flex-col items-center group"
+          >
+            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm">
+              📊
+            </div>
+            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              Hồ sơ
+            </span>
+          </button>
 
+          {roomsAllUnlocked && (
             <button
               type="button"
               onClick={() => {
                 playSwoosh();
-                setActiveOverlay("adventure_story");
+                setIsNeighborOpen(true);
               }}
-              className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
+              className="pointer-events-auto flex flex-col items-center group"
             >
-              <span className="relative">
-                🧭
-                {data.profile.adventureEnergy >= 30 && (
-                  <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
-                )}
+              <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm">
+                🏘️
+              </div>
+              <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+                Hàng xóm
               </span>
-              <span>Phiêu lưu</span>
             </button>
+          )}
+        </div>
 
-            {roomsAllUnlocked && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSwoosh();
-                  setIsNeighborOpen(true);
-                }}
-                className="flex items-center gap-1 bg-white/60 border border-white/40 shadow-sm backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-theme-text hover:bg-white/80 transition-all duration-155 active:scale-95"
-              >
-                <span>🏘️</span>
-                <span>Hàng xóm</span>
-              </button>
-            )}
-          </div>
+        {/* Right Side Buttons */}
+        <div className="absolute right-4 top-24 z-20 flex flex-col gap-3 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => {
+              playSwoosh();
+              setActiveOverlay("adventure_story");
+            }}
+            className="pointer-events-auto flex flex-col items-center group"
+          >
+            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
+              🧭
+              {data.profile.adventureEnergy >= 30 && (
+                <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
+              )}
+            </div>
+            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              Phiêu lưu
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              playSwoosh();
+              setActiveOverlay("mindfulness_menu");
+            }}
+            className="pointer-events-auto flex flex-col items-center group"
+          >
+            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm">
+              🧘
+            </div>
+            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              Chăm sóc
+            </span>
+          </button>
         </div>
 
         {/* Right-aligned vertical glassmorphic menu (REPLACED by Quick Menu) */}

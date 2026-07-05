@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { PetMood } from "@/lib/game";
 
 /** Small hand-drawn chip icon (Gemini). */
-function ChipIcon({ src, size = 18 }: { src: string; size?: number }) {
+function ChipIcon({ src, size = 14 }: { src: string; size?: number }) {
   return (
     <Image
       src={src}
@@ -22,7 +22,7 @@ function ChipIcon({ src, size = 18 }: { src: string; size?: number }) {
 function Gauge({ value, barClass, pulse = false }: { value: number; barClass: string; pulse?: boolean }) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
-    <span className="h-1.5 w-9 shrink-0 overflow-hidden rounded-full bg-earth-brown/10 shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)]">
+    <span className="h-1 w-7 shrink-0 overflow-hidden rounded-full bg-earth-brown/10 shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)]">
       <span
         ref={(el) => {
           if (el) el.style.width = `${clamped}%`;
@@ -34,7 +34,7 @@ function Gauge({ value, barClass, pulse = false }: { value: number; barClass: st
 }
 
 function Divider() {
-  return <span className="h-5 w-px shrink-0 bg-earth-brown/10" aria-hidden />;
+  return <span className="h-3.5 w-px shrink-0 bg-earth-brown/10" aria-hidden />;
 }
 
 /**
@@ -59,9 +59,9 @@ export function PetHud({
   const t = useTranslations("Pet");
   const lowSatiety = satiety < 25;
   return (
-    <div className="inline-flex max-w-full items-center gap-2 rounded-2xl border border-white/40 bg-white/60 px-2.5 py-1.5 shadow-sm backdrop-blur-xl text-theme-text">
+    <div className="inline-flex max-w-full items-center gap-1.5 rounded-2xl border border-white/40 bg-white/60 px-2 py-1 shadow-sm backdrop-blur-xl text-theme-text">
       {/* Mood first — it's the pet's headline state. */}
-      <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-bold text-theme-text/85">
+      <span className="flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-theme-text/85">
         <ChipIcon src={`/assets/ui/mood_${mood}.png`} />
         {t(`mood_${mood}`)}
       </span>
@@ -70,10 +70,10 @@ export function PetHud({
 
       {/* Nurture level + EXP progress. */}
       <span
-        className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-bold text-purple-600"
+        className="flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-purple-600"
         title={t("level", { level })}
       >
-        <ChipIcon src="/assets/ui/icon_level.png" size={16} />
+        <ChipIcon src="/assets/ui/icon_level.png" size={13} />
         {t("level", { level })}
         <Gauge value={levelProgress * 100} barClass="bg-gradient-to-r from-fuchsia-400 to-purple-500" />
       </span>
@@ -82,10 +82,10 @@ export function PetHud({
 
       {/* Satiety gauge — turns orange and pulses when the pet is getting hungry. */}
       <span
-        className="flex items-center gap-1.5"
+        className="flex items-center gap-1"
         title={`${t("satiety")}: ${Math.round(satiety)}/100`}
       >
-        <ChipIcon src="/assets/ui/icon_satiety.png" size={16} />
+        <ChipIcon src="/assets/ui/icon_satiety.png" size={13} />
         <Gauge
           value={satiety}
           pulse={lowSatiety}
@@ -96,8 +96,8 @@ export function PetHud({
       <Divider />
 
       {/* Bond / affection gauge. */}
-      <span className="flex items-center gap-1.5" title={`${t("affection")}: ${Math.round(affection)}/100`}>
-        <ChipIcon src="/assets/ui/icon_bond.png" size={16} />
+      <span className="flex items-center gap-1" title={`${t("affection")}: ${Math.round(affection)}/100`}>
+        <ChipIcon src="/assets/ui/icon_bond.png" size={13} />
         <Gauge value={affection} barClass="bg-gradient-to-r from-rose-300 to-pink-500" />
       </span>
     </div>

@@ -32,7 +32,7 @@ export function InteractionDock({
 }) {
   const t = useTranslations("Pet");
   return (
-    <div className="flex items-end justify-center gap-3">
+    <div className="flex items-center justify-center gap-2.5">
       {interactions.map((kind) => {
         const meta = META[kind];
         const label = t(`action_${meta.labelKey}`);
@@ -43,17 +43,22 @@ export function InteractionDock({
             disabled={disabled}
             aria-label={label}
             onClick={() => (kind === "feed" ? onFeed() : onInteract(kind))}
-            className="group flex flex-col items-center gap-1 disabled:opacity-50"
+            className="group flex flex-col items-center gap-1.5 p-2.5 w-[72px] rounded-[24px] border border-white/40 bg-white/50 shadow-sm backdrop-blur-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/75 hover:shadow-md active:translate-y-0 active:scale-95 disabled:opacity-50"
           >
-            {/* Sleek, neat glassmorphic button matching Astryx aesthetics */}
-            <span className="flex h-[56px] w-[56px] items-center justify-center rounded-[20px] border border-white/40 bg-white/50 shadow-sm backdrop-blur-md transition-all duration-150 group-hover:-translate-y-0.5 group-hover:bg-white/75 group-hover:shadow-md group-active:translate-y-0 group-active:scale-95">
+            <div className="flex h-[36px] w-[36px] items-center justify-center">
               {meta.icon ? (
-                <Image src={meta.icon} alt="" width={38} height={38} className="h-[38px] w-[38px] object-contain drop-shadow transition-transform duration-150 group-hover:scale-105" />
+                <Image
+                  src={meta.icon}
+                  alt=""
+                  width={34}
+                  height={34}
+                  className="h-[34px] w-[34px] object-contain drop-shadow transition-transform duration-150 group-hover:scale-105"
+                />
               ) : (
                 <span className="text-xl">{meta.emoji}</span>
               )}
-            </span>
-            <span className="rounded-full bg-white/60 px-2 py-0.5 text-[9px] font-bold text-theme-text shadow-[0_1px_3px_rgba(0,0,0,0.05)] backdrop-blur-sm">
+            </div>
+            <span className="text-[10px] font-extrabold text-theme-text leading-none">
               {label}
             </span>
           </button>

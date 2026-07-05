@@ -50,8 +50,8 @@
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background: radial-gradient(circle at 50% 50%, #FAF6EE 0%, #E6DEC9 100%);
+  font-family: var(--font-quicksand), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 /* One-shot flash played over the pet when it evolves / hatches. */

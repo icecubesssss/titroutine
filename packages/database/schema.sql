@@ -156,3 +156,27 @@ CREATE POLICY "Users can view own received vibes" ON public.social_vibes FOR SEL
 CREATE POLICY "Users can send vibes" ON public.social_vibes FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Users can update own received vibes" ON public.social_vibes FOR UPDATE USING (auth.uid() = receiver_id);
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 06: Tasks Management and Focus Tokens Currency
+-- ────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS focus_tokens INTEGER DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  notes TEXT,
+  status TEXT DEFAULT 'todo' NOT NULL, -- 'todo', 'in_progress', 'done'
+  priority TEXT DEFAULT 'medium' NOT NULL, -- 'low', 'medium', 'high'
+  assignee_type TEXT DEFAULT 'self' NOT NULL, -- 'self', 'pet'
+  focus_duration INTEGER DEFAULT 25 NOT NULL, -- in minutes
+  deadline TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own tasks" ON public.tasks;
+CREATE POLICY "Users can manage own tasks" ON public.tasks FOR ALL USING (auth.uid() = user_id);
+
+

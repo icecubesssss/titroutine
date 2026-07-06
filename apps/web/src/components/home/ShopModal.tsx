@@ -6,18 +6,25 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { SHOP_ITEMS } from "@/lib/items";
-import { buyItemAction, equipItemAction, buyConsumableAction } from "@/app/[locale]/actions";
+import { buyItemAction, equipItemAction, buyConsumableAction, buyFocusItemAction } from "@/app/[locale]/actions";
 
 interface ShopModalProps {
   isOpen: boolean;
   onClose: () => void;
   coins: number;
+  focusTokens?: number; // Add focusTokens
   unlockedItems: string[];
   equippedItems: Record<string, string>;
   consumables?: Record<string, number>; // new prop containing count
   onSpend?: (amount: number) => void;
   onEquipped?: (slot: string, itemId: string | null) => void;
 }
+
+const FOCUS_ITEMS_CATALOGUE = [
+  { id: "matcha_tea", price: 50, name: "Trà Matcha Tĩnh Tâm 🍵", desc: "Trà ấm thanh tịnh (+15 Thân thiết)" },
+  { id: "magic_book", price: 120, name: "Sách Cổ Thần Kỳ 📖", desc: "Sách phép thuật cổ xưa (+40 Thân thiết)" },
+  { id: "focus_cushion", price: 80, name: "Đệm Ngồi Thiền Định 🧘", desc: "Đệm êm ái tăng sức dẻo dai (+25 Thân thiết)" },
+];
 
 const CONSUMABLES_CATALOGUE = [
   { id: "carrot", price: 15, name: "Cà rốt tươi ngon 🥕", desc: "Đồ ăn lý tưởng (+15 No)" },
@@ -31,6 +38,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   isOpen,
   onClose,
   coins,
+  focusTokens = 0,
   unlockedItems,
   equippedItems,
   consumables = { carrot: 0, cake: 0, feast: 0, toy_ball: 0, toy_bear: 0 },
@@ -38,7 +46,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   onEquipped,
 }) => {
   const t = useTranslations("Shop");
-  const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
+  const [activeTab, setActiveTab] = useState<"shop" | "focus_shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
   const [justBought, setJustBought] = useState<Set<string>>(() => new Set());
   const [localEquipped, setLocalEquipped] = useState<Record<string, string | null>>({});
@@ -132,6 +140,24 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     });
   };
 
+  const handleBuyFocusItem = (itemId: string, price: number) => {
+    if (pendingId) return;
+    setError(null);
+    if (focusTokens < price) {
+      setError("Không đủ Focus Tokens! Hãy tập trung hoàn thành công việc.");
+      return;
+    }
+    setPendingId(itemId);
+    startTransition(async () => {
+      const res = await buyFocusItemAction(itemId, price);
+      if (res?.error) {
+        setError(res.error === "not_enough_tokens" ? "Không đủ Focus Tokens!" : "Mua thất bại");
+      }
+      setPendingId(null);
+      router.refresh();
+    });
+  };
+
   // Trang bị nội thất
   const commitEquip = (slot: string, itemId: string | null) => {
     setError(null);
@@ -165,6 +191,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               <Image src="/assets/ui/icon_coin.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
               <span>{coins}</span>
             </div>
+            <div className="bg-orange-100 text-orange-950 px-3 py-1 rounded-full font-black text-xs shadow-sm flex items-center gap-1" title="Focus Tokens">
+              <span>🎯</span>
+              <span>{focusTokens}</span>
+            </div>
             <button
               type="button"
               onClick={onClose}
@@ -177,11 +207,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 pt-3 gap-4 border-b border-stone-100 bg-white shadow-sm">
+        <div className="flex px-6 pt-3 gap-4 border-b border-stone-100 bg-white shadow-sm overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("shop")}
-            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors ${
+            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors shrink-0 ${
               activeTab === "shop"
                 ? "border-orange-500 text-orange-600"
                 : "border-transparent text-stone-400 hover:text-stone-600"
@@ -191,11 +221,22 @@ export const ShopModal: React.FC<ShopModalProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("focus_shop")}
+            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors shrink-0 ${
+              activeTab === "focus_shop"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-stone-400 hover:text-stone-600"
+            }`}
+          >
+            🎯 Đồ tập trung
+          </button>
+          <button
+            type="button"
             onClick={() => {
               setActiveTab("inventory");
               handleResetPreview();
             }}
-            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors ${
+            className={`pb-2.5 px-1 font-bold text-sm flex items-center gap-1.5 border-b-4 transition-colors shrink-0 ${
               activeTab === "inventory"
                 ? "border-orange-500 text-orange-600"
                 : "border-transparent text-stone-400 hover:text-stone-600"
@@ -214,7 +255,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
           )}
 
           {/* 1. ROOM PREVIEW CONTAINER: Hiển thị khi ở tab Shop */}
-          {activeTab === "shop" && (
+          {(activeTab === "shop" || activeTab === "focus_shop") && (
             <div className="relative w-full h-36 bg-[#f0e6d2]/50 rounded-2xl overflow-hidden border-2 border-[#ebdcc5] shadow-inner flex items-center justify-center">
               {/* Preview Wallpaper */}
               {previewWallpaperItem ? (
@@ -279,8 +320,18 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         className="bg-white rounded-2xl border-2 border-[#ebdcc5] p-3 flex flex-col justify-between shadow-sm"
                       >
                         <div className="flex gap-2.5 items-start">
-                          <span className="text-3xl select-none pt-0.5">
-                            {item.id === "carrot" ? "🥕" : item.id === "cake" ? "🍰" : item.id === "feast" ? "🍲" : item.id === "toy_ball" ? "⚽" : "🧸"}
+                          <span className="text-3xl select-none pt-0.5 w-12 h-12 flex items-center justify-center">
+                            {item.id === "carrot" ? (
+                              <Image src="/assets/ui/food/food_carrot.png" alt="Carrot" width={40} height={40} className="object-contain" />
+                            ) : item.id === "cake" ? (
+                              <Image src="/assets/ui/food/food_cake.png" alt="Cake" width={40} height={40} className="object-contain" />
+                            ) : item.id === "feast" ? (
+                              <Image src="/assets/ui/food/food_feast.png" alt="Feast" width={40} height={40} className="object-contain" />
+                            ) : item.id === "toy_ball" ? (
+                              "⚽"
+                            ) : (
+                              "🧸"
+                            )}
                           </span>
                           <div className="flex-1">
                             <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">{item.name}</h4>
@@ -367,6 +418,50 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                             </button>
                           )}
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "focus_shop" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+                  🎯 Quầy đồ tập trung (Focus Tokens)
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {FOCUS_ITEMS_CATALOGUE.map((item) => {
+                    const canAfford = focusTokens >= item.price;
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-2xl border-2 border-[#ebdcc5] p-3 flex flex-col justify-between shadow-sm"
+                      >
+                        <div className="flex gap-2.5 items-start">
+                          <span className="text-3xl select-none pt-0.5">
+                            {item.id === "matcha_tea" ? "🍵" : item.id === "magic_book" ? "📖" : "🧘"}
+                          </span>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">{item.name}</h4>
+                            <p className="text-[9px] text-[#8b7355] mt-0.5 leading-tight">{item.desc}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleBuyFocusItem(item.id, item.price)}
+                          disabled={!canAfford || pendingId === item.id}
+                          className={`w-full mt-3 py-1.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-colors ${
+                            canAfford
+                              ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                              : "bg-stone-100 text-stone-400 cursor-not-allowed"
+                          }`}
+                        >
+                          <span>🎯</span>
+                          {item.price} Tokens
+                        </button>
                       </div>
                     );
                   })}

@@ -68,6 +68,21 @@ export interface ProfileSummary {
   adventureStatus: "idle" | "adventuring" | "returned";
   adventureStartAt: string | null;
   adventureStoryId: string | null;
+  focusTokens: number;
+}
+
+export interface Task {
+  id: string;
+  userId: string;
+  title: string;
+  notes: string | null;
+  status: "todo" | "in_progress" | "done";
+  priority: "low" | "medium" | "high";
+  assigneeType: "self" | "pet";
+  focusDuration: number; // in minutes
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface InventorySummary {
@@ -96,4 +111,5 @@ export interface DashboardData {
   weekDates?: string[]; // Array of YYYY-MM-DD for the current week (Mon-Sun)
   pendingVibes: SocialVibe[];
   moodLogs?: Record<string, { mood: string; activities: string[]; note: string | null }>;
+  tasks: Task[];
 }

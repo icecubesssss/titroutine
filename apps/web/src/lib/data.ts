@@ -44,7 +44,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id"
+      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id, focus_tokens"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -70,7 +70,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }).map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
 
-  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }, { data: beanRows }] = await Promise.all([
+  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }, { data: beanRows }, { data: taskRows }] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config, frequency, time_of_day")
@@ -102,7 +102,12 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .select("logged_date, mood, activities, note")
       .eq("user_id", user.id)
       .gte("logged_date", weekDates[0])
-      .lte("logged_date", weekDates[6])
+      .lte("logged_date", weekDates[6]),
+    supabase
+      .from("tasks")
+      .select("id, user_id, title, notes, status, priority, assignee_type, focus_duration, deadline, created_at, updated_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
   ]);
 
   // Map mood logs by date
@@ -197,6 +202,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       adventureStatus: (profile?.adventure_status as "idle" | "adventuring" | "returned") ?? "idle",
       adventureStartAt: profile?.adventure_start_at ?? null,
       adventureStoryId: profile?.adventure_story_id ?? null,
+      focusTokens: profile?.focus_tokens ?? 0,
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
@@ -226,5 +232,18 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
         vibeType: v.vibe_type,
       };
     }),
+    tasks: (taskRows ?? []).map((t) => ({
+      id: t.id,
+      userId: t.user_id,
+      title: t.title,
+      notes: t.notes,
+      status: t.status as "todo" | "in_progress" | "done",
+      priority: t.priority as "low" | "medium" | "high",
+      assigneeType: t.assignee_type as "self" | "pet",
+      focusDuration: t.focus_duration,
+      deadline: t.deadline,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    })),
   };
 }

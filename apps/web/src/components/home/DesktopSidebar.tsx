@@ -1,17 +1,21 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Home, ShoppingBag, BookOpen, BarChart3, Settings } from "lucide-react";
+import { Home, ListTodo, ShoppingBag, BookOpen, BarChart3, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export function DesktopSidebar({
+  activeTab = "habits",
   onHome,
+  onTasks,
   onShop,
   onAlbum,
   onAnalytics,
   onSettings,
 }: {
+  activeTab?: "habits" | "tasks";
   onHome: () => void;
+  onTasks: () => void;
   onShop: () => void;
   onAlbum: () => void;
   onAnalytics: () => void;
@@ -20,7 +24,8 @@ export function DesktopSidebar({
   const t = useTranslations("Home");
 
   const items: { key: string; label: string; Icon: LucideIcon; onClick: () => void; active?: boolean }[] = [
-    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: true },
+    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" },
+    { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" },
     { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: onShop },
     { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: onAlbum },
     { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: onAnalytics },

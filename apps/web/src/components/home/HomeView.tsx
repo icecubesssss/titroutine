@@ -542,7 +542,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   const currentStreak = devStreakOverride !== null ? devStreakOverride : data.profile.currentStreak;
-  const normalStage = stageFromStreak(currentStreak);
+  const normalStage = devStreakOverride !== null ? stageFromStreak(devStreakOverride) : data.profile.petStage;
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
 
   // Life-sim: đổi "hành động nền" theo giờ/mùa mỗi ~11s để thỏ trông có cuộc sống

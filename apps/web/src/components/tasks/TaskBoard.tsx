@@ -35,13 +35,21 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, onRefresh }) => {
     if (!task || task.status === newStatus) return;
 
     playPop();
-    await updateTaskStatusAction(taskId, newStatus);
+    const result = await updateTaskStatusAction(taskId, newStatus);
+    if (result?.error) {
+      console.error("Failed to update task status:", result.error);
+      alert(`Không thể thay đổi trạng thái công việc: ${result.error}`);
+    }
     onRefresh();
   };
 
   const moveTask = async (taskId: string, newStatus: "todo" | "in_progress" | "done") => {
     playPop();
-    await updateTaskStatusAction(taskId, newStatus);
+    const result = await updateTaskStatusAction(taskId, newStatus);
+    if (result?.error) {
+      console.error("Failed to move task status:", result.error);
+      alert(`Không thể di chuyển công việc: ${result.error}`);
+    }
     onRefresh();
   };
 

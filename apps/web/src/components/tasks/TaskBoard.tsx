@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, TouchSensor, useDroppable, useDraggable } from "@dnd-kit/core";
-import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowRight, ArrowLeft, Edit2, X } from "lucide-react";
+import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, X } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { updateTaskStatusAction, updateTaskDetailsAction, createTaskAction, deleteTaskAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";

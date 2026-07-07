@@ -23,7 +23,13 @@ const Toast: React.FC<{ toast: ToastData; onDismiss: (id: number) => void }> = (
   return (
     <div className="animate-in slide-in-from-bottom-2 fade-in duration-300 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-lg">
       <span className="flex-1">{toast.message}</span>
-      <button type="button" onClick={() => onDismiss(toast.id)} className="p-0.5 hover:bg-red-100 rounded-full transition-colors">
+      <button
+        type="button"
+        onClick={() => onDismiss(toast.id)}
+        className="p-0.5 hover:bg-red-100 rounded-full transition-colors"
+        title="Đóng"
+        aria-label="Đóng"
+      >
         <X size={12} />
       </button>
     </div>

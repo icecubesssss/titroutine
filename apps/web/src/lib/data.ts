@@ -110,6 +110,34 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .order("created_at", { ascending: true })
   ]);
 
+  // Check if user has zero consumables and needs a starter kit
+  let consumables = (inventoryData?.consumables as Record<string, number>) || {};
+  const totalConsumables = Object.keys(consumables).reduce((acc, key) => acc + (consumables[key] || 0), 0);
+  if (totalConsumables === 0) {
+    const starterKit = {
+      carrot: 3,
+      cake: 0,
+      feast: 0,
+      toy_ball: 2,
+      toy_bear: 0,
+    };
+    consumables = starterKit;
+    
+    // Background update to database
+    if (inventoryData) {
+      supabase
+        .from("inventory")
+        .update({ consumables: starterKit })
+        .eq("user_id", user.id)
+        .then(() => {});
+    } else {
+      supabase
+        .from("inventory")
+        .insert({ user_id: user.id, consumables: starterKit, equipped_items: {}, unlocked_items: [] })
+        .then(() => {});
+    }
+  }
+
   // Map mood logs by date
   const moodLogs: Record<string, { mood: string; activities: string[]; note: string | null }> = {};
   for (const row of (beanRows ?? []) as { logged_date: string; mood: string; activities: string[] | null; note: string | null }[]) {
@@ -207,13 +235,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
       unlockedItems: (inventoryData?.unlocked_items as string[]) || [],
-      consumables: (inventoryData?.consumables as Record<string, number>) || {
-        carrot: 0,
-        cake: 0,
-        feast: 0,
-        toy_ball: 0,
-        toy_bear: 0,
-      },
+      consumables,
     },
     unlockedMemories,
     habits,

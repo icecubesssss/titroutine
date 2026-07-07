@@ -168,6 +168,25 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   const [pendingVibesOpen, setPendingVibesOpen] = useState(true);
   const [showStoryDialog, setShowStoryDialog] = useState(false);
+  const [adventureTimeLeft, setAdventureTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    if (data.profile.adventureStatus !== "adventuring" || !data.profile.adventureStartAt) {
+      setAdventureTimeLeft(0);
+      return;
+    }
+
+    const calculate = () => {
+      const startMs = new Date(data.profile.adventureStartAt!).getTime();
+      const elapsed = (Date.now() - startMs) / 1000;
+      const totalDuration = 30; // 30 seconds
+      setAdventureTimeLeft(Math.max(0, Math.ceil(totalDuration - elapsed)));
+    };
+
+    calculate();
+    const interval = setInterval(calculate, 1000);
+    return () => clearInterval(interval);
+  }, [data.profile.adventureStatus, data.profile.adventureStartAt]);
 
   // States for Interactive Decor Mode & Furniture Toggles
   const [isDecorMode, setIsDecorMode] = useState(false);
@@ -798,24 +817,26 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Right Side Buttons */}
         <div className="absolute right-4 top-24 z-20 flex flex-col gap-3 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => {
-              playSwoosh();
-              setActiveOverlay("adventure_story");
-            }}
-            className="pointer-events-auto flex flex-col items-center group"
-          >
-            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
-              <Image src="/assets/ui/icon_adventure.png" alt="" fill className="p-1.5 object-contain" />
-              {data.profile.adventureEnergy >= 30 && (
-                <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
-              )}
-            </div>
-            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
-              {t("adventure")}
-            </span>
-          </button>
+          {currentStage >= 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("adventure_story");
+              }}
+              className="pointer-events-auto flex flex-col items-center group"
+            >
+              <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
+                <Image src="/assets/ui/icon_adventure.png" alt="" fill className="p-1.5 object-contain" />
+                {data.profile.adventureEnergy >= 30 && (
+                  <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
+                )}
+              </div>
+              <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+                {t("adventure")}
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -900,6 +921,37 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Pet Container with dynamic offset for bed/sofa sleeping or sitting */}
         {(() => {
+          if (data.profile.adventureStatus === "adventuring" && !isDecorMode) {
+            return (
+              <div className="flex flex-col items-center justify-center p-5 bg-white/75 border border-orange-200/50 rounded-3xl backdrop-blur-md shadow-sm max-w-[280px] mx-auto text-center space-y-3 pointer-events-auto">
+                <span className="text-4xl animate-bounce-slow">🌲🎒🏕️</span>
+                <div>
+                  <h4 className="text-xs font-black text-orange-850">Thỏ đang thám hiểm dã ngoại</h4>
+                  <p className="text-[10px] text-stone-500 mt-1 leading-snug">
+                    Bé đang đi dạo ngắm cảnh tại Vườn Thông Cozy để mang kỷ niệm về cho bạn.
+                  </p>
+                </div>
+                {adventureTimeLeft > 0 ? (
+                  <span className="text-[10px] font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                    ⏱️ Trở về sau: {adventureTimeLeft} giây
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSwoosh();
+                      setShowStoryDialog(true);
+                      setActiveOverlay("adventure_story");
+                    }}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-[10px] uppercase tracking-wide px-4 py-2 rounded-full hover:shadow-md active:scale-95 transition-all animate-pulse"
+                  >
+                    🎉 Đón thỏ cưng về nhà!
+                  </button>
+                )}
+              </div>
+            );
+          }
+
           let containerClass = "relative mt-2 drop-shadow-lg z-10 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
           if (!isDecorMode) {
             if (equippedObjectId === "object_bed_cozy" && currentAction === "sleep") {
@@ -918,9 +970,9 @@ export function HomeView({ data }: { data: DashboardData }) {
               }}
             >
               {/* Encouragement chat — only once the egg has hatched into a companion. */}
-              {currentStage >= 1 && (
+              {currentStage >= 0 && (
                 <div
-                  className="absolute bottom-[105%] left-1/2 -translate-x-1/2 z-30 mb-2 whitespace-nowrap pointer-events-auto"
+                  className="absolute bottom-[105%] left-1/2 -translate-x-1/2 z-30 mb-2 pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <PetSpeechBubble remaining={totalCount - completedCount} total={totalCount} customText={petDialogue} />

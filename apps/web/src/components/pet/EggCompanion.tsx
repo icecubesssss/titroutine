@@ -36,8 +36,8 @@ export const EggCompanion: React.FC<{
   const row = Math.floor(frame / 3);
 
   // A freshly-completed habit makes the egg react ("happy"/"welcome"); it shakes
-  // harder and faster. Otherwise the wiggle amplitude just grows with the cracks.
-  const reacting = action === "happy" || action === "welcome";
+  // harder and faster. Also wiggles on care actions (eat, brush_hair, sleep, young_play, proud_smile).
+  const reacting = ["happy", "welcome", "eat", "proud_smile", "young_play", "brush_hair", "sleep"].includes(action);
   const wig = reacting ? frame + 3 : frame; // unitless multiplier; 0 = perfectly still
 
   // Styles live in a scoped <style> block (not inline `style` attrs) so the dynamic
@@ -46,13 +46,18 @@ export const EggCompanion: React.FC<{
   const wrap = `egg-${uid}`;
 
   return (
-    <div className={clsx("inline-block", className)}>
+    <div className={clsx("inline-block relative", className)}>
       <style>{`
         @keyframes ${wrap}-wiggle {
           0%, 100% { transform: rotate(calc(-1deg * ${wig})); }
           25%      { transform: rotate(calc(1deg * ${wig})); }
           50%      { transform: rotate(calc(-0.6deg * ${wig})); }
           75%      { transform: rotate(calc(0.6deg * ${wig})); }
+        }
+        @keyframes ${wrap}-float {
+          0% { transform: translateY(0px) scale(0.8); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-45px) scale(1.1); opacity: 0; }
         }
         .${wrap}-outer {
           width: 150px;
@@ -71,7 +76,38 @@ export const EggCompanion: React.FC<{
           image-rendering: -moz-crisp-edges;
           image-rendering: crisp-edges;
         }
+        .${wrap}-bubble {
+          position: absolute;
+          font-size: 16px;
+          animation: ${wrap}-float 1.5s ease-in-out infinite;
+          pointer-events: none;
+          z-index: 20;
+        }
+        .${wrap}-d0   { animation-delay: 0s; }
+        .${wrap}-d04  { animation-delay: 0.4s; }
+        .${wrap}-d05  { animation-delay: 0.5s; }
+        .${wrap}-d08  { animation-delay: 0.8s; }
+        .${wrap}-d1   { animation-delay: 1s; }
       `}</style>
+
+      {/* Floating particles for Clean (brush_hair) */}
+      {action === "brush_hair" && (
+        <>
+          <span className={`${wrap}-bubble ${wrap}-d0 left-4 top-10`}>🧼</span>
+          <span className={`${wrap}-bubble ${wrap}-d04 right-4 top-16`}>🫧</span>
+          <span className={`${wrap}-bubble ${wrap}-d08 left-12 top-20`}>💦</span>
+        </>
+      )}
+
+      {/* Floating particles for Sleep */}
+      {action === "sleep" && (
+        <>
+          <span className={`${wrap}-bubble ${wrap}-d0 right-6 top-8 font-black text-blue-500`}>Z</span>
+          <span className={`${wrap}-bubble ${wrap}-d05 right-2 top-14 font-black text-blue-400 text-sm`}>z</span>
+          <span className={`${wrap}-bubble ${wrap}-d1 right-10 top-20 font-black text-blue-300 text-xs`}>z</span>
+        </>
+      )}
+
       <div className={`${wrap}-outer`}>
         <div className={`${wrap}-sprite`} />
       </div>

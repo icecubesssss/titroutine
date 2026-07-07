@@ -16,8 +16,15 @@ interface TaskDrawerProps {
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved, task }) => {
   const isEdit = Boolean(task);
 
+  interface Subtask {
+    id: string;
+    text: string;
+    completed: boolean;
+  }
+
   const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSubtaskText, setNewSubtaskText] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [assigneeType, setAssigneeType] = useState<"self" | "pet">("self");
   const [focusDuration, setFocusDuration] = useState(25);
@@ -29,24 +36,54 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
   useEffect(() => {
     if (task) {
       setTitle(task.title);
-      setNotes(task.notes || "");
       setPriority(task.priority);
       setAssigneeType(task.assigneeType);
       setFocusDuration(task.focusDuration);
       setDeadline(task.deadline ? task.deadline.split("T")[0] : "");
+      
+      if (task.notes) {
+        try {
+          const parsed = JSON.parse(task.notes);
+          if (Array.isArray(parsed)) {
+            setSubtasks(parsed);
+          } else {
+            setSubtasks([{ id: "legacy", text: task.notes, completed: false }]);
+          }
+        } catch {
+          setSubtasks([{ id: "legacy", text: task.notes, completed: false }]);
+        }
+      } else {
+        setSubtasks([]);
+      }
     } else {
       setTitle("");
-      setNotes("");
+      setSubtasks([]);
       setPriority("medium");
       setAssigneeType("self");
       setFocusDuration(25);
       setDeadline("");
     }
+    setNewSubtaskText("");
     setError(null);
     setConfirmDelete(false);
   }, [task, isOpen]);
 
   if (!isOpen) return null;
+
+  const handleAddSubtask = () => {
+    if (!newSubtaskText.trim()) return;
+    const newSub: Subtask = {
+      id: Math.random().toString(36).substring(2, 9),
+      text: newSubtaskText.trim(),
+      completed: false,
+    };
+    setSubtasks((prev) => [...prev, newSub]);
+    setNewSubtaskText("");
+  };
+
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks((prev) => prev.filter((sub) => sub.id !== id));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,11 +92,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
 
     startTransition(async () => {
       const deadlineISO = deadline ? new Date(`${deadline}T12:00:00`).toISOString() : null;
+      const notesJson = subtasks.length > 0 ? JSON.stringify(subtasks) : (isEdit ? "[]" : undefined);
 
       const result = isEdit
         ? await updateTaskDetailsAction(task!.id, {
             title,
-            notes,
+            notes: notesJson,
             priority,
             assigneeType,
             focusDuration,
@@ -67,7 +105,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
           })
         : await createTaskAction({
             title,
-            notes,
+            notes: notesJson,
             priority,
             assigneeType,
             focusDuration,
@@ -142,18 +180,60 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
             />
           </div>
 
-          {/* Notes */}
-          <div className="space-y-1">
+          {/* Subtasks */}
+          <div className="space-y-2">
             <label className="text-xs font-black text-[#8b7355] uppercase tracking-wider">
-              Ghi chú thêm
+              Nhiệm vụ con (Subtasks)
             </label>
-            <textarea
-              placeholder="Mô tả các bước thực hiện hoặc tài liệu tham khảo..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full bg-white border-2 border-[#ebdcc5] px-4 py-3 rounded-2xl text-sm font-bold text-[#5c4033] placeholder-stone-400 focus:outline-none focus:border-theme-accent transition-colors resize-none"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Nhập nhiệm vụ con..."
+                value={newSubtaskText}
+                onChange={(e) => setNewSubtaskText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddSubtask();
+                  }
+                }}
+                className="flex-1 bg-white border-2 border-[#ebdcc5] px-4 py-2.5 rounded-2xl text-sm font-bold text-[#5c4033] placeholder-stone-400 focus:outline-none focus:border-theme-accent transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleAddSubtask}
+                className="bg-[#5c4033] hover:brightness-110 text-white font-black text-xs px-4 py-2.5 rounded-2xl shadow-sm transition-all"
+              >
+                Thêm
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+              {subtasks.length === 0 ? (
+                <p className="text-[11px] text-stone-400 font-semibold italic text-center py-3 bg-stone-50 rounded-2xl border border-dashed border-stone-200">
+                  Chưa có nhiệm vụ con nào.
+                </p>
+              ) : (
+                subtasks.map((sub, index) => (
+                  <div key={sub.id} className="flex items-center gap-2 bg-white border border-[#ebdcc5]/60 p-2 rounded-2xl">
+                    <span className="text-[10px] text-stone-400 font-black w-4 text-center">
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 text-xs font-bold text-[#5c4033] line-clamp-1">
+                      {sub.text}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(sub.id)}
+                      className="p-1 hover:bg-red-50 rounded-lg text-stone-400 hover:text-red-500 transition-colors"
+                      title="Xóa nhiệm vụ con"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Assignee & Priority */}
@@ -271,4 +351,4 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
       </div>
     </div>
   );
-};
+}

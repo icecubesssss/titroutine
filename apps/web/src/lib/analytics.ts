@@ -11,6 +11,9 @@ export interface AnalyticsData {
   heatmapData: Record<string, number>; // "YYYY-MM-DD" -> count
   startDate: string;
   endDate: string;
+  totalTasksCompleted: number;
+  totalFocusMinutes: number;
+  pendingTasksCount: number;
 }
 
 export async function getAnalyticsData(): Promise<AnalyticsData | null> {
@@ -59,6 +62,23 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
     .eq("user_id", user.id)
     .eq("is_completed", true);
 
+  // Fetch completed tasks to calculate counts and focus minutes
+  const { data: completedTasks } = await supabase
+    .from("tasks")
+    .select("focus_duration")
+    .eq("user_id", user.id)
+    .eq("status", "done");
+
+  const totalTasksCompleted = completedTasks?.length ?? 0;
+  const totalFocusMinutes = completedTasks?.reduce((acc, t) => acc + (t.focus_duration ?? 0), 0) ?? 0;
+
+  // Count pending tasks (todo & in_progress)
+  const { count: pendingTasksCount } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .in("status", ["todo", "in_progress"]);
+
   return {
     totalCompletedAllTime: totalCompletedAllTime ?? 0,
     totalExp: profile?.pet_exp ?? 0,
@@ -67,5 +87,8 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
     heatmapData,
     startDate,
     endDate: today,
+    totalTasksCompleted,
+    totalFocusMinutes,
+    pendingTasksCount: pendingTasksCount ?? 0,
   };
 }

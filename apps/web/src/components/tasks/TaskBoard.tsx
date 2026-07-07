@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, TouchSensor, useDroppable, useDraggable } from "@dnd-kit/core";
 import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowRight, ArrowLeft, Edit2, Loader2, X } from "lucide-react";
 import type { Task } from "@/lib/types";
-import { updateTaskStatusAction } from "@/app/[locale]/actions";
+import { updateTaskStatusAction, updateTaskDetailsAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";
 import { TaskDrawer } from "./TaskDrawer";
 
@@ -23,9 +23,9 @@ const Toast: React.FC<{ toast: ToastData; onDismiss: (id: number) => void }> = (
   return (
     <div className="animate-in slide-in-from-bottom-2 fade-in duration-300 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-lg">
       <span className="flex-1">{toast.message}</span>
-      <button
-        type="button"
-        onClick={() => onDismiss(toast.id)}
+      <button 
+        type="button" 
+        onClick={() => onDismiss(toast.id)} 
         className="p-0.5 hover:bg-red-100 rounded-full transition-colors"
         title="Đóng"
         aria-label="Đóng"
@@ -76,7 +76,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
 
     // 1. Optimistic: move instantly
     setOptimisticTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t))
     );
     setLoadingIds((prev) => new Set(prev).add(taskId));
 
@@ -93,13 +93,26 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
     if (result?.error) {
       // Rollback
       setOptimisticTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: original.status } : t))
+        prev.map((t) => (t.id === taskId ? { ...t, status: original.status, updatedAt: original.updatedAt } : t))
       );
       addToast(`Lỗi: ${result.error}`);
     }
 
     onRefresh();
   }, [optimisticTasks, playPop, addToast, onRefresh]);
+
+  // Update subtask check state optimistically
+  const updateTaskNotes = useCallback(async (taskId: string, notesJson: string) => {
+    setOptimisticTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, notes: notesJson } : t))
+    );
+
+    const result = await updateTaskDetailsAction(taskId, { notes: notesJson });
+    if (result?.error) {
+      addToast(`Không thể cập nhật nhiệm vụ con: ${result.error}`);
+      onRefresh();
+    }
+  }, [addToast, onRefresh]);
 
   // Setup sensors for dnd-kit
   const sensors = useSensors(
@@ -160,6 +173,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
                   setIsDrawerOpen(true);
                 }}
                 onMove={moveTask}
+                onUpdateNotes={updateTaskNotes}
               />
             );
           })}
@@ -197,9 +211,10 @@ interface ColumnProps {
   loadingIds: Set<string>;
   onEdit: (task: Task) => void;
   onMove: (taskId: string, newStatus: "todo" | "in_progress" | "done") => void;
+  onUpdateNotes: (taskId: string, notesJson: string) => Promise<void>;
 }
 
-const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, tasks, loadingIds, onEdit, onMove }) => {
+const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, tasks, loadingIds, onEdit, onMove, onUpdateNotes }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -227,7 +242,14 @@ const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, task
           </div>
         ) : (
           tasks.map((task) => (
-            <Card key={task.id} task={task} isLoading={loadingIds.has(task.id)} onEdit={onEdit} onMove={onMove} />
+            <Card 
+              key={task.id} 
+              task={task} 
+              isLoading={loadingIds.has(task.id)} 
+              onEdit={onEdit} 
+              onMove={onMove} 
+              onUpdateNotes={onUpdateNotes} 
+            />
           ))
         )}
       </div>
@@ -241,9 +263,16 @@ interface CardProps {
   isLoading: boolean;
   onEdit: (task: Task) => void;
   onMove: (taskId: string, newStatus: "todo" | "in_progress" | "done") => void;
+  onUpdateNotes: (taskId: string, notesJson: string) => Promise<void>;
 }
 
-const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove }) => {
+interface Subtask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNotes }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: isLoading,
@@ -264,11 +293,84 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove }) => {
 
   const isInProgress = task.status === "in_progress";
 
+  // Parse subtasks
+  let subtasks: Subtask[] = [];
+  if (task.notes) {
+    try {
+      const parsed = JSON.parse(task.notes);
+      if (Array.isArray(parsed)) {
+        subtasks = parsed;
+      } else {
+        subtasks = [{ id: "legacy", text: task.notes, completed: false }];
+      }
+    } catch {
+      subtasks = [{ id: "legacy", text: task.notes, completed: false }];
+    }
+  }
+
+  // Countdown timer calculations
+  const getRemainingSeconds = useCallback(() => {
+    const durationSeconds = task.focusDuration * 60;
+    const elapsedSeconds = Math.floor((Date.now() - Date.parse(task.updatedAt)) / 1000);
+    return Math.max(0, durationSeconds - elapsedSeconds);
+  }, [task.focusDuration, task.updatedAt]);
+
+  const [timeLeft, setTimeLeft] = useState(getRemainingSeconds);
+
+  useEffect(() => {
+    setTimeLeft(getRemainingSeconds());
+  }, [task.updatedAt, getRemainingSeconds]);
+
+  useEffect(() => {
+    if (task.status !== "in_progress" || timeLeft <= 0) return;
+
+    const interval = setInterval(() => {
+      const remaining = getRemainingSeconds();
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [task.status, getRemainingSeconds, timeLeft]);
+
+  // Toggle subtask complete status
+  const handleToggleSubtask = async (subId: string) => {
+    if (isLoading) return;
+    const updated = subtasks.map((sub) =>
+      sub.id === subId ? { ...sub, completed: !sub.completed } : sub
+    );
+    await onUpdateNotes(task.id, JSON.stringify(updated));
+  };
+
+  const completedSubtasks = subtasks.filter((s) => s.completed).length;
+  const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
+
+  // Render Time Left string
+  const renderTimeLeft = () => {
+    if (timeLeft <= 0) {
+      return (
+        <span className="flex items-center gap-1 text-red-650 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-black animate-bounce text-[9px]">
+          ⏰ Hết giờ!
+        </span>
+      );
+    }
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return (
+      <span className="flex items-center gap-1 text-orange-650 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md font-black animate-pulse text-[9px]">
+        ⏱️ {timeStr}
+      </span>
+    );
+  };
+
   return (
     <div
       ref={setNodeRef}
       {...{ style }}
-      className={`bg-white p-4 rounded-[22px] border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing select-none relative ${
+      className={`bg-white p-4 rounded-[22px] border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing select-none relative overflow-hidden ${
         isDragging ? "opacity-40 scale-95" : ""
       } ${isLoading ? "opacity-60 pointer-events-none" : ""} ${
         isInProgress ? "border-l-[3px] border-l-orange-400 border-t border-r border-b border-stone-200/60" : "border-stone-200/60"
@@ -286,7 +388,7 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove }) => {
 
       <div className="relative pointer-events-auto">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${priorityStyles[task.priority]}`}>
               {task.priority === "high" ? "Gấp" : task.priority === "medium" ? "Thường" : "Thấp"}
             </span>
@@ -312,20 +414,55 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove }) => {
           </button>
         </div>
 
-        <h4 className="text-xs font-black text-[#5c4033] mt-2 leading-snug line-clamp-2">
+        <h4 className="text-xs font-black text-[#5c4033] mt-2 leading-snug break-words">
           {task.title}
         </h4>
 
-        {task.notes && (
-          <p className="text-[10px] font-semibold text-stone-400 mt-1 line-clamp-2 leading-relaxed">
-            {task.notes}
-          </p>
+        {/* Subtask interactive progress & check boxes */}
+        {subtasks.length > 0 && (
+          <div className="mt-2.5 space-y-1.5 border-t border-stone-100 pt-2 text-[10px]">
+            <div className="flex items-center justify-between text-[9px] font-black text-stone-400 uppercase tracking-wide">
+              <span>Nhiệm vụ con</span>
+              <span>{completedSubtasks}/{subtasks.length}</span>
+            </div>
+            <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#8b7355] rounded-full transition-all duration-300" 
+                style={{ width: `${progressPercent}%` }} 
+              />
+            </div>
+            <div className="space-y-1 mt-1.5 max-h-[120px] overflow-y-auto pr-0.5">
+              {subtasks.map((sub) => (
+                <label 
+                  key={sub.id} 
+                  className="flex items-start gap-2 cursor-pointer hover:bg-stone-50/50 p-1 rounded-md transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={sub.completed}
+                    disabled={isLoading}
+                    onChange={() => handleToggleSubtask(sub.id)}
+                    className="w-3.5 h-3.5 mt-0.5 rounded border-[#ebdcc5] text-[#5c4033] focus:ring-0 focus:ring-offset-0 focus:outline-none cursor-pointer"
+                  />
+                  <span className={`flex-1 text-[10px] font-bold text-[#5c4033] break-words leading-tight ${
+                    sub.completed ? "line-through text-stone-400" : ""
+                  }`}>
+                    {sub.text}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-stone-100 text-[9px] font-bold text-stone-400">
-          <span className="flex items-center gap-0.5">
-            <Clock size={10} /> {task.focusDuration} phút
-          </span>
+        <div className="flex items-center justify-between gap-3 mt-3 pt-2.5 border-t border-stone-100 text-[9px] font-bold text-stone-400">
+          {isInProgress ? (
+            renderTimeLeft()
+          ) : (
+            <span className="flex items-center gap-0.5">
+              <Clock size={10} /> {task.focusDuration} phút
+            </span>
+          )}
           {task.deadline && (
             <span className="flex items-center gap-0.5">
               <Calendar size={10} /> {task.deadline.split("T")[0]}
@@ -333,35 +470,48 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove }) => {
           )}
         </div>
 
-        {/* Action buttons — larger, more visible */}
-        <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-dashed border-stone-100">
+        {/* Action buttons layout — side-by-side fitting narrow columns */}
+        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-dashed border-stone-100">
           {task.status !== "todo" && (
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => onMove(task.id, task.status === "done" ? "in_progress" : "todo")}
-              className="px-2.5 py-1.5 hover:bg-stone-100 rounded-xl transition-all text-stone-400 hover:text-stone-600 flex items-center gap-1 text-[10px] font-bold active:scale-95"
-              title="Di chuyển sang trái"
-            >
-              <ArrowLeft size={12} />
-              <span className="hidden sm:inline">Quay lại</span>
-            </button>
+            task.status === "done" ? (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => onMove(task.id, "in_progress")}
+                className="flex-1 py-1.5 hover:bg-stone-100 rounded-xl transition-all text-stone-500 hover:text-stone-700 flex items-center justify-center gap-1.5 text-[10px] font-bold active:scale-95 border border-stone-200"
+                title="Lùi về trạng thái Đang làm"
+                aria-label="Lùi về trạng thái Đang làm"
+              >
+                <ArrowLeft size={12} />
+                <span>Quay lại</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => onMove(task.id, "todo")}
+                className="p-1.5 hover:bg-stone-100 rounded-xl transition-all text-stone-400 hover:text-stone-600 flex items-center justify-center active:scale-95 border border-stone-200 shrink-0"
+                title="Lùi về trạng thái Cần làm"
+                aria-label="Lùi về trạng thái Cần làm"
+              >
+                <ArrowLeft size={14} />
+              </button>
+            )
           )}
           {task.status !== "done" && (
             <button
               type="button"
               disabled={isLoading}
               onClick={() => onMove(task.id, task.status === "todo" ? "in_progress" : "done")}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide active:scale-95 ${
+              className={`flex-grow py-1.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wide active:scale-95 ${
                 task.status === "todo"
                   ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200"
-                  : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
+                  : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 animate-bounce"
               }`}
               title={task.status === "todo" ? "Bắt đầu làm" : "Đánh dấu hoàn thành"}
             >
               {task.status === "todo" ? <Play size={12} /> : <CheckCircle2 size={12} />}
               <span>{task.status === "todo" ? "Bắt đầu" : "Xong"}</span>
-              <ArrowRight size={10} />
             </button>
           )}
         </div>

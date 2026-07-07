@@ -53,6 +53,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [assigneeType, setAssigneeType] = useState<"self" | "pet">("self");
   const [focusDuration, setFocusDuration] = useState(25);
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [deadline, setDeadline] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -61,7 +62,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       setTitle(task.title);
       setPriority(task.priority);
       setAssigneeType(task.assigneeType);
+      
+      const durationPresets = [15, 25, 45, 60, 90];
+      const isPreset = durationPresets.includes(task.focusDuration);
       setFocusDuration(task.focusDuration);
+      setIsCustomDuration(!isPreset);
+      
       setDeadline(task.deadline ? task.deadline.split("T")[0] : "");
       
       if (task.notes) {
@@ -84,6 +90,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       setPriority("medium");
       setAssigneeType("self");
       setFocusDuration(25);
+      setIsCustomDuration(false);
       setDeadline("");
     }
     setNewSubtaskText("");
@@ -282,8 +289,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               <select
                 id="focus-select"
                 title="Thời gian tập trung dự kiến"
-                value={focusDuration}
-                onChange={(e) => setFocusDuration(Number(e.target.value))}
+                value={isCustomDuration ? "custom" : focusDuration}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "custom") {
+                    setIsCustomDuration(true);
+                  } else {
+                    setIsCustomDuration(false);
+                    setFocusDuration(Number(val));
+                  }
+                }}
                 className="w-full bg-white border-2 border-[#ebdcc5] px-3 py-2.5 rounded-2xl text-sm font-bold text-[#5c4033] focus:outline-none focus:border-theme-accent"
               >
                 <option value={15}>15 phút</option>
@@ -291,7 +306,22 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                 <option value={45}>45 phút</option>
                 <option value={60}>60 phút</option>
                 <option value={90}>90 phút</option>
+                <option value="custom">Tự nhập phút...</option>
               </select>
+              {isCustomDuration && (
+                <div className="mt-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={focusDuration}
+                    onChange={(e) => setFocusDuration(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-white border-2 border-[#ebdcc5] px-3 py-2 rounded-2xl text-sm font-bold text-[#5c4033] focus:outline-none focus:border-theme-accent"
+                    placeholder="Số phút..."
+                  />
+                  <span className="text-xs font-black text-[#5c4033] shrink-0">phút</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">

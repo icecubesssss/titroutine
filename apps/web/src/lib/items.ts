@@ -92,4 +92,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "rug_star", price: 180, slot: "rug", imageUrl: "/assets/items/rug_star.png" },
   { id: "object_cozy_sofa", price: 170, slot: "object", imageUrl: "/assets/items/object_cozy_sofa.png" },
   { id: "object_scented_candle", price: 90, slot: "object", imageUrl: "/assets/items/object_scented_candle.png" },
+  // 4 new custom cute items
+  { id: "wallpaper_sakura", price: 320, slot: "wallpaper", imageUrl: "/assets/items/wallpaper_sakura.png" },
+  { id: "rug_sunflower", price: 190, slot: "rug", imageUrl: "/assets/items/rug_sunflower.png" },
+  { id: "object_vintage_radio", price: 160, slot: "object", imageUrl: "/assets/items/object_vintage_radio.png" },
+  { id: "object_gaming_chair", price: 280, slot: "object", imageUrl: "/assets/items/object_gaming_chair.png" },
 ];

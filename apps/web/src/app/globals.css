@@ -204,3 +204,50 @@ body {
   0% { background-position: 0px 0px; }
   100% { background-position: 20px 280px; }
 }
+
+/* Floating music notes for the Vintage Radio */
+.music-note-float {
+  position: absolute;
+  font-size: 14px;
+  color: #d97706; /* amber-600 */
+  opacity: 0;
+  pointer-events: none;
+  animation: music-note-rise 3s infinite ease-in-out;
+}
+.music-note-float:nth-child(1) {
+  left: 30%;
+  animation-delay: 0s;
+  animation-duration: 2.8s;
+}
+.music-note-float:nth-child(2) {
+  left: 60%;
+  animation-delay: 0.8s;
+  animation-duration: 3.2s;
+}
+.music-note-float:nth-child(3) {
+  left: 45%;
+  animation-delay: 1.6s;
+  animation-duration: 3s;
+}
+
+@keyframes music-note-rise {
+  0% {
+    transform: translateY(0) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-45px) translateX(10px) scale(1) rotate(15deg);
+    opacity: 0.8;
+  }
+  80% {
+    transform: translateY(-80px) translateX(-5px) scale(0.9) rotate(-15deg);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-100px) translateX(2px) scale(0.7) rotate(0deg);
+    opacity: 0;
+  }
+}

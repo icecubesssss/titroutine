@@ -474,14 +474,14 @@ export async function buyItemAction(itemId: string, price: number): Promise<Acti
 
   if (updateProfileError) return { error: updateProfileError.message };
 
-  // Cập nhật inventory (upsert)
+  // Cập nhật inventory (update)
   const { error: updateInvError } = await supabase
     .from("inventory")
-    .upsert({
-      user_id: userId,
+    .update({
       unlocked_items: Array.from(unlocked),
       updated_at: new Date().toISOString(),
-    });
+    })
+    .eq("user_id", userId);
 
   if (updateInvError) return { error: updateInvError.message };
 
@@ -519,11 +519,11 @@ export async function equipItemAction(slot: string, itemId: string | null): Prom
 
   const { error: updateInvError } = await supabase
     .from("inventory")
-    .upsert({
-      user_id: userId,
+    .update({
       equipped_items: equipped,
       updated_at: new Date().toISOString(),
-    });
+    })
+    .eq("user_id", userId);
 
   if (updateInvError) return { error: updateInvError.message };
 

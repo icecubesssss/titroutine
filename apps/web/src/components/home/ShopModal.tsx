@@ -5,8 +5,9 @@ import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import confetti from "canvas-confetti";
 import { SHOP_ITEMS } from "@/lib/items";
-import { buyItemAction, equipItemAction, buyConsumableAction, buyFocusItemAction } from "@/app/[locale]/actions";
+import { buyItemAction, buyConsumableAction, buyFocusItemAction } from "@/app/[locale]/actions";
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -16,8 +17,15 @@ interface ShopModalProps {
   unlockedItems: string[];
   equippedItems: Record<string, string>;
   consumables?: Record<string, number>; // new prop containing count
-  onSpend?: (amount: number) => void;
   onEquipped?: (slot: string, itemId: string | null) => void;
+  // new optimistic callbacks
+  onBuyItemOptimistic?: (itemId: string, price: number) => void;
+  onBuyItemRollback?: (itemId: string, price: number) => void;
+  onBuyConsumableOptimistic?: (itemId: string, price: number) => void;
+  onBuyConsumableRollback?: (itemId: string, price: number) => void;
+  onBuyFocusItemOptimistic?: (itemId: string, price: number, affectionGain: number) => void;
+  onBuyFocusItemRollback?: (itemId: string, price: number, affectionGain: number) => void;
+  onEquipItem?: (slot: string, itemId: string | null) => Promise<string | null>;
 }
 
 const FOCUS_ITEMS_CATALOGUE = [
@@ -42,14 +50,18 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   unlockedItems,
   equippedItems,
   consumables = { carrot: 0, cake: 0, feast: 0, toy_ball: 0, toy_bear: 0 },
-  onSpend,
   onEquipped,
+  onBuyItemOptimistic,
+  onBuyItemRollback,
+  onBuyConsumableOptimistic,
+  onBuyConsumableRollback,
+  onBuyFocusItemOptimistic,
+  onBuyFocusItemRollback,
+  onEquipItem,
 }) => {
   const t = useTranslations("Shop");
   const [activeTab, setActiveTab] = useState<"shop" | "focus_shop" | "inventory">("shop");
   const [, startTransition] = useTransition();
-  const [justBought, setJustBought] = useState<Set<string>>(() => new Set());
-  const [localEquipped, setLocalEquipped] = useState<Record<string, string | null>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -89,8 +101,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
   if (!isOpen) return null;
 
-  const equippedFor = (slot: string): string | null =>
-    slot in localEquipped ? localEquipped[slot] : equippedItems[slot] ?? null;
+  const equippedFor = (slot: string): string | null => equippedItems[slot] ?? null;
 
   // Xử lý mua đồ nội thất vĩnh viễn
   const handleBuy = (itemId: string, price: number) => {
@@ -101,21 +112,27 @@ export const ShopModal: React.FC<ShopModalProps> = ({
       return;
     }
     setPendingId(itemId);
-    setJustBought((prev) => new Set(prev).add(itemId));
-    onSpend?.(price);
+    onBuyItemOptimistic?.(itemId, price);
     startTransition(async () => {
-      const res = await buyItemAction(itemId, price);
-      if (res?.error) {
-        setJustBought((prev) => {
-          const next = new Set(prev);
-          next.delete(itemId);
-          return next;
-        });
-        onSpend?.(-price);
-        setError(res.error === "not_enough_coins" ? t("notEnough") : t("buyFailed"));
+      try {
+        const res = await buyItemAction(itemId, price);
+        if (res?.error) {
+          onBuyItemRollback?.(itemId, price);
+          setError(res.error === "not_enough_coins" ? t("notEnough") : t("buyFailed"));
+        } else {
+          confetti({
+            particleCount: 80,
+            spread: 60,
+            origin: { y: 0.8 },
+          });
+        }
+      } catch {
+        onBuyItemRollback?.(itemId, price);
+        setError(t("buyFailed"));
+      } finally {
+        setPendingId(null);
+        router.refresh();
       }
-      setPendingId(null);
-      router.refresh();
     });
   };
 
@@ -128,15 +145,27 @@ export const ShopModal: React.FC<ShopModalProps> = ({
       return;
     }
     setPendingId(itemId);
-    onSpend?.(price);
+    onBuyConsumableOptimistic?.(itemId, price);
     startTransition(async () => {
-      const res = await buyConsumableAction(itemId, price);
-      if (res?.error) {
-        onSpend?.(-price);
+      try {
+        const res = await buyConsumableAction(itemId, price);
+        if (res?.error) {
+          onBuyConsumableRollback?.(itemId, price);
+          setError(res.error === "not_enough_coins" ? t("notEnough") : t("buyFailed"));
+        } else {
+          confetti({
+            particleCount: 50,
+            spread: 40,
+            origin: { y: 0.8 },
+          });
+        }
+      } catch {
+        onBuyConsumableRollback?.(itemId, price);
         setError(t("buyFailed"));
+      } finally {
+        setPendingId(null);
+        router.refresh();
       }
-      setPendingId(null);
-      router.refresh();
     });
   };
 
@@ -148,35 +177,58 @@ export const ShopModal: React.FC<ShopModalProps> = ({
       return;
     }
     setPendingId(itemId);
+    let affectionGain = 0;
+    if (itemId === "matcha_tea") affectionGain = 15;
+    else if (itemId === "magic_book") affectionGain = 40;
+    else if (itemId === "focus_cushion") affectionGain = 25;
+
+    onBuyFocusItemOptimistic?.(itemId, price, affectionGain);
     startTransition(async () => {
-      const res = await buyFocusItemAction(itemId, price);
-      if (res?.error) {
-        setError(res.error === "not_enough_tokens" ? "Không đủ Focus Tokens!" : "Mua thất bại");
+      try {
+        const res = await buyFocusItemAction(itemId, price);
+        if (res?.error) {
+          onBuyFocusItemRollback?.(itemId, price, affectionGain);
+          setError(res.error === "not_enough_tokens" ? "Không đủ Focus Tokens!" : "Mua thất bại");
+        } else {
+          confetti({
+            particleCount: 60,
+            spread: 50,
+            origin: { y: 0.8 },
+          });
+        }
+      } catch {
+        onBuyFocusItemRollback?.(itemId, price, affectionGain);
+        setError("Mua thất bại");
+      } finally {
+        setPendingId(null);
+        router.refresh();
       }
-      setPendingId(null);
-      router.refresh();
     });
   };
 
-  // Trang bị nội thất
-  const commitEquip = (slot: string, itemId: string | null) => {
+  const handleEquip = async (slot: string, itemId: string) => {
     setError(null);
-    const previous = equippedFor(slot);
-    setLocalEquipped((prev) => ({ ...prev, [slot]: itemId }));
-    onEquipped?.(slot, itemId);
-    startTransition(async () => {
-      const res = await equipItemAction(slot, itemId);
-      if (res?.error) {
-        setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
+    if (onEquipItem) {
+      const err = await onEquipItem(slot, itemId);
+      if (err) {
         setError(t("equipFailed"));
-        return;
+      } else {
+        onEquipped?.(slot, itemId);
       }
-      router.refresh();
-    });
+    }
   };
 
-  const handleEquip = (slot: string, itemId: string) => commitEquip(slot, itemId);
-  const handleUnequip = (slot: string) => commitEquip(slot, null);
+  const handleUnequip = async (slot: string) => {
+    setError(null);
+    if (onEquipItem) {
+      const err = await onEquipItem(slot, null);
+      if (err) {
+        setError(t("equipFailed"));
+      } else {
+        onEquipped?.(slot, null);
+      }
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -368,7 +420,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {rotatedPermanentItems.map((item) => {
-                    const isOwned = unlockedItems.includes(item.id) || justBought.has(item.id);
+                    const isOwned = unlockedItems.includes(item.id);
                     const canAfford = coins >= item.price;
 
                     return (

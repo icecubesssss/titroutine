@@ -21,7 +21,7 @@ const STAGES = {
 };
 
 export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose }) => {
-  const [totalSecondsLeft, setTotalSecondsLeft] = useState(120); // 2 phút đếm ngược
+  const [totalSecondsLeft, setTotalSecondsLeft] = useState(120); // Phút đếm ngược
   const [isActive, setIsActive] = useState(false);
   const [breatheState, setBreatheState] = useState<BreatheState>("inhale");
   const [stageSecondsLeft, setStageSecondsLeft] = useState(4);
@@ -29,15 +29,35 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
   const [finished, setFinished] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  // Custom configuration states
+  const [hasStarted, setHasStarted] = useState(false);
+  const [selectedMinutes, setSelectedMinutes] = useState(2);
+  const [customMinutes, setCustomMinutes] = useState(3);
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [targetTotalSeconds, setTargetTotalSeconds] = useState(120);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  // Reset exercise when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setHasStarted(false);
+      setIsActive(false);
+      setFinished(false);
+      setTotalSecondsLeft(120);
+      setTargetTotalSeconds(120);
+      setStageSecondsLeft(4);
+      setBreatheState("inhale");
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen && progressRef.current) {
-      progressRef.current.style.width = `${(totalSecondsLeft / 120) * 100}%`;
+      progressRef.current.style.width = `${(totalSecondsLeft / targetTotalSeconds) * 100}%`;
     }
-  }, [totalSecondsLeft, isOpen]);
+  }, [totalSecondsLeft, targetTotalSeconds, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,6 +135,24 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
     });
   };
 
+  const handleSelectMinutes = (val: string) => {
+    if (val === "custom") {
+      setIsCustomDuration(true);
+    } else {
+      setIsCustomDuration(false);
+      setSelectedMinutes(Number(val));
+    }
+  };
+
+  const handleStartExercise = () => {
+    const mins = isCustomDuration ? customMinutes : selectedMinutes;
+    const secs = mins * 60;
+    setTotalSecondsLeft(secs);
+    setTargetTotalSeconds(secs);
+    setHasStarted(true);
+    setIsActive(true);
+  };
+
   if (!isOpen) return null;
 
   const formatTime = (secs: number) => {
@@ -152,7 +190,58 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
           </div>
         </div>
 
-        {!finished ? (
+        {!hasStarted ? (
+          /* Configuration Screen */
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 w-full px-4 animate-scale-up">
+            <span className="text-5xl select-none animate-bounce-slow">💨🧘‍♀️</span>
+            <div>
+              <h3 className="text-xl font-black text-emerald-400">Luyện thở Box Breathing</h3>
+              <p className="text-stone-300 text-xs mt-2 max-w-[280px] leading-relaxed">
+                Phương pháp thở hộp 4-4-4-4 giúp giải tỏa căng thẳng, cải thiện sự tập trung và cân bằng tâm trí.
+              </p>
+            </div>
+            
+            <div className="w-full max-w-xs text-left space-y-2">
+              <label htmlFor="breath-select" className="text-xs font-black text-emerald-500 uppercase tracking-widest">
+                Chọn thời gian tập
+              </label>
+              <select
+                id="breath-select"
+                title="Chọn thời gian luyện thở"
+                value={isCustomDuration ? "custom" : selectedMinutes}
+                onChange={(e) => handleSelectMinutes(e.target.value)}
+                className="w-full bg-[#1b3025] border-2 border-[#2b4438] px-4 py-3 rounded-2xl text-sm font-bold text-emerald-200 focus:outline-none focus:border-emerald-400"
+              >
+                <option value={1}>1 phút</option>
+                <option value={2}>2 phút</option>
+                <option value={5}>5 phút</option>
+                <option value="custom">Tự nhập phút...</option>
+              </select>
+
+              {isCustomDuration && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={customMinutes}
+                    onChange={(e) => setCustomMinutes(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-[#1b3025] border-2 border-[#2b4438] px-4 py-2.5 rounded-2xl text-sm font-bold text-emerald-200 focus:outline-none focus:border-emerald-400"
+                    placeholder="Số phút..."
+                  />
+                  <span className="text-xs font-bold text-emerald-400">phút</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleStartExercise}
+              className="w-full max-w-xs py-3.5 bg-emerald-500 hover:bg-emerald-400 text-[#0f1713] font-black text-sm rounded-2xl shadow-lg active:scale-95 transition-all"
+            >
+              BẮT ĐẦU LUYỆN THỞ
+            </button>
+          </div>
+        ) : !finished ? (
           <>
             {/* Center Breathing Visual */}
             <div className="flex flex-col items-center justify-center flex-1 py-8 relative">
@@ -195,7 +284,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
                 className="h-40 w-40 rounded-full flex flex-col items-center justify-center text-[#0f1713] select-none"
               >
                 <span className="text-[10px] tracking-widest font-black opacity-80 uppercase">
-                  {isActive ? activeStage.label : "CHƯA BẮT ĐẦU"}
+                  {isActive ? activeStage.label : "TẠM DỪNG"}
                 </span>
                 <span className="text-3xl font-black mt-1">
                   {isActive ? `${stageSecondsLeft}s` : "⏳"}
@@ -205,7 +294,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
               <span className="mt-8 text-sm text-stone-400 text-center font-medium max-w-[250px]">
                 {isActive 
                   ? "Hãy thả lỏng vai, hít thở sâu theo chu kỳ nở rộng của vòng tròn."
-                  : "Nhấn Phát để bắt đầu buổi luyện thở dài 2 phút giúp xoa dịu tâm trí."}
+                  : "Nhấn Tiếp tục để bắt đầu buổi luyện thở giúp xoa dịu tâm trí."}
               </span>
             </div>
 
@@ -220,7 +309,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
               </div>
               <div className="flex justify-between w-full text-xs text-stone-400 font-mono font-bold">
                 <span>Còn lại: {formatTime(totalSecondsLeft)}</span>
-                <span>Mục tiêu: 02:00</span>
+                <span>Mục tiêu: {formatTime(targetTotalSeconds)}</span>
               </div>
 
               {/* Play / Pause button */}
@@ -239,7 +328,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
                   </>
                 ) : (
                   <>
-                    <Play size={16} fill="currentColor" /> BẮT ĐẦU LUYỆN THỞ
+                    <Play size={16} fill="currentColor" /> TIẾP TỤC
                   </>
                 )}
               </button>
@@ -254,7 +343,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
             <div>
               <h3 className="text-xl font-black text-emerald-400">Tuyệt vời!</h3>
               <p className="text-stone-300 text-sm mt-2 max-w-[280px]">
-                Bạn đã hoàn thành 2 phút luyện thở Box Breathing đầy tĩnh lặng. Bé thỏ rất tự hào về bạn!
+                Bạn đã hoàn thành {Math.round(targetTotalSeconds / 60)} phút luyện thở Box Breathing đầy tĩnh lặng. Bé thỏ rất tự hào về bạn!
               </p>
             </div>
             <button

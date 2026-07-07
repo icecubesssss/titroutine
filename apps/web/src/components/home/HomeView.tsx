@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -83,6 +83,9 @@ export function HomeView({ data }: { data: DashboardData }) {
   // Server data is the source of truth; mirror it locally for optimistic UI.
   const [habits, setHabits] = useState(data.habits);
   const [coins, setCoins] = useState(data.profile.coins);
+  const [focusTokens, setFocusTokens] = useState(data.profile.focusTokens ?? 0);
+  const [consumables, setConsumables] = useState(data.inventory.consumables ?? {});
+  const [unlockedItems, setUnlockedItems] = useState(data.inventory.unlockedItems ?? []);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
 
@@ -90,6 +93,7 @@ export function HomeView({ data }: { data: DashboardData }) {
     (t) => t.status !== "done" && t.deadline && new Date(t.deadline) < new Date()
   );
   const hasOverdueTasks = overdueTasks.length > 0;
+  const hasInProgressTask = (data.tasks || []).some((t) => t.status === "in_progress");
   
   // Theme state: default is 'matcha' to highlight the upgraded aesthetic!
   const [theme, setTheme] = useState<"neutral" | "matcha" | "ube">("matcha");
@@ -193,26 +197,28 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [selectedDecorSlot, setSelectedDecorSlot] = useState<"wallpaper" | "rug" | "object" | null>(null);
   const [isLampOn, setIsLampOn] = useState(true);
   const [isCandleOn, setIsCandleOn] = useState(true);
+  const [isRadioOn, setIsRadioOn] = useState(true);
 
   // Optimistic tracking for room decoration swaps
   const [localEquipped, setLocalEquipped] = useState<Record<string, string | null>>({});
   const equippedFor = (slot: string): string | null =>
     slot in localEquipped ? localEquipped[slot] : data.inventory.equippedItems[slot] ?? null;
 
-  const commitEquip = (slot: string, itemId: string | null) => {
+  const commitEquip = async (slot: string, itemId: string | null): Promise<string | null> => {
     const previous = equippedFor(slot);
     setLocalEquipped((prev) => ({ ...prev, [slot]: itemId }));
-    startTransition(async () => {
-      try {
-        const res = await equipItemAction(slot, itemId);
-        if (res?.error) {
-          setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
-        }
-      } catch {
+    try {
+      const res = await equipItemAction(slot, itemId);
+      if (res?.error) {
         setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
+        return res.error;
       }
-      router.refresh();
-    });
+    } catch (e: unknown) {
+      setLocalEquipped((prev) => ({ ...prev, [slot]: previous }));
+      return e instanceof Error ? e.message : "error";
+    }
+    router.refresh();
+    return null;
   };
 
   const [companionOverrideAction, setCompanionOverrideAction] = useState<CompanionAction | null>(null);
@@ -326,6 +332,9 @@ export function HomeView({ data }: { data: DashboardData }) {
     setSatiety(data.profile.satiety);
     setPetExp(data.profile.petExp);
     setAffection(data.profile.affection);
+    setFocusTokens(data.profile.focusTokens ?? 0);
+    setConsumables(data.inventory.consumables ?? {});
+    setUnlockedItems(data.inventory.unlockedItems ?? []);
   }, [data]);
 
   // Restore last-viewed room, clamped to one that's actually unlocked.
@@ -516,7 +525,14 @@ export function HomeView({ data }: { data: DashboardData }) {
 
     // Optimistic: tăng satiety tạm thời, không trừ tiền trực tiếp ở client nữa
     playTing();
+    const prevConsumables = { ...consumables };
+    const prevSatiety = satiety;
+
     setSatiety((s) => Math.min(100, s + tier.satiety));
+    setConsumables((c) => ({
+      ...c,
+      [tierId]: Math.max(0, (c[tierId] ?? 0) - 1),
+    }));
     setCompanionOverrideAction("eat");
 
     startTransition(async () => {
@@ -527,6 +543,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         }
         if (res.error) {
           setCompanionOverrideAction("sad");
+          setSatiety(prevSatiety);
+          setConsumables(prevConsumables);
         } else {
           if (res.expGain && res.expGain > 0) spawnFloat(`+${res.expGain} EXP`);
           if (res.leveledUp) {
@@ -534,6 +552,10 @@ export function HomeView({ data }: { data: DashboardData }) {
           }
         }
         router.refresh();
+      } catch {
+        setCompanionOverrideAction("sad");
+        setSatiety(prevSatiety);
+        setConsumables(prevConsumables);
       } finally {
         careInFlight.current = false;
       }
@@ -545,16 +567,41 @@ export function HomeView({ data }: { data: DashboardData }) {
     setCompanionOverrideAction(INTERACTION_ACTION[kind]);
     moveToRoomFor(kind);
 
+    const prevConsumables = { ...consumables };
+    const prevAffection = affection;
+    const prevSatiety = satiety;
+
     // Optimistic tiny bond bump
     setAffection((a) => Math.min(100, a + 2));
+    if (kind === "play" && itemId) {
+      setConsumables((c) => ({
+        ...c,
+        [itemId]: Math.max(0, (c[itemId] ?? 0) - 1),
+      }));
+      setSatiety((s) => Math.max(0, s - 5));
+    }
 
     startTransition(async () => {
-      const res = await petInteractAction(kind, itemId);
-      if (res.dialogue) {
-        showPetDialogue(res.dialogue);
-      }
-      if (res.error) {
+      try {
+        const res = await petInteractAction(kind, itemId);
+        if (res.dialogue) {
+          showPetDialogue(res.dialogue);
+        }
+        if (res.error) {
+          setCompanionOverrideAction("sad");
+          setAffection(prevAffection);
+          if (kind === "play" && itemId) {
+            setConsumables(prevConsumables);
+            setSatiety(prevSatiety);
+          }
+        }
+      } catch {
         setCompanionOverrideAction("sad");
+        setAffection(prevAffection);
+        if (kind === "play" && itemId) {
+          setConsumables(prevConsumables);
+          setSatiety(prevSatiety);
+        }
       }
       router.refresh();
     });
@@ -644,6 +691,8 @@ export function HomeView({ data }: { data: DashboardData }) {
   let currentAction: CompanionAction = companionOverrideAction || ambientAction;
   if (timerHabit) {
     currentAction = "study"; // Đang bật timer thì bắt học
+  } else if (hasInProgressTask && !companionOverrideAction) {
+    currentAction = "study"; // Có task đang làm -> thỏ làm cùng
   } else if (hasOverdueTasks && !companionOverrideAction) {
     currentAction = "sad"; // Có task quá hạn -> buồn bã
   } else if (totalCount > 0 && completedCount === totalCount && !companionOverrideAction) {
@@ -651,6 +700,18 @@ export function HomeView({ data }: { data: DashboardData }) {
   } else if (mood === "hungry" && !companionOverrideAction) {
     currentAction = "sad"; // Đói bụng → mặt buồn (fallback lo phần thiếu sprite)
   }
+
+  const optimisticEquippedItems = useMemo(() => {
+    const res = { ...data.inventory.equippedItems };
+    for (const [k, v] of Object.entries(localEquipped)) {
+      if (v === null) {
+        delete res[k];
+      } else {
+        res[k] = v;
+      }
+    }
+    return res;
+  }, [data.inventory.equippedItems, localEquipped]);
 
   return (
     // App-shell: the shell is exactly one viewport tall (h-dvh) and never grows —
@@ -882,10 +943,13 @@ export function HomeView({ data }: { data: DashboardData }) {
               } else if (equippedObjectId === "object_scented_candle") {
                 setIsCandleOn((prev) => !prev);
                 playTing();
+              } else if (equippedObjectId === "object_vintage_radio") {
+                setIsRadioOn((prev) => !prev);
+                playTing();
               }
             }}
             className={`absolute bottom-3 left-3 z-20 h-24 w-24 object-contain drop-shadow-md select-none ${
-              ["object_lamp_warm", "object_scented_candle"].includes(equippedObjectId || "")
+              ["object_lamp_warm", "object_scented_candle", "object_vintage_radio"].includes(equippedObjectId || "")
                 ? "cursor-pointer pointer-events-auto hover:scale-105 active:scale-95 transition-transform"
                 : "pointer-events-none"
             }`}
@@ -900,6 +964,14 @@ export function HomeView({ data }: { data: DashboardData }) {
             {/* Scented candle flame particle */}
             {isCandleOn && equippedObjectId === "object_scented_candle" && (
               <span className="absolute top-[28%] left-[48%] -translate-x-1/2 w-1.5 h-2 bg-amber-400 rounded-full blur-[0.5px] animate-pulse z-30 shadow-[0_0_4px_rgba(251,191,36,0.8)]"></span>
+            )}
+            {/* Vintage radio music notes */}
+            {isRadioOn && equippedObjectId === "object_vintage_radio" && (
+              <div className="absolute inset-0 pointer-events-none">
+                <span className="music-note-float">🎵</span>
+                <span className="music-note-float">🎶</span>
+                <span className="music-note-float">♪</span>
+              </div>
             )}
           </div>
         )}
@@ -958,6 +1030,8 @@ export function HomeView({ data }: { data: DashboardData }) {
               containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
             } else if (equippedObjectId === "object_cozy_sofa" && currentAction === "idle") {
               containerClass = "absolute bottom-10 left-9 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+            } else if (equippedObjectId === "object_gaming_chair" && (currentAction === "study" || currentAction === "idle")) {
+              containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
             }
           }
           return (
@@ -1528,11 +1602,41 @@ export function HomeView({ data }: { data: DashboardData }) {
         isOpen={isShopOpen}
         onClose={() => setIsShopOpen(false)}
         coins={coins}
-        focusTokens={data.profile.focusTokens ?? 0}
-        unlockedItems={data.inventory.unlockedItems}
-        equippedItems={data.inventory.equippedItems}
-        consumables={data.inventory.consumables}
-        onSpend={(amt) => setCoins((c) => Math.max(0, c - amt))}
+        focusTokens={focusTokens}
+        unlockedItems={unlockedItems}
+        equippedItems={optimisticEquippedItems}
+        consumables={consumables}
+        onBuyItemOptimistic={(itemId, price) => {
+          setCoins((c) => Math.max(0, c - price));
+          setUnlockedItems((prev) => [...prev, itemId]);
+        }}
+        onBuyItemRollback={(itemId, price) => {
+          setCoins((c) => c + price);
+          setUnlockedItems((prev) => prev.filter((id) => id !== itemId));
+        }}
+        onBuyConsumableOptimistic={(itemId, price) => {
+          setCoins((c) => Math.max(0, c - price));
+          setConsumables((prev) => ({
+            ...prev,
+            [itemId]: (prev[itemId] ?? 0) + 1,
+          }));
+        }}
+        onBuyConsumableRollback={(itemId, price) => {
+          setCoins((c) => c + price);
+          setConsumables((prev) => ({
+            ...prev,
+            [itemId]: Math.max(0, (prev[itemId] ?? 0) - 1),
+          }));
+        }}
+        onBuyFocusItemOptimistic={(itemId, price, affectionGain) => {
+          setFocusTokens((t) => Math.max(0, t - price));
+          setAffection((a) => Math.min(100, a + affectionGain));
+        }}
+        onBuyFocusItemRollback={(itemId, price, affectionGain) => {
+          setFocusTokens((t) => t + price);
+          setAffection((a) => Math.max(0, a - affectionGain));
+        }}
+        onEquipItem={commitEquip}
         onEquipped={(slot, itemId) => {
           // Jump to the bedroom so a freshly equipped wallpaper is visible right away
           // (it only decorates the pet's own room).
@@ -1557,7 +1661,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
       <FeedPicker
         isOpen={isFeedOpen}
-        consumables={data.inventory.consumables}
+        consumables={consumables}
         onClose={() => setIsFeedOpen(false)}
         onFeed={handleFeed}
         onPlay={(toyId) => handleInteract("play", toyId)}

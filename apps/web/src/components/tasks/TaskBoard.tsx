@@ -2,9 +2,9 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, TouchSensor, useDroppable, useDraggable } from "@dnd-kit/core";
-import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, Loader2, X } from "lucide-react";
+import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowRight, ArrowLeft, Edit2, X } from "lucide-react";
 import type { Task } from "@/lib/types";
-import { updateTaskStatusAction, updateTaskDetailsAction } from "@/app/[locale]/actions";
+import { updateTaskStatusAction, updateTaskDetailsAction, createTaskAction, deleteTaskAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";
 import { TaskDrawer } from "./TaskDrawer";
 
@@ -47,13 +47,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Optimistic: local task list that updates instantly
+  // Optimistic tasks state
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(serverTasks);
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const toastCounter = useRef(0);
 
-  // Sync with server when serverTasks change (after router.refresh)
+  // Sync with server updates
   useEffect(() => {
     setOptimisticTasks(serverTasks);
   }, [serverTasks]);
@@ -67,52 +66,137 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Core move logic with optimistic update + rollback on error
+  // 1. Move Status Optimistic Handler
   const moveTask = useCallback(async (taskId: string, newStatus: "todo" | "in_progress" | "done") => {
     const original = optimisticTasks.find((t) => t.id === taskId);
     if (!original || original.status === newStatus) return;
 
     playPop();
 
-    // 1. Optimistic: move instantly
+    // Optimistic: move instantly without spinner
     setOptimisticTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t))
     );
-    setLoadingIds((prev) => new Set(prev).add(taskId));
 
-    // 2. Server call
     const result = await updateTaskStatusAction(taskId, newStatus);
-
-    // 3. Done loading
-    setLoadingIds((prev) => {
-      const next = new Set(prev);
-      next.delete(taskId);
-      return next;
-    });
-
     if (result?.error) {
       // Rollback
       setOptimisticTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, status: original.status, updatedAt: original.updatedAt } : t))
       );
-      addToast(`Lỗi: ${result.error}`);
+      addToast(`Lỗi chuyển cột: ${result.error}`);
     }
-
     onRefresh();
   }, [optimisticTasks, playPop, addToast, onRefresh]);
 
-  // Update subtask check state optimistically
+  // 2. Update Subtasks Optimistic Handler
   const updateTaskNotes = useCallback(async (taskId: string, notesJson: string) => {
+    const original = optimisticTasks.find((t) => t.id === taskId);
+    if (!original) return;
+
+    // Optimistic details update
     setOptimisticTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, notes: notesJson } : t))
     );
 
     const result = await updateTaskDetailsAction(taskId, { notes: notesJson });
     if (result?.error) {
-      addToast(`Không thể cập nhật nhiệm vụ con: ${result.error}`);
-      onRefresh();
+      // Rollback
+      setOptimisticTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, notes: original.notes } : t))
+      );
+      addToast(`Lỗi cập nhật subtask: ${result.error}`);
     }
+    onRefresh();
+  }, [optimisticTasks, addToast, onRefresh]);
+
+  // 3. Create Task Optimistic Handler
+  const handleCreateTask = useCallback(async (input: {
+    title: string;
+    notes?: string;
+    priority?: "low" | "medium" | "high";
+    assigneeType?: "self" | "pet";
+    focusDuration?: number;
+    deadline?: string | null;
+  }) => {
+    const tempId = "temp_" + Math.random().toString(36).substring(2, 9);
+    const optTask: Task = {
+      id: tempId,
+      userId: "temp",
+      title: input.title,
+      notes: input.notes ?? null,
+      status: "todo",
+      priority: input.priority ?? "medium",
+      assigneeType: input.assigneeType ?? "self",
+      focusDuration: input.focusDuration ?? 25,
+      deadline: input.deadline ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Insert task instantly into client list
+    setOptimisticTasks((prev) => [...prev, optTask]);
+
+    const result = await createTaskAction({
+      title: input.title,
+      notes: input.notes,
+      priority: input.priority ?? "medium",
+      assigneeType: input.assigneeType ?? "self",
+      focusDuration: input.focusDuration ?? 25,
+      deadline: input.deadline,
+    });
+    if (result?.error) {
+      // Remove temp task on failure
+      setOptimisticTasks((prev) => prev.filter((t) => t.id !== tempId));
+      addToast(`Lỗi tạo công việc: ${result.error}`);
+    }
+    onRefresh();
   }, [addToast, onRefresh]);
+
+  // 4. Update Task Details Optimistic Handler
+  const handleUpdateTask = useCallback(async (taskId: string, input: {
+    title?: string;
+    notes?: string;
+    priority?: "low" | "medium" | "high";
+    assigneeType?: "self" | "pet";
+    focusDuration?: number;
+    deadline?: string | null;
+  }) => {
+    const original = optimisticTasks.find((t) => t.id === taskId);
+    if (!original) return;
+
+    // Apply updates instantly
+    setOptimisticTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...input } : t))
+    );
+
+    const result = await updateTaskDetailsAction(taskId, input);
+    if (result?.error) {
+      // Rollback details
+      setOptimisticTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, ...original } : t))
+      );
+      addToast(`Lỗi cập nhật chi tiết: ${result.error}`);
+    }
+    onRefresh();
+  }, [optimisticTasks, addToast, onRefresh]);
+
+  // 5. Delete Task Optimistic Handler
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    const original = optimisticTasks.find((t) => t.id === taskId);
+    if (!original) return;
+
+    // Remove instantly from list
+    setOptimisticTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+    const result = await deleteTaskAction(taskId);
+    if (result?.error) {
+      // Recover task on failure
+      setOptimisticTasks((prev) => [...prev, original]);
+      addToast(`Lỗi xóa công việc: ${result.error}`);
+    }
+    onRefresh();
+  }, [optimisticTasks, addToast, onRefresh]);
 
   // Setup sensors for dnd-kit
   const sensors = useSensors(
@@ -167,7 +251,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
                 text={col.text}
                 icon={col.icon}
                 tasks={colTasks}
-                loadingIds={loadingIds}
                 onEdit={(task) => {
                   setEditingTask(task);
                   setIsDrawerOpen(true);
@@ -192,8 +275,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       <TaskDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSaved={onRefresh}
         task={editingTask}
+        onCreateTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
+        onDeleteTask={handleDeleteTask}
       />
     </div>
   );
@@ -208,13 +293,12 @@ interface ColumnProps {
   text: string;
   icon: string;
   tasks: Task[];
-  loadingIds: Set<string>;
   onEdit: (task: Task) => void;
   onMove: (taskId: string, newStatus: "todo" | "in_progress" | "done") => void;
   onUpdateNotes: (taskId: string, notesJson: string) => Promise<void>;
 }
 
-const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, tasks, loadingIds, onEdit, onMove, onUpdateNotes }) => {
+const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, tasks, onEdit, onMove, onUpdateNotes }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -245,7 +329,6 @@ const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, task
             <Card 
               key={task.id} 
               task={task} 
-              isLoading={loadingIds.has(task.id)} 
               onEdit={onEdit} 
               onMove={onMove} 
               onUpdateNotes={onUpdateNotes} 
@@ -260,7 +343,6 @@ const Column: React.FC<ColumnProps> = ({ id, title, bg, border, text, icon, task
 // ── Card ─────────────────────────────────────────────────────────────────────
 interface CardProps {
   task: Task;
-  isLoading: boolean;
   onEdit: (task: Task) => void;
   onMove: (taskId: string, newStatus: "todo" | "in_progress" | "done") => void;
   onUpdateNotes: (taskId: string, notesJson: string) => Promise<void>;
@@ -272,10 +354,9 @@ interface Subtask {
   completed: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNotes }) => {
+const Card: React.FC<CardProps> = ({ task, onEdit, onMove, onUpdateNotes }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
-    disabled: isLoading,
   });
 
   const style = transform
@@ -337,7 +418,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
 
   // Toggle subtask complete status
   const handleToggleSubtask = async (subId: string) => {
-    if (isLoading) return;
     const updated = subtasks.map((sub) =>
       sub.id === subId ? { ...sub, completed: !sub.completed } : sub
     );
@@ -372,19 +452,12 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
       {...{ style }}
       className={`bg-white p-4 rounded-[22px] border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing select-none relative overflow-hidden ${
         isDragging ? "opacity-40 scale-95" : ""
-      } ${isLoading ? "opacity-60 pointer-events-none" : ""} ${
+      } ${
         isInProgress ? "border-l-[3px] border-l-orange-400 border-t border-r border-b border-stone-200/60" : "border-stone-200/60"
       }`}
     >
       {/* Drag handle */}
       <div {...listeners} {...attributes} className="absolute inset-0 right-14" />
-
-      {/* Loading spinner overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/40 rounded-[22px]">
-          <Loader2 size={20} className="animate-spin text-theme-accent" />
-        </div>
-      )}
 
       <div className="relative pointer-events-auto">
         <div className="flex items-start justify-between gap-2">
@@ -405,7 +478,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
           <button
             type="button"
             onClick={() => onEdit(task)}
-            disabled={isLoading}
             className="p-1 hover:bg-stone-100 rounded-full transition-colors text-stone-400 hover:text-stone-600"
             title="Chỉnh sửa công việc"
             aria-label="Chỉnh sửa công việc"
@@ -440,7 +512,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
                   <input
                     type="checkbox"
                     checked={sub.completed}
-                    disabled={isLoading}
                     onChange={() => handleToggleSubtask(sub.id)}
                     className="w-3.5 h-3.5 mt-0.5 rounded border-[#ebdcc5] text-[#5c4033] focus:ring-0 focus:ring-offset-0 focus:outline-none cursor-pointer"
                   />
@@ -476,7 +547,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
             task.status === "done" ? (
               <button
                 type="button"
-                disabled={isLoading}
                 onClick={() => onMove(task.id, "in_progress")}
                 className="flex-1 py-1.5 hover:bg-stone-100 rounded-xl transition-all text-stone-500 hover:text-stone-700 flex items-center justify-center gap-1.5 text-[10px] font-bold active:scale-95 border border-stone-200"
                 title="Lùi về trạng thái Đang làm"
@@ -488,7 +558,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
             ) : (
               <button
                 type="button"
-                disabled={isLoading}
                 onClick={() => onMove(task.id, "todo")}
                 className="p-1.5 hover:bg-stone-100 rounded-xl transition-all text-stone-400 hover:text-stone-600 flex items-center justify-center active:scale-95 border border-stone-200 shrink-0"
                 title="Lùi về trạng thái Cần làm"
@@ -501,7 +570,6 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
           {task.status !== "done" && (
             <button
               type="button"
-              disabled={isLoading}
               onClick={() => onMove(task.id, task.status === "todo" ? "in_progress" : "done")}
               className={`flex-grow py-1.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wide active:scale-95 ${
                 task.status === "todo"

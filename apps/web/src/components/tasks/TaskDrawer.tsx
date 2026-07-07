@@ -1,19 +1,44 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useState } from "react";
 import { X, Trash2, Calendar, Clock, User, Award } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
-import { createTaskAction, updateTaskDetailsAction, deleteTaskAction } from "@/app/[locale]/actions";
 import type { Task } from "@/lib/types";
 
 interface TaskDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
   task?: Task | null;
+  onCreateTask: (input: {
+    title: string;
+    notes?: string;
+    priority?: "low" | "medium" | "high";
+    assigneeType?: "self" | "pet";
+    focusDuration?: number;
+    deadline?: string | null;
+  }) => void;
+  onUpdateTask: (
+    taskId: string,
+    input: {
+      title?: string;
+      notes?: string;
+      priority?: "low" | "medium" | "high";
+      assigneeType?: "self" | "pet";
+      focusDuration?: number;
+      deadline?: string | null;
+    }
+  ) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved, task }) => {
+export const TaskDrawer: React.FC<TaskDrawerProps> = ({ 
+  isOpen, 
+  onClose, 
+  task,
+  onCreateTask,
+  onUpdateTask,
+  onDeleteTask
+}) => {
   const isEdit = Boolean(task);
 
   interface Subtask {
@@ -29,9 +54,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
   const [assigneeType, setAssigneeType] = useState<"self" | "pet">("self");
   const [focusDuration, setFocusDuration] = useState(25);
   const [deadline, setDeadline] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (task) {
@@ -64,7 +87,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
       setDeadline("");
     }
     setNewSubtaskText("");
-    setError(null);
     setConfirmDelete(false);
   }, [task, isOpen]);
 
@@ -88,37 +110,30 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    setError(null);
 
-    startTransition(async () => {
-      const deadlineISO = deadline ? new Date(`${deadline}T12:00:00`).toISOString() : null;
-      const notesJson = subtasks.length > 0 ? JSON.stringify(subtasks) : (isEdit ? "[]" : undefined);
+    const deadlineISO = deadline ? new Date(`${deadline}T12:00:00`).toISOString() : null;
+    const notesJson = subtasks.length > 0 ? JSON.stringify(subtasks) : (isEdit ? "[]" : undefined);
 
-      const result = isEdit
-        ? await updateTaskDetailsAction(task!.id, {
-            title,
-            notes: notesJson,
-            priority,
-            assigneeType,
-            focusDuration,
-            deadline: deadlineISO,
-          })
-        : await createTaskAction({
-            title,
-            notes: notesJson,
-            priority,
-            assigneeType,
-            focusDuration,
-            deadline: deadlineISO,
-          });
-
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
-      onClose();
-    });
+    if (isEdit && task) {
+      onUpdateTask(task.id, {
+        title,
+        notes: notesJson,
+        priority,
+        assigneeType,
+        focusDuration,
+        deadline: deadlineISO,
+      });
+    } else {
+      onCreateTask({
+        title,
+        notes: notesJson,
+        priority,
+        assigneeType,
+        focusDuration,
+        deadline: deadlineISO,
+      });
+    }
+    onClose();
   };
 
   const handleDelete = () => {
@@ -127,16 +142,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
       setConfirmDelete(true);
       return;
     }
-
-    startTransition(async () => {
-      const result = await deleteTaskAction(task.id);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
-      onClose();
-    });
+    onDeleteTask(task.id);
+    onClose();
   };
 
   return (
@@ -159,12 +166,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1 bg-[#fdfaf6]">
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-500">
-              Lỗi: {error}
-            </div>
-          )}
-
           {/* Title */}
           <div className="space-y-1">
             <label className="text-xs font-black text-[#8b7355] uppercase tracking-wider">
@@ -328,7 +329,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={isPending}
                 className={`px-4 py-3 rounded-2xl border-2 font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                   confirmDelete
                     ? "bg-red-500 border-red-500 text-white animate-pulse"
@@ -341,14 +341,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, onSaved
             )}
             <DuoButton
               type="submit"
-              disabled={isPending}
               className="flex-1 bg-theme-accent text-white py-3 rounded-2xl font-bold text-sm shadow-sm"
             >
-              {isPending ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo công việc"}
+              {isEdit ? "Lưu thay đổi" : "Tạo công việc"}
             </DuoButton>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};

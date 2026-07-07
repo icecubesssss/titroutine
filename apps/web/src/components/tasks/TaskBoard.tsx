@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, TouchSensor, useDroppable, useDraggable } from "@dnd-kit/core";
-import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowRight, ArrowLeft, Edit2, Loader2, X } from "lucide-react";
+import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, Loader2, X } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { updateTaskStatusAction, updateTaskDetailsAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";
@@ -428,7 +428,7 @@ const Card: React.FC<CardProps> = ({ task, isLoading, onEdit, onMove, onUpdateNo
             <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-[#8b7355] rounded-full transition-all duration-300" 
-                style={{ width: `${progressPercent}%` }} 
+                {...{ style: { width: `${progressPercent}%` } }}
               />
             </div>
             <div className="space-y-1 mt-1.5 max-h-[120px] overflow-y-auto pr-0.5">

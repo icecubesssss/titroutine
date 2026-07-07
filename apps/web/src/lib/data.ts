@@ -110,10 +110,11 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .order("created_at", { ascending: true })
   ]);
 
-  // Check if user has zero consumables and needs a starter kit
+  // Grant a starter kit ONLY to genuinely new users (never fed before).
+  // Users who consumed all items must buy more from the Shop.
   let consumables = (inventoryData?.consumables as Record<string, number>) || {};
   const totalConsumables = Object.keys(consumables).reduce((acc, key) => acc + (consumables[key] || 0), 0);
-  if (totalConsumables === 0) {
+  if (totalConsumables === 0 && !profile?.last_fed_date) {
     const starterKit = {
       carrot: 3,
       cake: 0,

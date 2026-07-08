@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { format, addDays, parseISO } from "date-fns";
 import { createClient } from "@/utils/supabase/server";
 import {
   COINS_PER_HABIT,
@@ -21,8 +22,16 @@ import {
   NEIGHBOR_GIFT_COINS,
   NEIGHBOR_GIFT_AFFECTION,
 } from "@/lib/game";
-import { allRoomsUnlocked, type InteractionKind } from "@/lib/rooms";
+import { allRoomsUnlocked, ROOMS, type InteractionKind } from "@/lib/rooms";
 import { eligibleMemoryKeys } from "@/lib/memories";
+import {
+  ENERGY_PER_HABIT,
+  SPOT_CLEAN_COINS,
+  ROOM_CLEAN_BONUS_COINS,
+  ROOM_CLEAN_GIFTS,
+  findMessSpot,
+  isRoomFullyClean,
+} from "@/lib/cleaning";
 import type { HabitType } from "@/lib/types";
 import { ADVENTURE_STORIES, getRandomStory } from "@/lib/adventure_stories";
 import { getFeedFeedback, getPlayFeedback, getCleanFeedback, getSleepFeedback } from "@/lib/game_interactions";
@@ -68,6 +77,46 @@ export async function updateTimezoneAction(timezone: string): Promise<ActionResu
     .from("profiles")
     .update({ timezone })
     .eq("id", userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+/**
+ * Bật/tắt Chế độ đi nghỉ (vacation mode). Khi bật: đóng băng độ no + streak.
+ * Cả hai chiều đều "chốt sổ" trạng thái hiện tại: lưu satiety hiệu dụng rồi mới
+ * dời mốc last_fed_date (nếu không, satiety sẽ hồi ngược về giá trị cũ), và kéo
+ * last_active_date lên hôm qua để streak sống sót qua ranh giới chuyến nghỉ.
+ */
+export async function setVacationModeAction(enabled: boolean): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("timezone, satiety, last_fed_date, last_active_date")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileError) return { error: profileError.message };
+
+  const timezone = profile?.timezone || "UTC";
+  const today = todayInTimezone(timezone);
+  const yesterday = format(addDays(parseISO(today), -1), "yyyy-MM-dd");
+
+  const patch: Record<string, unknown> = {
+    vacation_mode: enabled,
+    updated_at: new Date().toISOString(),
+  };
+  if (profile?.last_fed_date && profile.last_fed_date < today) {
+    patch.satiety = currentSatiety(profile.satiety, profile.last_fed_date, today);
+    patch.last_fed_date = today;
+  }
+  if (profile?.last_active_date && profile.last_active_date < yesterday) {
+    patch.last_active_date = yesterday;
+  }
+
+  const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
@@ -177,7 +226,7 @@ export async function toggleHabitAction(input: {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status, cleaning_energy")
     .eq("id", userId)
     .maybeSingle();
   if (profileError) return { error: profileError.message };
@@ -259,9 +308,17 @@ export async function toggleHabitAction(input: {
     }
   }
 
+  // Năng lượng dọn dẹp (Habit-Rabbit style): chỉ hôm nay, habit thường; bỏ tick
+  // thì rút lại để không farm bằng cách tick/bỏ tick liên tục.
+  let cleaningEnergy = profile?.cleaning_energy ?? 0;
+  if (targetDate === today && !isNegative) {
+    cleaningEnergy = Math.max(0, cleaningEnergy + (willComplete ? ENERGY_PER_HABIT : -ENERGY_PER_HABIT));
+  }
+
   const patch: Record<string, unknown> = {
     coins,
     adventure_energy: adventureEnergy,
+    cleaning_energy: cleaningEnergy,
     // Evolution never reverses: a broken streak keeps the stage already reached.
     pet_stage: targetDate === today ? ratchetStage(profile?.pet_stage, newStreak) : profile?.pet_stage,
     updated_at: new Date().toISOString(),
@@ -298,7 +355,7 @@ export async function incrementCounterHabitAction(input: {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage, adventure_energy, adventure_status")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage, adventure_energy, adventure_status, cleaning_energy")
     .eq("id", userId)
     .maybeSingle();
 
@@ -354,6 +411,7 @@ export async function incrementCounterHabitAction(input: {
       pet_stage: ratchetStage(profile?.pet_stage, streakResult.newStreak),
       last_active_date: today,
       adventure_energy: adventureEnergy,
+      cleaning_energy: (profile?.cleaning_energy ?? 0) + ENERGY_PER_HABIT,
       updated_at: new Date().toISOString(),
     }).eq("id", userId);
 
@@ -526,6 +584,43 @@ export async function equipItemAction(slot: string, itemId: string | null): Prom
     .eq("user_id", userId);
 
   if (updateInvError) return { error: updateInvError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
+/**
+ * Lưu vị trí món nội thất (slot object) trong một phòng — kéo-thả kiểu Habit
+ * Rabbit. Toạ độ là % của khung phòng, lưu theo từng phòng nên mỗi phòng nhớ
+ * chỗ đặt riêng.
+ */
+export async function moveDecorAction(roomId: string, x: number, y: number): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  if (!ROOMS.some((r) => r.id === roomId)) return { error: "invalid_room" };
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { error: "invalid_position" };
+  const clampedX = Math.min(100, Math.max(0, Math.round(x * 10) / 10));
+  const clampedY = Math.min(100, Math.max(0, Math.round(y * 10) / 10));
+
+  const { data: inventory, error: invError } = await supabase
+    .from("inventory")
+    .select("decor_positions")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (invError) return { error: invError.message };
+
+  const positions = { ...((inventory?.decor_positions as Record<string, { x: number; y: number }>) || {}) };
+  positions[roomId] = { x: clampedX, y: clampedY };
+
+  const { error: updateError } = await supabase
+    .from("inventory")
+    .update({
+      decor_positions: positions,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/", "layout");
   return {};
@@ -758,6 +853,78 @@ export async function petInteractAction(kind: InteractionKind, itemId?: string):
 
   revalidatePath("/", "layout");
   return { dialogue: dialogueMessage };
+}
+
+/**
+ * Dọn một điểm bừa bộn trong phòng (Habit-Rabbit style). Tiêu cleaning_energy
+ * tích từ việc hoàn thành habit; điểm đã dọn là vĩnh viễn. Dọn sạch cả phòng
+ * thưởng thêm xu + tặng một món nội thất vào inventory.
+ */
+type CleanSpotResult = ActionResult & {
+  roomCleaned?: boolean;
+  giftItemId?: string;
+  coinsGained?: number;
+};
+
+export async function cleanMessSpotAction(spotId: string): Promise<CleanSpotResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const spot = findMessSpot(spotId);
+  if (!spot) return { error: "invalid_spot" };
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("cleaning_energy, cleaned_spots, coins")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileError) return { error: profileError.message };
+
+  const cleaned = (profile?.cleaned_spots as Record<string, boolean>) || {};
+  if (cleaned[spotId]) return {}; // đã dọn rồi — idempotent
+
+  const energy = profile?.cleaning_energy ?? 0;
+  if (energy < spot.cost) return { error: "not_enough_energy" };
+
+  const newCleaned = { ...cleaned, [spotId]: true };
+  const roomCleaned = isRoomFullyClean(spot.roomId, newCleaned);
+  const coinsGained = SPOT_CLEAN_COINS + (roomCleaned ? ROOM_CLEAN_BONUS_COINS : 0);
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      cleaning_energy: energy - spot.cost,
+      cleaned_spots: newCleaned,
+      coins: (profile?.coins ?? 0) + coinsGained,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+  if (updateError) return { error: updateError.message };
+
+  // Quà nội thất khi phòng sạch bóng (bỏ qua nếu đã sở hữu).
+  let giftItemId: string | undefined;
+  if (roomCleaned) {
+    const candidate = ROOM_CLEAN_GIFTS[spot.roomId];
+    const { data: inventory } = await supabase
+      .from("inventory")
+      .select("unlocked_items")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const unlocked = (inventory?.unlocked_items as string[]) || [];
+    if (candidate && !unlocked.includes(candidate)) {
+      const { error: invError } = await supabase
+        .from("inventory")
+        .update({
+          unlocked_items: [...unlocked, candidate],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+      if (!invError) giftItemId = candidate;
+    }
+  }
+
+  revalidatePath("/", "layout");
+  return { roomCleaned, giftItemId, coinsGained };
 }
 
 /**
@@ -1240,6 +1407,13 @@ export async function claimKeepsakeAction(keepsakeId: string): Promise<ActionRes
   return {};
 }
 
+// Focus duration is also the focus-token reward on completion — never trust
+// the client-provided value beyond the range the UI offers (1 phút..1 ngày).
+function clampFocusDuration(minutes: number): number {
+  if (!Number.isFinite(minutes)) return 25;
+  return Math.min(1440, Math.max(1, Math.round(minutes)));
+}
+
 export async function createTaskAction(input: {
   title: string;
   notes?: string;
@@ -1258,7 +1432,7 @@ export async function createTaskAction(input: {
     notes: input.notes || null,
     priority: input.priority,
     assignee_type: input.assigneeType,
-    focus_duration: input.focusDuration,
+    focus_duration: clampFocusDuration(input.focusDuration),
     deadline: input.deadline || null,
     status: "todo",
   });
@@ -1304,7 +1478,7 @@ export async function updateTaskDetailsAction(
   if (input.notes !== undefined) updateData.notes = input.notes;
   if (input.priority !== undefined) updateData.priority = input.priority;
   if (input.assigneeType !== undefined) updateData.assignee_type = input.assigneeType;
-  if (input.focusDuration !== undefined) updateData.focus_duration = input.focusDuration;
+  if (input.focusDuration !== undefined) updateData.focus_duration = clampFocusDuration(input.focusDuration);
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
   updateData.updated_at = new Date().toISOString();
 

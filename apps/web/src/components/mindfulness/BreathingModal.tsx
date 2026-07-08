@@ -225,7 +225,7 @@ export const BreathingModal: React.FC<BreathingModalProps> = ({ isOpen, onClose 
                     min={1}
                     max={60}
                     value={customMinutes}
-                    onChange={(e) => setCustomMinutes(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => setCustomMinutes(Math.min(60, Math.max(1, Number(e.target.value))))}
                     className="w-full bg-[#1b3025] border-2 border-[#2b4438] px-4 py-2.5 rounded-2xl text-sm font-bold text-emerald-200 focus:outline-none focus:border-emerald-400"
                     placeholder="Số phút..."
                   />

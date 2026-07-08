@@ -66,8 +66,19 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Tasks created optimistically carry a "temp_" id until the server row comes
+  // back; acting on that id server-side would fail (not a valid UUID).
+  const isTempTask = useCallback((taskId: string) => {
+    if (taskId.startsWith("temp_")) {
+      addToast("Công việc đang được tạo, đợi một chút rồi thử lại nhé!");
+      return true;
+    }
+    return false;
+  }, [addToast]);
+
   // 1. Move Status Optimistic Handler
   const moveTask = useCallback(async (taskId: string, newStatus: "todo" | "in_progress" | "done") => {
+    if (isTempTask(taskId)) return;
     const original = optimisticTasks.find((t) => t.id === taskId);
     if (!original || original.status === newStatus) return;
 
@@ -87,10 +98,11 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       addToast(`Lỗi chuyển cột: ${result.error}`);
     }
     onRefresh();
-  }, [optimisticTasks, playPop, addToast, onRefresh]);
+  }, [optimisticTasks, playPop, addToast, onRefresh, isTempTask]);
 
   // 2. Update Subtasks Optimistic Handler
   const updateTaskNotes = useCallback(async (taskId: string, notesJson: string) => {
+    if (isTempTask(taskId)) return;
     const original = optimisticTasks.find((t) => t.id === taskId);
     if (!original) return;
 
@@ -108,7 +120,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       addToast(`Lỗi cập nhật subtask: ${result.error}`);
     }
     onRefresh();
-  }, [optimisticTasks, addToast, onRefresh]);
+  }, [optimisticTasks, addToast, onRefresh, isTempTask]);
 
   // 3. Create Task Optimistic Handler
   const handleCreateTask = useCallback(async (input: {
@@ -162,6 +174,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
     focusDuration?: number;
     deadline?: string | null;
   }) => {
+    if (isTempTask(taskId)) return;
     const original = optimisticTasks.find((t) => t.id === taskId);
     if (!original) return;
 
@@ -179,10 +192,11 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       addToast(`Lỗi cập nhật chi tiết: ${result.error}`);
     }
     onRefresh();
-  }, [optimisticTasks, addToast, onRefresh]);
+  }, [optimisticTasks, addToast, onRefresh, isTempTask]);
 
   // 5. Delete Task Optimistic Handler
   const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (isTempTask(taskId)) return;
     const original = optimisticTasks.find((t) => t.id === taskId);
     if (!original) return;
 
@@ -196,7 +210,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       addToast(`Lỗi xóa công việc: ${result.error}`);
     }
     onRefresh();
-  }, [optimisticTasks, addToast, onRefresh]);
+  }, [optimisticTasks, addToast, onRefresh, isTempTask]);
 
   // Setup sensors for dnd-kit
   const sensors = useSensors(
@@ -389,18 +403,27 @@ const Card: React.FC<CardProps> = ({ task, onEdit, onMove, onUpdateNotes }) => {
     }
   }
 
-  // Countdown timer calculations
+  // Countdown timer calculations. Anchor on the last *status change*, not on
+  // updated_at directly — updated_at also bumps when a subtask is ticked or
+  // details are edited, which must not reset a running focus clock.
+  const anchorRef = useRef(Date.parse(task.updatedAt));
+  const prevStatusRef = useRef(task.status);
+  if (prevStatusRef.current !== task.status) {
+    prevStatusRef.current = task.status;
+    anchorRef.current = Date.parse(task.updatedAt);
+  }
+
   const getRemainingSeconds = useCallback(() => {
     const durationSeconds = task.focusDuration * 60;
-    const elapsedSeconds = Math.floor((Date.now() - Date.parse(task.updatedAt)) / 1000);
+    const elapsedSeconds = Math.floor((Date.now() - anchorRef.current) / 1000);
     return Math.max(0, durationSeconds - elapsedSeconds);
-  }, [task.focusDuration, task.updatedAt]);
+  }, [task.focusDuration]);
 
   const [timeLeft, setTimeLeft] = useState(getRemainingSeconds);
 
   useEffect(() => {
     setTimeLeft(getRemainingSeconds());
-  }, [task.updatedAt, getRemainingSeconds]);
+  }, [task.status, getRemainingSeconds]);
 
   useEffect(() => {
     if (task.status !== "in_progress" || timeLeft <= 0) return;

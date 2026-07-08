@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAnalyticsData } from "@/lib/analytics";
 import { HeatmapCalendar } from "@/components/analytics/HeatmapCalendar";
+import { MoodCalendar } from "@/components/analytics/MoodCalendar";
 import { ArrowLeft, Target, Flame, Trophy, Clock, CheckSquare, ListTodo } from "lucide-react";
 import Link from "next/link";
 
@@ -115,12 +116,20 @@ export default async function AnalyticsPage(props: {
             Lịch sử hoạt động (60 ngày qua)
           </h2>
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-stone-200">
-            <HeatmapCalendar 
+            <HeatmapCalendar
               heatmapData={data.heatmapData}
               startDate={data.startDate}
               endDate={data.endDate}
             />
           </div>
+        </div>
+
+        {/* Mood Journal Calendar (Habit-Rabbit style month view) */}
+        <div>
+          <h2 className="text-sm font-black text-stone-400 uppercase tracking-wider mb-3">
+            Nhật ký cảm xúc
+          </h2>
+          <MoodCalendar moodLogs={data.moodLogs} today={data.endDate} />
         </div>
         
         <div className="text-center text-sm text-stone-400 pt-8 pb-4 font-medium">

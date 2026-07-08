@@ -179,4 +179,23 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own tasks" ON public.tasks;
 CREATE POLICY "Users can manage own tasks" ON public.tasks FOR ALL USING (auth.uid() = user_id);
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 07: Habit-Rabbit-style Messy Room Cleaning
+-- ────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cleaning_energy INTEGER DEFAULT 0;
+-- Map of mess-spot id -> true once cleaned, e.g. {"bedroom_socks": true}
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cleaned_spots JSONB DEFAULT '{}'::jsonb;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 08: Vacation Mode + Neglect Consequence
+-- ────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vacation_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_neglect_date DATE;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 09: Draggable Room Decor
+-- ────────────────────────────────────────────────────────────────────────────
+-- { "<roomId>": { "x": 12.5, "y": 80 } } — % of room viewport; missing = legacy corner
+ALTER TABLE public.inventory ADD COLUMN IF NOT EXISTS decor_positions JSONB DEFAULT '{}'::jsonb;
+
 

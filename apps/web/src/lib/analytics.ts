@@ -14,6 +14,8 @@ export interface AnalyticsData {
   totalTasksCompleted: number;
   totalFocusMinutes: number;
   pendingTasksCount: number;
+  /** Daily mood check-ins for the mood calendar, "YYYY-MM-DD" -> entry. */
+  moodLogs: Record<string, { mood: string; activities: string[]; note: string | null }>;
 }
 
 export async function getAnalyticsData(): Promise<AnalyticsData | null> {
@@ -79,6 +81,26 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
     .eq("user_id", user.id)
     .in("status", ["todo", "in_progress"]);
 
+  // Mood check-ins for the mood calendar (last ~6 months keeps the payload small
+  // while covering every month the calendar can navigate to with data).
+  const moodStartObj = new Date(endDateObj.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const moodStart = moodStartObj.toISOString().split("T")[0];
+  const { data: beanRows } = await supabase
+    .from("daily_bean_logs")
+    .select("logged_date, mood, activities, note")
+    .eq("user_id", user.id)
+    .gte("logged_date", moodStart)
+    .lte("logged_date", today);
+
+  const moodLogs: Record<string, { mood: string; activities: string[]; note: string | null }> = {};
+  for (const row of (beanRows ?? []) as { logged_date: string; mood: string; activities: string[] | null; note: string | null }[]) {
+    moodLogs[row.logged_date] = {
+      mood: row.mood,
+      activities: row.activities ?? [],
+      note: row.note || null,
+    };
+  }
+
   return {
     totalCompletedAllTime: totalCompletedAllTime ?? 0,
     totalExp: profile?.pet_exp ?? 0,
@@ -90,5 +112,6 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
     totalTasksCompleted,
     totalFocusMinutes,
     pendingTasksCount: pendingTasksCount ?? 0,
+    moodLogs,
   };
 }

@@ -315,7 +315,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                     min={1}
                     max={1440}
                     value={focusDuration}
-                    onChange={(e) => setFocusDuration(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => setFocusDuration(Math.min(1440, Math.max(1, Number(e.target.value))))}
                     className="w-full bg-white border-2 border-[#ebdcc5] px-3 py-2 rounded-2xl text-sm font-bold text-[#5c4033] focus:outline-none focus:border-theme-accent"
                     placeholder="Số phút..."
                   />

@@ -69,6 +69,13 @@ export interface ProfileSummary {
   adventureStartAt: string | null;
   adventureStoryId: string | null;
   focusTokens: number;
+  // ── Messy-room cleaning (Habit Rabbit loop) ─────────────────────────────
+  /** Energy earned from completing habits, spent clearing mess spots. */
+  cleaningEnergy: number;
+  /** Mess-spot id -> true once permanently cleaned (see lib/cleaning.ts). */
+  cleanedSpots: Record<string, boolean>;
+  /** Vacation mode: freezes satiety decay, streak gaps and neglect penalties. */
+  vacationMode: boolean;
 }
 
 export interface Task {
@@ -89,6 +96,8 @@ export interface InventorySummary {
   equippedItems: Record<string, string>;
   unlockedItems: string[];
   consumables: Record<string, number>; // e.g., { "carrot": 3, "cake": 0 }
+  /** Per-room position (%) of the equipped object; missing = legacy corner. */
+  decorPositions: Record<string, { x: number; y: number }>;
 }
 
 export interface SocialVibe {

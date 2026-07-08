@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { Sparkles, BookOpen } from "lucide-react";
 import { completeAdventureAction } from "@/app/[locale]/actions";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ export const StoryDialogModal: React.FC<StoryDialogModalProps> = ({
   onClose,
 }) => {
   const [pending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
 
   if (!isOpen || !storyId) return null;
@@ -25,11 +26,14 @@ export const StoryDialogModal: React.FC<StoryDialogModalProps> = ({
   const story: AdventureStory | undefined = ADVENTURE_STORIES.find((s) => s.id === storyId);
 
   const handleSelectChoice = (choiceIndex: "A" | "B") => {
+    setErrorMsg(null);
     startTransition(async () => {
       const res = await completeAdventureAction(choiceIndex);
       if (!res.error) {
         router.refresh();
         onClose();
+      } else {
+        setErrorMsg("Không thể hoàn thành chuyến thám hiểm, bạn thử lại nhé!");
       }
     });
   };
@@ -68,6 +72,12 @@ export const StoryDialogModal: React.FC<StoryDialogModalProps> = ({
             </p>
           </div>
         </div>
+
+        {errorMsg && (
+          <div className="w-full mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-500 text-center">
+            {errorMsg}
+          </div>
+        )}
 
         {/* Choice Option Buttons */}
         <div className="w-full flex flex-col gap-3">

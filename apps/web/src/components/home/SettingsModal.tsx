@@ -31,6 +31,8 @@ interface SettingsModalProps {
   setDevLevelOverride?: (level: number | null) => void;
   devSatietyOverride?: number | null;
   setDevSatietyOverride?: (satiety: number | null) => void;
+  vacationMode?: boolean;
+  onVacationChange?: (enabled: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -48,6 +50,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setDevLevelOverride,
   devSatietyOverride = null,
   setDevSatietyOverride,
+  vacationMode = false,
+  onVacationChange,
 }) => {
   const t = useTranslations("Settings");
   const locale = useLocale();
@@ -214,6 +218,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div
                   className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
                     isMusicPlaying ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Vacation mode (freezes satiety decay + streak gaps) */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              🏖️ {t("vacationSection")}
+            </h3>
+            <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-xl text-2xl leading-none ${
+                    vacationMode ? "bg-sky-100" : "bg-gray-100 grayscale"
+                  }`}
+                >
+                  🏖️
+                </div>
+                <div>
+                  <div className="font-bold text-earth-text">{t("vacationTitle")}</div>
+                  <div className="text-xs text-gray-400 max-w-[180px]">{t("vacationSub")}</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                aria-label={t("vacationToggle")}
+                title={t("vacationToggle")}
+                onClick={() => onVacationChange?.(!vacationMode)}
+                className={`relative w-14 h-8 rounded-full transition-colors duration-300 shrink-0 ${
+                  vacationMode ? "bg-sky-500" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                    vacationMode ? "left-7" : "left-1"
                   }`}
                 />
               </button>

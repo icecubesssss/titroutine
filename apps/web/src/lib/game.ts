@@ -107,6 +107,13 @@ export const EXP_PER_SATIETY = 1;
 /** One-off bonus EXP for the first feed of the day (rewards showing up daily). */
 export const DAILY_FEED_BONUS_EXP = 15;
 
+// Neglect consequence (Habit-Rabbit "health" loop): while the pet is fully
+// starved (effective satiety 0) and NOT on vacation, a small once-per-day
+// penalty applies on dashboard load. Gentle by design — never touches streak,
+// pet stage or rooms (evolution/rooms never reverse).
+export const NEGLECT_PENALTY_COINS = 10;
+export const NEGLECT_PENALTY_AFFECTION = 5;
+
 /**
  * Cumulative `pet_exp` needed to reach each nurture level (index === level-1).
  * Paced against ~25 EXP/day feeding: Lv3 ≈ 4d, Lv5 ≈ 11d, Lv8 ≈ 30d, Lv11 ≈ 68d

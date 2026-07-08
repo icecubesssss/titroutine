@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -81,6 +81,18 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     setPreviewRug(equippedItems["rug"] || null);
     setPreviewObject(equippedItems["object"] || null);
   };
+
+  // Component luôn mounted (chỉ ẩn bằng return null), nên preview phải được
+  // đồng bộ lại với đồ đang trang bị thật mỗi lần mở shop — nếu không, lần mở
+  // sau sẽ hiển thị phòng thử đồ của phiên trước.
+  useEffect(() => {
+    if (isOpen) {
+      setPreviewWallpaper(equippedItems["wallpaper"] || null);
+      setPreviewRug(equippedItems["rug"] || null);
+      setPreviewObject(equippedItems["object"] || null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // 2. Thuật toán xoay tua 4 món đồ nội thất ngẫu nhiên cố định theo ngày
   const rotatedPermanentItems = useMemo(() => {
@@ -438,7 +450,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         }`}
                       >
                         <div className="aspect-square bg-stone-50 rounded-xl mb-2 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                          <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
+                          {item.emoji ? (
+                            <span className="text-5xl select-none">{item.emoji}</span>
+                          ) : (
+                            <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">{t(`item_${item.id}_name`)}</h4>
@@ -541,7 +557,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       }`}
                     >
                       <div className="aspect-square bg-stone-50 rounded-xl mb-3 flex items-center justify-center border border-stone-100 relative overflow-hidden">
-                        <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
+                        {item.emoji ? (
+                          <span className="text-6xl select-none">{item.emoji}</span>
+                        ) : (
+                          <Image src={item.imageUrl} alt={t(`item_${item.id}_name`)} fill className="object-cover" />
+                        )}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-stone-700 text-sm">{t(`item_${item.id}_name`)}</h3>

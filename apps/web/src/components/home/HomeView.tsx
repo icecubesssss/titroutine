@@ -36,7 +36,11 @@ import {
   petInteractAction,
   startAdventureAction,
   equipItemAction,
+  cleanMessSpotAction,
+  setVacationModeAction,
+  moveDecorAction,
 } from "@/app/[locale]/actions";
+import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, type MessSpot } from "@/lib/cleaning";
 import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
 import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
@@ -86,6 +90,10 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [focusTokens, setFocusTokens] = useState(data.profile.focusTokens ?? 0);
   const [consumables, setConsumables] = useState(data.inventory.consumables ?? {});
   const [unlockedItems, setUnlockedItems] = useState(data.inventory.unlockedItems ?? []);
+  const [cleaningEnergy, setCleaningEnergy] = useState(data.profile.cleaningEnergy ?? 0);
+  const [cleanedSpots, setCleanedSpots] = useState(data.profile.cleanedSpots ?? {});
+  const [vacationMode, setVacationMode] = useState(data.profile.vacationMode ?? false);
+  const [decorPositions, setDecorPositions] = useState(data.inventory.decorPositions ?? {});
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
 
@@ -335,6 +343,10 @@ export function HomeView({ data }: { data: DashboardData }) {
     setFocusTokens(data.profile.focusTokens ?? 0);
     setConsumables(data.inventory.consumables ?? {});
     setUnlockedItems(data.inventory.unlockedItems ?? []);
+    setCleaningEnergy(data.profile.cleaningEnergy ?? 0);
+    setCleanedSpots(data.profile.cleanedSpots ?? {});
+    setVacationMode(data.profile.vacationMode ?? false);
+    setDecorPositions(data.inventory.decorPositions ?? {});
   }, [data]);
 
   // Restore last-viewed room, clamped to one that's actually unlocked.
@@ -607,6 +619,133 @@ export function HomeView({ data }: { data: DashboardData }) {
     });
   };
 
+  // Dọn một điểm bừa bộn (Habit-Rabbit loop): optimistic trừ năng lượng + ẩn
+  // đống bừa ngay, server xác nhận; rollback đầy đủ nếu lỗi.
+  const cleanInFlight = useRef(false);
+  const handleCleanSpot = (spot: MessSpot) => {
+    if (cleanInFlight.current || cleanedSpots[spot.id]) return;
+    if (cleaningEnergy < spot.cost) {
+      showPetDialogue(t("cleanNotEnough"));
+      return;
+    }
+    cleanInFlight.current = true;
+    playTing();
+
+    const prevEnergy = cleaningEnergy;
+    const prevCleaned = { ...cleanedSpots };
+    const prevCoins = coins;
+
+    setCleaningEnergy((e) => Math.max(0, e - spot.cost));
+    setCleanedSpots((m) => ({ ...m, [spot.id]: true }));
+    setCoins((c) => c + SPOT_CLEAN_COINS);
+    spawnFloat(`+${SPOT_CLEAN_COINS} 🪙`);
+    confetti({ particleCount: 30, spread: 45, origin: { y: 0.55 }, scalar: 0.7 });
+
+    startTransition(async () => {
+      try {
+        const res = await cleanMessSpotAction(spot.id);
+        if (res.error) {
+          setCleaningEnergy(prevEnergy);
+          setCleanedSpots(prevCleaned);
+          setCoins(prevCoins);
+          setCompanionOverrideAction("sad");
+        } else if (res.roomCleaned) {
+          setCoins((c) => c + ROOM_CLEAN_BONUS_COINS);
+          if (res.giftItemId) {
+            setUnlockedItems((prev) => (prev.includes(res.giftItemId!) ? prev : [...prev, res.giftItemId!]));
+          }
+          confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
+          showPetDialogue(t("cleanRoomDone"));
+        }
+        router.refresh();
+      } catch {
+        setCleaningEnergy(prevEnergy);
+        setCleanedSpots(prevCleaned);
+        setCoins(prevCoins);
+        setCompanionOverrideAction("sad");
+      } finally {
+        cleanInFlight.current = false;
+      }
+    });
+  };
+
+  // Bật/tắt chế độ đi nghỉ — optimistic, rollback khi server lỗi.
+  const handleVacationToggle = (enabled: boolean) => {
+    playTing();
+    setVacationMode(enabled);
+    startTransition(async () => {
+      try {
+        const res = await setVacationModeAction(enabled);
+        if (res?.error) setVacationMode(!enabled);
+      } catch {
+        setVacationMode(!enabled);
+      }
+      router.refresh();
+    });
+  };
+
+  // Kéo-thả nội thất (Habit-Rabbit draggable decor): giữ + kéo món object trong
+  // phòng, vị trí (%) lưu theo từng phòng. Kéo < 8px được coi là "chạm" để giữ
+  // nguyên hành vi bật/tắt đèn-nến-đài cũ.
+  const roomSectionRef = useRef<HTMLElement | null>(null);
+  const decorDragRef = useRef<{ down: boolean; moved: boolean; startX: number; startY: number; prev?: { x: number; y: number } } | null>(null);
+  const decorDragMovedRef = useRef(false);
+  const latestDecorPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleDecorPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    decorDragRef.current = {
+      down: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      prev: decorPositions[currentRoomId],
+    };
+  };
+
+  const handleDecorPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = decorDragRef.current;
+    if (!d?.down) return;
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 8) return;
+    d.moved = true;
+    const rect = roomSectionRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.min(94, Math.max(6, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(92, Math.max(18, ((e.clientY - rect.top) / rect.height) * 100));
+    const pos = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    latestDecorPosRef.current = pos;
+    setDecorPositions((m) => ({ ...m, [currentRoomId]: pos }));
+  };
+
+  const handleDecorPointerUp = () => {
+    const d = decorDragRef.current;
+    if (!d) return;
+    decorDragRef.current = null;
+    if (!d.moved) return;
+    decorDragMovedRef.current = true; // chặn onClick toggle ngay sau cú kéo
+    const pos = latestDecorPosRef.current;
+    if (!pos) return;
+    const roomAtDrop = currentRoomId;
+    const prev = d.prev;
+    playTing();
+    startTransition(async () => {
+      const rollback = () =>
+        setDecorPositions((m) => {
+          const next = { ...m };
+          if (prev) next[roomAtDrop] = prev;
+          else delete next[roomAtDrop];
+          return next;
+        });
+      try {
+        const res = await moveDecorAction(roomAtDrop, pos.x, pos.y);
+        if (res?.error) rollback();
+      } catch {
+        rollback();
+      }
+      router.refresh();
+    });
+  };
+
   const currentStreak = devStreakOverride !== null ? devStreakOverride : data.profile.currentStreak;
   const normalStage = devStreakOverride !== null ? stageFromStreak(devStreakOverride) : data.profile.petStage;
   const currentStage = devStageOverride !== null ? devStageOverride : normalStage;
@@ -684,6 +823,12 @@ export function HomeView({ data }: { data: DashboardData }) {
   const equippedObjectId = equippedFor("object");
   const customObject = SHOP_ITEMS.find((item) => item.id === equippedObjectId);
 
+  // Pet accessory (emoji hat/bow worn on the head — works for every stage)
+  const equippedAccessory = SHOP_ITEMS.find((item) => item.id === equippedFor("accessory"));
+
+  // Vị trí kéo-thả của món nội thất trong phòng hiện tại (undefined = góc trái cũ)
+  const objectPos = decorPositions[currentRoomId];
+
   const isEvolved = currentStage >= 1;
 
   // Determine current companion action. Ưu tiên: override (tương tác/tiến hoá/chào) >
@@ -733,6 +878,7 @@ export function HomeView({ data }: { data: DashboardData }) {
       <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full relative">
         {/* Top half: Pet Room */}
         <section
+          ref={roomSectionRef}
           className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-6 pb-24 min-h-[52vh] md:min-h-0 h-full transition-colors duration-1000 ${roomBackground}`}
         >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
@@ -773,6 +919,42 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor" aria-hidden />
 
+        {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
+            room; tap to spend cleaning energy and clear them permanently. */}
+        {!isDecorMode &&
+          spotsForRoom(currentRoomId)
+            .filter((spot) => !cleanedSpots[spot.id])
+            .map((spot) => {
+              const affordable = cleaningEnergy >= spot.cost;
+              return (
+                <button
+                  key={spot.id}
+                  type="button"
+                  onClick={() => handleCleanSpot(spot)}
+                  title={t("cleanSpotTitle", { cost: spot.cost })}
+                  aria-label={t("cleanSpotTitle", { cost: spot.cost })}
+                  className={`absolute ${spot.positionClass} z-20 pointer-events-auto flex flex-col items-center group`}
+                >
+                  <span
+                    className={`text-3xl select-none drop-shadow-sm transition-transform group-hover:scale-110 group-active:scale-95 ${
+                      affordable ? "" : "grayscale-[60%] opacity-80"
+                    }`}
+                  >
+                    {spot.emoji}
+                  </span>
+                  <span
+                    className={`-mt-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black leading-none shadow-sm backdrop-blur-sm ${
+                      affordable
+                        ? "bg-emerald-50/90 border-emerald-300 text-emerald-700 animate-pulse"
+                        : "bg-white/70 border-stone-200 text-stone-400"
+                    }`}
+                  >
+                    🧹{spot.cost}
+                  </span>
+                </button>
+              );
+            })}
+
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
           <div className="bg-white/60 border border-white/40 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative text-theme-text">
             <Flame className="w-5 h-5 text-orange-500" />
@@ -804,11 +986,28 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
           </div>
 
-          {/* Coins — the only other header element. Everything else moved to the
-              bottom nav so the header stays clean (streak + coins only). */}
-          <div className="flex items-center gap-1.5 rounded-full bg-white/60 border border-white/40 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
-            <Image src="/assets/ui/icon_coin.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
-            <span className="tabular-nums text-amber-600">{coins}</span>
+          {/* Coins + cleaning energy — the only other header elements. Everything
+              else moved to the bottom nav so the header stays clean. */}
+          <div className="flex items-center gap-2">
+            {vacationMode && (
+              <div
+                title={t("vacationActive")}
+                className="flex items-center rounded-full bg-sky-100/80 border border-sky-200 px-2.5 py-1.5 shadow-sm backdrop-blur-md cursor-help animate-pulse"
+              >
+                <span className="text-sm leading-none">🏖️</span>
+              </div>
+            )}
+            <div
+              title={t("cleanEnergyTitle", cleaningProgress(cleanedSpots))}
+              className="flex items-center gap-1 rounded-full bg-white/60 border border-white/40 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text cursor-help"
+            >
+              <span className="text-sm leading-none">🧹</span>
+              <span className="tabular-nums text-emerald-600">{cleaningEnergy}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/60 border border-white/40 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
+              <Image src="/assets/ui/icon_coin.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
+              <span className="tabular-nums text-amber-600">{coins}</span>
+            </div>
           </div>
         </div>
 
@@ -933,10 +1132,21 @@ export function HomeView({ data }: { data: DashboardData }) {
           </button>
         )}
 
-        {/* Equipped decor object, tucked into the bottom-left corner of the room. */}
+        {/* Equipped decor object — draggable anywhere in the room (position saved
+            per room); defaults to the bottom-left corner until first moved. */}
         {customObject && !isDecorMode && (
           <div
+            onPointerDown={handleDecorPointerDown}
+            onPointerMove={handleDecorPointerMove}
+            onPointerUp={handleDecorPointerUp}
+            onPointerCancel={handleDecorPointerUp}
+            title={t("dragObjectHint")}
             onClick={() => {
+              // Cú kéo vừa kết thúc cũng bắn onClick — bỏ qua để không bật/tắt nhầm.
+              if (decorDragMovedRef.current) {
+                decorDragMovedRef.current = false;
+                return;
+              }
               if (equippedObjectId === "object_lamp_warm") {
                 setIsLampOn((prev) => !prev);
                 playTing();
@@ -948,10 +1158,9 @@ export function HomeView({ data }: { data: DashboardData }) {
                 playTing();
               }
             }}
-            className={`absolute bottom-3 left-3 z-20 h-24 w-24 object-contain drop-shadow-md select-none ${
-              ["object_lamp_warm", "object_scented_candle", "object_vintage_radio"].includes(equippedObjectId || "")
-                ? "cursor-pointer pointer-events-auto hover:scale-105 active:scale-95 transition-transform"
-                : "pointer-events-none"
+            {...(objectPos ? { style: { left: `${objectPos.x}%`, top: `${objectPos.y}%` } } : {})}
+            className={`absolute z-20 h-24 w-24 object-contain drop-shadow-md select-none touch-none pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-105 transition-transform ${
+              objectPos ? "-translate-x-1/2 -translate-y-1/2" : "bottom-3 left-3"
             }`}
           >
             <Image
@@ -1025,18 +1234,29 @@ export function HomeView({ data }: { data: DashboardData }) {
           }
 
           let containerClass = "relative mt-2 drop-shadow-lg z-10 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+          let containerStyle: React.CSSProperties | undefined;
           if (!isDecorMode) {
-            if (equippedObjectId === "object_bed_cozy" && currentAction === "sleep") {
-              containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-            } else if (equippedObjectId === "object_cozy_sofa" && currentAction === "idle") {
-              containerClass = "absolute bottom-10 left-9 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-            } else if (equippedObjectId === "object_gaming_chair" && (currentAction === "study" || currentAction === "idle")) {
-              containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+            const onFurniture =
+              (equippedObjectId === "object_bed_cozy" && currentAction === "sleep") ||
+              (equippedObjectId === "object_cozy_sofa" && currentAction === "idle") ||
+              (equippedObjectId === "object_gaming_chair" && (currentAction === "study" || currentAction === "idle"));
+            if (onFurniture) {
+              if (objectPos) {
+                // Nội thất đã được kéo đi chỗ khác → thỏ ngồi/ngủ theo món đồ.
+                containerClass =
+                  "absolute -translate-x-1/2 -translate-y-[92%] drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+                containerStyle = { left: `${objectPos.x}%`, top: `${objectPos.y}%` };
+              } else if (equippedObjectId === "object_cozy_sofa") {
+                containerClass = "absolute bottom-10 left-9 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+              } else {
+                containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
+              }
             }
           }
           return (
             <div
               className={containerClass}
+              {...(containerStyle ? { style: containerStyle } : {})}
               onClick={() => {
                 playSwoosh();
                 const reactions: CompanionAction[] = ["happy", "proud_smile", "embarrassed_blush", "eat"];
@@ -1082,6 +1302,17 @@ export function HomeView({ data }: { data: DashboardData }) {
                   equippedOutfit={equippedFor("outfit") ?? undefined}
                   className="drop-shadow-lg"
                 />
+              )}
+
+              {/* Emoji accessory perched on the head — follows the container so it
+                  moves with the pet across rooms/furniture poses. */}
+              {equippedAccessory?.emoji && (
+                <span
+                  className="pointer-events-none absolute top-[2%] left-1/2 -translate-x-1/2 z-20 text-3xl select-none drop-shadow-sm -rotate-12"
+                  aria-hidden
+                >
+                  {equippedAccessory.emoji}
+                </span>
               )}
             </div>
           );
@@ -1588,6 +1819,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         setDevLevelOverride={setDevLevelOverride}
         devSatietyOverride={devSatietyOverride}
         setDevSatietyOverride={setDevSatietyOverride}
+        vacationMode={vacationMode}
+        onVacationChange={handleVacationToggle}
       />
 
       <MemoryAlbumModal

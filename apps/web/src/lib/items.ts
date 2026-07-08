@@ -4,8 +4,10 @@
 export interface ShopItem {
   id: string;
   price: number;
-  slot: "wallpaper" | "rug" | "object" | "outfit";
+  slot: "wallpaper" | "rug" | "object" | "outfit" | "accessory";
   imageUrl: string;
+  /** Accessories render as an emoji worn on the pet's head (no art assets). */
+  emoji?: string;
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
@@ -97,4 +99,10 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "rug_sunflower", price: 190, slot: "rug", imageUrl: "/assets/items/rug_sunflower.png" },
   { id: "object_vintage_radio", price: 160, slot: "object", imageUrl: "/assets/items/object_vintage_radio.png" },
   { id: "object_gaming_chair", price: 280, slot: "object", imageUrl: "/assets/items/object_gaming_chair.png" },
+  // Pet accessories (Habit-Rabbit cosmetics): emoji worn on the head, works for
+  // every stage — egg included. No sprite art required.
+  { id: "accessory_bow", price: 120, slot: "accessory", imageUrl: "", emoji: "🎀" },
+  { id: "accessory_top_hat", price: 150, slot: "accessory", imageUrl: "", emoji: "🎩" },
+  { id: "accessory_sun_hat", price: 180, slot: "accessory", imageUrl: "", emoji: "👒" },
+  { id: "accessory_crown", price: 350, slot: "accessory", imageUrl: "", emoji: "👑" },
 ];

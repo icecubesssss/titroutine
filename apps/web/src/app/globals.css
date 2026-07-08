@@ -251,3 +251,33 @@ body {
     opacity: 0;
   }
 }
+
+/* Wiggle animation for mess spots to make them feel alive */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg) scale(1.05); }
+  75% { transform: rotate(5deg) scale(1.05); }
+}
+.animate-wiggle {
+  animation: wiggle 0.6s ease-in-out infinite;
+}
+
+/* Sweep animation for the broom icon during cleaning */
+@keyframes sweep {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg) scale(1.1); }
+  25% { transform: translate(-65%, -50%) rotate(-20deg) scale(1.2); }
+  75% { transform: translate(-35%, -50%) rotate(20deg) scale(1.2); }
+}
+.animate-sweep {
+  animation: sweep 0.4s ease-in-out infinite;
+}
+
+/* Sparkle/pulse glow for the mess spots */
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(0.95); opacity: 0.35; }
+  50% { transform: scale(1.15); opacity: 0.65; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+

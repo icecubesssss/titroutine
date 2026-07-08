@@ -1,23 +1,49 @@
 "use client";
 
-import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { Soup, Gamepad2, ShowerHead, Moon, Sparkles } from "lucide-react";
 import type { InteractionKind } from "@/lib/rooms";
 
-// Custom hand-drawn icons (Gemini). Emoji fallback stays for any kind without art.
-const META: Record<InteractionKind, { icon: string | null; emoji: string; labelKey: string }> = {
-  feed: { icon: "/assets/ui/action_feed.png", emoji: "🍖", labelKey: "feed" },
-  play: { icon: "/assets/ui/action_play.png", emoji: "🧸", labelKey: "play" },
-  clean: { icon: "/assets/ui/action_clean.png", emoji: "🚿", labelKey: "clean" },
-  sleep: { icon: "/assets/ui/action_sleep.png", emoji: "💤", labelKey: "sleep" },
-  pat: { icon: null, emoji: "✋", labelKey: "pat" },
+// Colored Lucide React icons mapping with beautiful background/border styles.
+const META: Record<
+  InteractionKind,
+  { icon: React.ReactNode; labelKey: string; colorClass: string; bgClass: string }
+> = {
+  feed: {
+    icon: <Soup className="w-5 h-5" />,
+    labelKey: "feed",
+    colorClass: "text-amber-600",
+    bgClass: "bg-amber-50 border-amber-200/60"
+  },
+  play: {
+    icon: <Gamepad2 className="w-5 h-5" />,
+    labelKey: "play",
+    colorClass: "text-emerald-600",
+    bgClass: "bg-emerald-50 border-emerald-200/60"
+  },
+  clean: {
+    icon: <ShowerHead className="w-5 h-5" />,
+    labelKey: "clean",
+    colorClass: "text-sky-600",
+    bgClass: "bg-sky-50 border-sky-200/60"
+  },
+  sleep: {
+    icon: <Moon className="w-5 h-5" />,
+    labelKey: "sleep",
+    colorClass: "text-indigo-600",
+    bgClass: "bg-indigo-50 border-indigo-200/60"
+  },
+  pat: {
+    icon: <Sparkles className="w-5 h-5" />,
+    labelKey: "pat",
+    colorClass: "text-rose-500",
+    bgClass: "bg-rose-50 border-rose-200/60"
+  },
 };
 
 /**
- * My-Talking-Tom-style row of chunky care buttons. `feed` opens the food picker
- * (onFeed); the rest fire onInteract with the kind. The icons are full-colour
- * illustrations, so each sits on a soft neutral badge rather than a coloured
- * gradient (which would fight the artwork).
+ * Row of chunky care buttons shown below the pet.
+ * `feed` and `play` open the care item/toy picker; the rest fire onInteract immediately.
  */
 export function InteractionDock({
   interactions,
@@ -32,7 +58,7 @@ export function InteractionDock({
 }) {
   const t = useTranslations("Pet");
   return (
-    <div className="flex items-center justify-center gap-2.5">
+    <div className="flex items-center justify-center gap-3">
       {interactions.map((kind) => {
         const meta = META[kind];
         const label = t(`action_${meta.labelKey}`);
@@ -43,22 +69,12 @@ export function InteractionDock({
             disabled={disabled}
             aria-label={label}
             onClick={() => (kind === "feed" ? onFeed() : onInteract(kind))}
-            className="group flex flex-col items-center gap-1.5 p-2.5 w-[72px] rounded-[24px] border border-white/40 bg-white/50 shadow-sm backdrop-blur-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/75 hover:shadow-md active:translate-y-0 active:scale-95 disabled:opacity-50"
+            className="group flex flex-col items-center gap-1.5 p-2.5 w-[76px] rounded-[24px] border border-white/40 bg-white/60 shadow-sm backdrop-blur-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-md active:translate-y-0 active:scale-95 disabled:opacity-50"
           >
-            <div className="flex h-[36px] w-[36px] items-center justify-center">
-              {meta.icon ? (
-                <Image
-                  src={meta.icon}
-                  alt=""
-                  width={34}
-                  height={34}
-                  className="h-[34px] w-[34px] object-contain drop-shadow transition-transform duration-150 group-hover:scale-105"
-                />
-              ) : (
-                <span className="text-xl">{meta.emoji}</span>
-              )}
+            <div className={`flex h-[38px] w-[38px] items-center justify-center rounded-full border ${meta.bgClass} ${meta.colorClass} shadow-inner transition-all duration-150 group-hover:scale-105 group-active:scale-95`}>
+              {meta.icon}
             </div>
-            <span className="text-[10px] font-extrabold text-theme-text leading-none">
+            <span className="text-[10px] font-black text-theme-text/85 leading-none">
               {label}
             </span>
           </button>

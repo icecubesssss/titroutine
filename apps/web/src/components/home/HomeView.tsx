@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X, DoorOpen, CircleUser, Users, Palette, Compass, Heart, Lock } from "lucide-react";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
@@ -40,9 +40,9 @@ import {
   setVacationModeAction,
   moveDecorAction,
 } from "@/app/[locale]/actions";
-import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, type MessSpot } from "@/lib/cleaning";
+import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, ROOM_CLEAN_GIFTS, type MessSpot } from "@/lib/cleaning";
 import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
-import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
+import { roomDef, unlockedRooms, allRoomsUnlocked, ROOMS, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
@@ -80,6 +80,8 @@ const LAST_STAGE_KEY = "titroutine:lastPetStage";
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const tStages = useTranslations("Stages");
+  const tRooms = useTranslations("Rooms");
+  const tShop = useTranslations("Shop");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
@@ -275,6 +277,11 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   // Stage the user just evolved INTO this visit (drives the evolution celebration).
   const [justEvolvedStage, setJustEvolvedStage] = useState<number | null>(null);
+
+  // Tooltip, room switcher & sweeping states
+  const [showFreezeTooltip, setShowFreezeTooltip] = useState(false);
+  const [isRoomSwitcherOpen, setIsRoomSwitcherOpen] = useState(false);
+  const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
 
   // Detect an evolution since the last visit. We persist the last-seen stage in
   // localStorage so reaching a new form feels like a milestone event rather than a
@@ -623,50 +630,56 @@ export function HomeView({ data }: { data: DashboardData }) {
   // đống bừa ngay, server xác nhận; rollback đầy đủ nếu lỗi.
   const cleanInFlight = useRef(false);
   const handleCleanSpot = (spot: MessSpot) => {
-    if (cleanInFlight.current || cleanedSpots[spot.id]) return;
+    if (cleanInFlight.current || cleanedSpots[spot.id] || sweepingSpotId !== null) return;
     if (cleaningEnergy < spot.cost) {
       showPetDialogue(t("cleanNotEnough"));
       return;
     }
     cleanInFlight.current = true;
-    playTing();
+    setSweepingSpotId(spot.id);
 
-    const prevEnergy = cleaningEnergy;
-    const prevCleaned = { ...cleanedSpots };
-    const prevCoins = coins;
+    // After 800ms of sweeping animation, complete the cleaning process
+    setTimeout(() => {
+      playTing();
 
-    setCleaningEnergy((e) => Math.max(0, e - spot.cost));
-    setCleanedSpots((m) => ({ ...m, [spot.id]: true }));
-    setCoins((c) => c + SPOT_CLEAN_COINS);
-    spawnFloat(`+${SPOT_CLEAN_COINS} 🪙`);
-    confetti({ particleCount: 30, spread: 45, origin: { y: 0.55 }, scalar: 0.7 });
+      const prevEnergy = cleaningEnergy;
+      const prevCleaned = { ...cleanedSpots };
+      const prevCoins = coins;
 
-    startTransition(async () => {
-      try {
-        const res = await cleanMessSpotAction(spot.id);
-        if (res.error) {
+      setCleaningEnergy((e) => Math.max(0, e - spot.cost));
+      setCleanedSpots((m) => ({ ...m, [spot.id]: true }));
+      setCoins((c) => c + SPOT_CLEAN_COINS);
+      spawnFloat(`+${SPOT_CLEAN_COINS} 🪙`);
+      confetti({ particleCount: 30, spread: 45, origin: { y: 0.55 }, scalar: 0.7 });
+
+      startTransition(async () => {
+        try {
+          const res = await cleanMessSpotAction(spot.id);
+          if (res.error) {
+            setCleaningEnergy(prevEnergy);
+            setCleanedSpots(prevCleaned);
+            setCoins(prevCoins);
+            setCompanionOverrideAction("sad");
+          } else if (res.roomCleaned) {
+            setCoins((c) => c + ROOM_CLEAN_BONUS_COINS);
+            if (res.giftItemId) {
+              setUnlockedItems((prev) => (prev.includes(res.giftItemId!) ? prev : [...prev, res.giftItemId!]));
+            }
+            confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
+            showPetDialogue(t("cleanRoomDone"));
+          }
+          router.refresh();
+        } catch {
           setCleaningEnergy(prevEnergy);
           setCleanedSpots(prevCleaned);
           setCoins(prevCoins);
           setCompanionOverrideAction("sad");
-        } else if (res.roomCleaned) {
-          setCoins((c) => c + ROOM_CLEAN_BONUS_COINS);
-          if (res.giftItemId) {
-            setUnlockedItems((prev) => (prev.includes(res.giftItemId!) ? prev : [...prev, res.giftItemId!]));
-          }
-          confetti({ particleCount: 130, spread: 95, origin: { y: 0.5 } });
-          showPetDialogue(t("cleanRoomDone"));
+        } finally {
+          setSweepingSpotId(null);
+          cleanInFlight.current = false;
         }
-        router.refresh();
-      } catch {
-        setCleaningEnergy(prevEnergy);
-        setCleanedSpots(prevCleaned);
-        setCoins(prevCoins);
-        setCompanionOverrideAction("sad");
-      } finally {
-        cleanInFlight.current = false;
-      }
-    });
+      });
+    }, 800);
   };
 
   // Bật/tắt chế độ đi nghỉ — optimistic, rollback khi server lỗi.
@@ -926,87 +939,150 @@ export function HomeView({ data }: { data: DashboardData }) {
             .filter((spot) => !cleanedSpots[spot.id])
             .map((spot) => {
               const affordable = cleaningEnergy >= spot.cost;
+              const isSweeping = sweepingSpotId === spot.id;
               return (
                 <button
                   key={spot.id}
                   type="button"
+                  disabled={isSweeping}
                   onClick={() => handleCleanSpot(spot)}
                   title={t("cleanSpotTitle", { cost: spot.cost })}
                   aria-label={t("cleanSpotTitle", { cost: spot.cost })}
                   className={`absolute ${spot.positionClass} z-20 pointer-events-auto flex flex-col items-center group`}
                 >
-                  <span
-                    className={`text-3xl select-none drop-shadow-sm transition-transform group-hover:scale-110 group-active:scale-95 ${
-                      affordable ? "" : "grayscale-[60%] opacity-80"
-                    }`}
-                  >
-                    {spot.emoji}
-                  </span>
-                  <span
-                    className={`-mt-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black leading-none shadow-sm backdrop-blur-sm ${
-                      affordable
-                        ? "bg-emerald-50/90 border-emerald-300 text-emerald-700 animate-pulse"
-                        : "bg-white/70 border-stone-200 text-stone-400"
-                    }`}
-                  >
-                    🧹{spot.cost}
-                  </span>
+                  <div className="relative w-12 h-12 flex items-center justify-center">
+                    {isSweeping ? (
+                      <>
+                        {/* Sweeping broom icon */}
+                        <span className="text-3xl select-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-sweep z-30">
+                          🧹
+                        </span>
+                        {/* Sweeping dust cloud particles */}
+                        <span className="absolute inset-0 bg-stone-200/50 rounded-full blur-sm scale-110 animate-ping -z-10" />
+                        <span className="text-[10px] absolute -top-2 text-amber-600 font-extrabold animate-bounce select-none">
+                          ✨
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {/* Soft pulsing backing glow */}
+                        <span className="absolute inset-1.5 bg-amber-200/35 rounded-full blur-[6px] animate-pulse-glow -z-10" />
+                        
+                        {/* Mess Emoji */}
+                        <span
+                          className={`text-3xl select-none drop-shadow-sm transition-transform duration-300 group-hover:scale-125 group-active:scale-90 animate-wiggle ${
+                            affordable ? "" : "grayscale-[50%] opacity-70"
+                          }`}
+                        >
+                          {spot.emoji}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {!isSweeping && (
+                    <span
+                      className={`-mt-1 rounded-full border px-2 py-0.5 text-[9px] font-black leading-none shadow-sm backdrop-blur-sm transition-all ${
+                        affordable
+                          ? "bg-emerald-500 border-emerald-450 text-white animate-pulse"
+                          : "bg-white/80 border-stone-200 text-stone-400"
+                      }`}
+                    >
+                      🧹 {spot.cost}
+                    </span>
+                  )}
                 </button>
               );
             })}
 
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
-          <div className="bg-white/60 border border-white/40 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm cursor-pointer group relative text-theme-text">
-            <Flame className="w-5 h-5 text-orange-500" />
-            <span className="text-orange-500">
-              {t("streakDays", { count: currentStreak })}
-            </span>
-            {data.profile.streakFreezes > 0 && (
-              <span className="ml-1 flex items-center text-blue-500 text-sm bg-blue-50 px-1.5 rounded" title={t("freezeTitle")}>
-                ❄️ {data.profile.streakFreezes}
+          {/* Streak pill with click popover */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                playTing();
+                setShowFreezeTooltip((prev) => !prev);
+              }}
+              className="bg-white/70 border border-white/50 backdrop-blur-md px-3.5 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm hover:bg-white/95 active:scale-95 transition-all text-theme-text"
+            >
+              <Flame className="w-4.5 h-4.5 text-orange-500 fill-orange-500/10" />
+              <span className="text-orange-600 text-xs">
+                {t("streakDays", { count: currentStreak })}
               </span>
+              {data.profile.streakFreezes > 0 && (
+                <span className="ml-1 flex items-center text-blue-600 text-[10px] bg-blue-50/90 border border-blue-200/40 px-1.5 py-0.5 rounded-full font-black" title={t("freezeTitle")}>
+                  ❄️ {data.profile.streakFreezes}
+                </span>
+              )}
+            </button>
+
+            {showFreezeTooltip && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFreezeTooltip(false)} />
+                <div className="absolute top-full left-0 mt-2.5 w-52 bg-white/95 border border-amber-900/10 p-3.5 rounded-2xl shadow-xl z-50 text-left pointer-events-auto text-theme-text animate-sheet-up">
+                  <div className="text-[10px] font-black text-amber-950/40 uppercase tracking-wider mb-1">
+                    ❄️ {t("freezeTitle")}
+                  </div>
+                  <p className="text-[11px] text-theme-text/80 mb-2.5 leading-relaxed">
+                    {t("freezeTooltip", { price: 50 })}
+                  </p>
+                  <button
+                    type="button"
+                    className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white text-[11px] font-extrabold py-2 rounded-xl disabled:opacity-50 disabled:from-stone-200 disabled:to-stone-300 shadow-sm transition-all"
+                    disabled={coins < 50}
+                    onClick={() => {
+                      setCoins(c => c - 50);
+                      setShowFreezeTooltip(false);
+                      startTransition(async () => {
+                         await buyFreezeAction();
+                         router.refresh();
+                      });
+                    }}
+                  >
+                    {t("buyFreeze")}
+                  </button>
+                </div>
+              </>
             )}
-            {/* Tooltip mua thẻ */}
-            <div className="absolute top-full left-0 mt-2 w-48 bg-theme-card-bg rounded-xl border border-theme-card-border shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <p className="text-xs text-theme-text/45 mb-2">{t("freezeTooltip", { price: 50 })}</p>
-              <button
-                type="button"
-                className="w-full bg-theme-accent-light text-theme-accent hover:bg-theme-border/20 text-xs font-bold py-1.5 rounded-lg disabled:opacity-50"
-                disabled={coins < 50}
-                onClick={() => {
-                  setCoins(c => c - 50);
-                  startTransition(async () => {
-                     await buyFreezeAction();
-                     router.refresh();
-                  });
-                }}
-              >
-                {t("buyFreeze")}
-              </button>
-            </div>
           </div>
 
-          {/* Coins + cleaning energy — the only other header elements. Everything
-              else moved to the bottom nav so the header stays clean. */}
+          {/* Center: Room Switcher Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                playTing();
+                setIsRoomSwitcherOpen(true);
+              }}
+              className="bg-white/70 border border-white/50 backdrop-blur-md px-4 py-1.5 rounded-full flex items-center gap-1.5 font-black text-xs shadow-sm hover:bg-white/90 active:scale-95 transition-all text-amber-900/80 border-b-2 border-b-amber-200/50"
+            >
+              <DoorOpen className="w-4 h-4 text-amber-800" />
+              <span>{tRooms(currentRoomId)}</span>
+              <span className="text-[10px] text-amber-900/40 font-normal">▾</span>
+            </button>
+          </div>
+
+          {/* Right: Coins + broom (cleaning energy) */}
           <div className="flex items-center gap-2">
             {vacationMode && (
               <div
                 title={t("vacationActive")}
-                className="flex items-center rounded-full bg-sky-100/80 border border-sky-200 px-2.5 py-1.5 shadow-sm backdrop-blur-md cursor-help animate-pulse"
+                className="flex items-center rounded-full bg-sky-100/85 border border-sky-200/60 px-2.5 py-1.5 shadow-sm backdrop-blur-md cursor-help animate-pulse"
               >
                 <span className="text-sm leading-none">🏖️</span>
               </div>
             )}
             <div
               title={t("cleanEnergyTitle", cleaningProgress(cleanedSpots))}
-              className="flex items-center gap-1 rounded-full bg-white/60 border border-white/40 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text cursor-help"
+              className="flex items-center gap-1 rounded-full bg-white/70 border border-white/50 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text cursor-help"
             >
               <span className="text-sm leading-none">🧹</span>
-              <span className="tabular-nums text-emerald-600">{cleaningEnergy}</span>
+              <span className="tabular-nums text-emerald-600 text-xs font-black">{cleaningEnergy}</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/60 border border-white/40 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
-              <Image src="/assets/ui/icon_coin.png" alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
-              <span className="tabular-nums text-amber-600">{coins}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-white/50 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
+              <Image src="/assets/ui/icon_coin.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+              <span className="tabular-nums text-amber-600 text-xs font-black">{coins}</span>
             </div>
           </div>
         </div>
@@ -1019,7 +1095,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
 
         {/* Left Side Buttons */}
-        <div className="absolute left-4 top-24 z-20 flex flex-col gap-3 pointer-events-none">
+        <div className="absolute left-4 top-24 z-20 flex flex-col gap-3.5 pointer-events-none">
+          {/* Profile Button */}
           <button
             type="button"
             onClick={() => {
@@ -1028,14 +1105,15 @@ export function HomeView({ data }: { data: DashboardData }) {
             }}
             className="pointer-events-auto flex flex-col items-center group"
           >
-            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
-              <Image src="/assets/ui/icon_profile.png" alt="" fill className="p-1.5 object-contain" />
+            <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/95 group-active:scale-95 transition-all text-amber-600 relative">
+              <CircleUser className="w-5 h-5" />
             </div>
-            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+            <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
               {t("profile")}
             </span>
           </button>
 
+          {/* Neighbors Button */}
           {roomsAllUnlocked && (
             <button
               type="button"
@@ -1045,10 +1123,10 @@ export function HomeView({ data }: { data: DashboardData }) {
               }}
               className="pointer-events-auto flex flex-col items-center group"
             >
-              <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
-                <Image src="/assets/ui/icon_neighbor.png" alt="" fill className="p-1.5 object-contain" />
+              <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/95 group-active:scale-95 transition-all text-teal-650 relative">
+                <Users className="w-5 h-5" />
               </div>
-              <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
                 {t("neighbor")}
               </span>
             </button>
@@ -1065,10 +1143,10 @@ export function HomeView({ data }: { data: DashboardData }) {
               }}
               className="pointer-events-auto flex flex-col items-center group"
             >
-              <div className={`w-[38px] h-[38px] ${isDecorMode ? 'bg-amber-100 border-amber-400 scale-105 shadow-md' : 'bg-white/60 border-white/40'} border backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative`}>
-                <Image src="/assets/ui/icon_decor.png" alt="" fill className="p-1.5 object-contain" />
+              <div className={`w-10 h-10 ${isDecorMode ? 'bg-amber-150 border-amber-400 scale-105 shadow-md text-amber-800' : 'bg-white/75 border-white/50 text-orange-500'} border backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/95 group-active:scale-95 transition-all relative`}>
+                <Palette className="w-5 h-5" />
               </div>
-              <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
                 {isDecorMode ? t("decorDone") : t("decor")}
               </span>
             </button>
@@ -1076,7 +1154,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
 
         {/* Right Side Buttons */}
-        <div className="absolute right-4 top-24 z-20 flex flex-col gap-3 pointer-events-none">
+        <div className="absolute right-4 top-24 z-20 flex flex-col gap-3.5 pointer-events-none">
+          {/* Adventure Button */}
           {currentStage >= 1 && (
             <button
               type="button"
@@ -1086,18 +1165,19 @@ export function HomeView({ data }: { data: DashboardData }) {
               }}
               className="pointer-events-auto flex flex-col items-center group"
             >
-              <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
-                <Image src="/assets/ui/icon_adventure.png" alt="" fill className="p-1.5 object-contain" />
+              <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/95 group-active:scale-95 transition-all text-indigo-600 relative">
+                <Compass className="w-5 h-5" />
                 {data.profile.adventureEnergy >= 30 && (
                   <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">🔥</span>
                 )}
               </div>
-              <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+              <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
                 {t("adventure")}
               </span>
             </button>
           )}
 
+          {/* Mindfulness/Care Button */}
           <button
             type="button"
             onClick={() => {
@@ -1106,10 +1186,10 @@ export function HomeView({ data }: { data: DashboardData }) {
             }}
             className="pointer-events-auto flex flex-col items-center group"
           >
-            <div className="w-[38px] h-[38px] bg-white/60 border border-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/80 group-active:scale-95 transition-all text-sm relative">
-              <Image src="/assets/ui/icon_care.png" alt="" fill className="p-1.5 object-contain" />
+            <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:bg-white/95 group-active:scale-95 transition-all text-rose-500 relative">
+              <Heart className="w-5 h-5 fill-rose-500/10" />
             </div>
-            <span className="text-[9px] font-extrabold text-theme-text/85 mt-0.5 bg-white/50 px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none">
+            <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
               {t("care")}
             </span>
           </button>
@@ -2037,6 +2117,135 @@ export function HomeView({ data }: { data: DashboardData }) {
                 </div>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room Switcher Modal */}
+      {isRoomSwitcherOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in" onClick={() => setIsRoomSwitcherOpen(false)}>
+          <div className="w-full max-w-md bg-theme-bg rounded-3xl overflow-hidden shadow-2xl relative border border-theme-card-border animate-scale-up text-theme-text p-6" onClick={(e) => e.stopPropagation()}>
+            
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-theme-card-border">
+              <h3 className="text-base font-black flex items-center gap-2 text-amber-900">
+                🏡 {tRooms("title") || "Khám Phá Ngôi Nhà"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRoomSwitcherOpen(false)}
+                title={t("close")}
+                aria-label={t("close")}
+                className="p-1 rounded-full hover:bg-stone-100 text-stone-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-theme-text/60 mb-5 leading-relaxed">
+              Mở khoá phòng mới bằng cách nâng cấp level thỏ cưng (cho thỏ ăn để tăng EXP) và dọn sạch các đống bừa bộn để nhận nội thất miễn phí!
+            </p>
+
+            <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 no-scrollbar">
+              {ROOMS.map((room) => {
+                const unlocked = devLevelOverride !== null ? levelFromExp(petExp) >= room.unlockLevel : data.profile.unlockedRooms.includes(room.id);
+                const spots = spotsForRoom(room.id);
+                const cleanedCount = spots.filter(s => cleanedSpots[s.id]).length;
+                const totalSpots = spots.length;
+                const isCurrent = currentRoomId === room.id;
+                const cleanProgressPercent = totalSpots > 0 ? Math.round((cleanedCount / totalSpots) * 100) : 100;
+                const isFullyClean = cleanedCount === totalSpots;
+
+                // Gift item display name
+                const giftItemId = ROOM_CLEAN_GIFTS[room.id];
+                const giftName = giftItemId ? tShop(`item_${giftItemId}_name`) : "";
+
+                return (
+                  <div
+                    key={room.id}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isCurrent
+                        ? "border-amber-500 bg-amber-50/20 ring-1 ring-amber-500/30"
+                        : "border-theme-card-border bg-theme-card-bg hover:border-amber-300"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{room.icon}</span>
+                        <div>
+                          <h4 className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                            {tRooms(room.id)}
+                            {isCurrent && (
+                              <span className="text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-extrabold tracking-wide uppercase">
+                                Đang ở
+                              </span>
+                            )}
+                          </h4>
+                          {!unlocked && (
+                            <span className="text-[9px] text-orange-655 bg-orange-50 border border-orange-100 px-1.5 rounded flex items-center gap-0.5 mt-0.5">
+                              <Lock size={8} className="inline" /> {tRooms("lockedHint", { level: room.unlockLevel })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {unlocked && (
+                        <button
+                          type="button"
+                          disabled={isCurrent}
+                          onClick={() => {
+                            goToRoom(room.id);
+                            setIsRoomSwitcherOpen(false);
+                            playTing();
+                          }}
+                          className={`text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm transition-all ${
+                            isCurrent
+                              ? "bg-stone-100 text-stone-400 cursor-default"
+                              : "bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white active:scale-95"
+                          }`}
+                        >
+                          Ghé thăm
+                        </button>
+                      )}
+                    </div>
+
+                    {unlocked && (
+                      <div className="space-y-2 border-t border-black/[0.03] pt-2 mt-2">
+                        {/* Progress Bar */}
+                        <div className="flex items-center justify-between text-[9px] text-theme-text/50 font-bold">
+                          <span className="flex items-center gap-0.5">
+                            🧹 Sạch sẽ: {cleanedCount}/{totalSpots} ({cleanProgressPercent}%)
+                          </span>
+                          {isFullyClean && (
+                            <span className="text-emerald-600 flex items-center gap-0.5 font-extrabold">
+                              ✨ Sạch bóng!
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
+                          <div
+                            ref={(el) => {
+                              if (el) el.style.width = `${cleanProgressPercent}%`;
+                            }}
+                            className={`h-full w-0 rounded-full transition-all duration-500 ${
+                              isFullyClean ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-amber-400 to-orange-500"
+                            }`}
+                          />
+                        </div>
+
+                        {/* Gift Info */}
+                        {giftName && (
+                          <div className="text-[9px] text-amber-900/60 bg-amber-50/50 border border-amber-900/5 p-1.5 rounded-lg flex items-center justify-between font-bold">
+                            <span>🎁 Quà dọn dẹp:</span>
+                            <span className="text-amber-950 font-extrabold">{giftName}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
         </div>
       )}

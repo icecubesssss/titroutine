@@ -142,7 +142,8 @@ export function HomeView({ data }: { data: DashboardData }) {
     | "friendships"
     | "adventure_story"
     | "vibe_inbox"
-    | "mindfulness_menu";
+    | "mindfulness_menu"
+    | "quick_menu";
 
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
@@ -282,6 +283,43 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [showFreezeTooltip, setShowFreezeTooltip] = useState(false);
   const [isRoomSwitcherOpen, setIsRoomSwitcherOpen] = useState(false);
   const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
+
+  const [showToolbars, setShowToolbars] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const habitsEl = habitsRef.current;
+    if (!habitsEl) return;
+
+    const handleScroll = () => {
+      const currentScrollY = habitsEl.scrollTop;
+      
+      // Nếu cuộn về sát trên cùng, luôn hiện thanh công cụ
+      if (currentScrollY <= 10) {
+        setShowToolbars(true);
+        lastScrollY.current = currentScrollY;
+        return;
+      }
+
+      const diff = currentScrollY - lastScrollY.current;
+      // Khoảng cách cuộn tối thiểu là 15px để tránh quá nhạy
+      if (Math.abs(diff) < 15) return;
+
+      if (diff > 0) {
+        // Đang cuộn xuống -> Ẩn thanh công cụ
+        setShowToolbars(false);
+      } else {
+        // Đang cuộn lên -> Hiện thanh công cụ
+        setShowToolbars(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    habitsEl.addEventListener("scroll", handleScroll);
+    return () => {
+      habitsEl.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   // Detect an evolution since the last visit. We persist the last-seen stage in
   // localStorage so reaching a new form feels like a milestone event rather than a
@@ -1094,8 +1132,29 @@ export function HomeView({ data }: { data: DashboardData }) {
           </div>
         </div>
 
-        {/* Left Side Buttons */}
-        <div className="absolute left-4 top-24 z-20 flex flex-col gap-3.5 pointer-events-none">
+        {/* Mobile Quick Menu Button */}
+        <div className="absolute left-4 top-24 z-30 md:hidden pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              playSwoosh();
+              setActiveOverlay("quick_menu");
+            }}
+            className={`flex flex-col items-center group transition-all duration-300 ${
+              showToolbars ? "translate-x-0 opacity-100 scale-100" : "-translate-x-16 opacity-0 scale-75 pointer-events-none"
+            }`}
+          >
+            <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm text-amber-800 hover:scale-105 active:scale-95 transition-all">
+              <span className="text-xl">🎒</span>
+            </div>
+            <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
+              Menu
+            </span>
+          </button>
+        </div>
+
+        {/* Left Side Buttons (Desktop only) */}
+        <div className="absolute left-4 top-24 z-20 hidden md:flex flex-col gap-3.5 pointer-events-none">
           {/* Profile Button */}
           <button
             type="button"
@@ -1153,8 +1212,8 @@ export function HomeView({ data }: { data: DashboardData }) {
           )}
         </div>
 
-        {/* Right Side Buttons */}
-        <div className="absolute right-4 top-24 z-20 flex flex-col gap-3.5 pointer-events-none">
+        {/* Right Side Buttons (Desktop only) */}
+        <div className="absolute right-4 top-24 z-20 hidden md:flex flex-col gap-3.5 pointer-events-none">
           {/* Adventure Button */}
           {currentStage >= 1 && (
             <button
@@ -1829,7 +1888,9 @@ export function HomeView({ data }: { data: DashboardData }) {
       </div> {/* Close Main Workspace split panel */}
 
       {/* Single bottom navigation — keeps the header clean (streak + coins only). */}
-      <div className="md:hidden shrink-0">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ${
+        showToolbars ? "translate-y-0" : "translate-y-full"
+      }`}>
         <BottomNav
           activeTab={activeTab}
           onHome={() => { playSwoosh(); setActiveTab("habits"); }}
@@ -1843,7 +1904,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
       {/* Add-habit FAB, floating just above the bottom nav. */}
       {activeTab === "habits" && (
-        <div className="absolute bottom-24 md:bottom-6 right-6 z-30">
+        <div className={`absolute bottom-24 md:bottom-6 right-6 z-30 transition-all duration-300 ${
+          showToolbars ? "translate-y-0 scale-100 opacity-100" : "translate-y-16 scale-0 opacity-0 pointer-events-none"
+        }`}>
           <DuoButton
             variant="primary"
             size="lg"
@@ -2069,6 +2132,147 @@ export function HomeView({ data }: { data: DashboardData }) {
         vibes={data.pendingVibes || []}
         onClose={() => setPendingVibesOpen(false)}
       />
+
+      {/* 8. Hộp Công Cụ Tiện Ích di động (Cozy Toolbag Menu) */}
+      {activeOverlay === "quick_menu" && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm animate-fade-in" 
+          onClick={() => setActiveOverlay(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-[32px] rounded-b-[24px] bg-theme-bg p-6 shadow-2xl border border-theme-card-border animate-sheet-up text-theme-text"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="mb-5 flex items-center justify-between border-b border-theme-card-border pb-3.5">
+              <h3 className="text-base font-black flex items-center gap-2 text-amber-900">
+                🎒 Hộp Công Cụ Thỏ Cưng
+              </h3>
+              <button 
+                onClick={() => setActiveOverlay(null)} 
+                className="text-theme-text/45 hover:text-theme-text/80 font-bold p-1 rounded-full hover:bg-black/[0.03]"
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Grid menu */}
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              {/* Profile */}
+              <button
+                onClick={() => {
+                  playSwoosh();
+                  setActiveOverlay("pet_profile");
+                }}
+                className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center"
+              >
+                <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 mb-2 group-hover:scale-110 transition-transform">
+                  <CircleUser className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-black text-amber-950">{t("profile")}</span>
+                <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Thông tin thỏ cưng</span>
+              </button>
+
+              {/* Adventure */}
+              <button
+                onClick={() => {
+                  playSwoosh();
+                  setActiveOverlay("adventure_story");
+                }}
+                className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center relative"
+              >
+                <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                  <Compass className="w-6 h-6" />
+                </div>
+                {data.profile.adventureEnergy >= 30 && (
+                  <span className="absolute top-2 right-2 text-[8px] animate-pulse">🔥 Sẵn sàng</span>
+                )}
+                <span className="text-xs font-black text-amber-950">{t("adventure")}</span>
+                <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Đi dã ngoại kiếm quà</span>
+              </button>
+
+              {/* Neighborhood / Tree Town */}
+              {roomsAllUnlocked ? (
+                <button
+                  onClick={() => {
+                    playSwoosh();
+                    setIsNeighborOpen(true);
+                  }}
+                  className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center"
+                >
+                  <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center text-teal-650 mb-2 group-hover:scale-110 transition-transform">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-black text-amber-950">{t("neighbor")}</span>
+                  <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Gặp bạn bè & gửi vibe</span>
+                </button>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 bg-black/[0.02] border border-black/[0.04] rounded-2xl opacity-60 text-center select-none relative">
+                  <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center text-stone-400 mb-2">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-black text-stone-500">{t("neighbor")}</span>
+                  <span className="text-[8px] bg-amber-500 text-white px-1 py-0.5 rounded-full font-bold mt-1 scale-90">
+                    Mở khoá ở LV.10
+                  </span>
+                </div>
+              )}
+
+              {/* Decor Mode */}
+              {currentStage >= 1 ? (
+                <button
+                  onClick={() => {
+                    playSwoosh();
+                    setIsDecorMode((prev) => !prev);
+                    setSelectedDecorSlot(null);
+                    setActiveOverlay(null);
+                  }}
+                  className={`flex flex-col items-center justify-center p-4 ${
+                    isDecorMode ? "bg-amber-100/50 border-amber-400" : "bg-white/70"
+                  } hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center`}
+                >
+                  <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2 group-hover:scale-110 transition-transform">
+                    <Palette className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-black text-amber-950">
+                    {isDecorMode ? t("decorDone") : t("decor")}
+                  </span>
+                  <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Sắp xếp phòng ốc</span>
+                </button>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 bg-black/[0.02] border border-black/[0.04] rounded-2xl opacity-60 text-center select-none relative">
+                  <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center text-stone-400 mb-2">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-black text-stone-500">{t("decor")}</span>
+                  <span className="text-[8px] bg-amber-500 text-white px-1 py-0.5 rounded-full font-bold mt-1 scale-90">
+                    Mở khoá khi thỏ tiến hoá
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Mindfulness Toolbox Banner */}
+            <button
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("mindfulness_menu");
+              }}
+              className="w-full text-left p-3.5 bg-gradient-to-r from-rose-50 to-pink-50 hover:from-rose-100 hover:to-pink-100 border border-rose-100 rounded-2xl transition-all flex items-center gap-3.5 active:scale-98 mt-2"
+            >
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-rose-500 shadow-sm shrink-0">
+                <Heart className="w-5 h-5 fill-rose-500/10" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs font-black text-rose-950">🧘 Hộp công cụ Chánh niệm</div>
+                <div className="text-[9px] text-rose-900/60 leading-tight">Nhật ký cảm xúc, Luyện thở Box Breathing, Sơ cứu tâm lý SOS</div>
+              </div>
+              <span className="text-rose-400 font-bold text-xs">➔</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 7. Trình đơn Tự chăm sóc (Mindfulness Menu Bottom Sheet) */}
       {activeOverlay === "mindfulness_menu" && (

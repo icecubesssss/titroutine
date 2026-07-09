@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X, DoorOpen, CircleUser, Users, Palette, Compass, Heart, Lock } from "lucide-react";
+import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X, DoorOpen, CircleUser, Users, Palette, Compass, Heart, Lock, Home, ListTodo, ShoppingBag, BookOpen, BarChart3, Settings } from "lucide-react";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
@@ -285,6 +285,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
 
   const [showToolbars, setShowToolbars] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -923,6 +924,18 @@ export function HomeView({ data }: { data: DashboardData }) {
         onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
         onSettings={() => setIsSettingsOpen(true)}
+        onProfile={() => { playSwoosh(); setActiveOverlay("pet_profile"); }}
+        onAdventure={() => { playSwoosh(); setActiveOverlay("adventure_story"); }}
+        onMindfulness={() => { playSwoosh(); setActiveOverlay("mindfulness_menu"); }}
+        onNeighbors={() => { playSwoosh(); setIsNeighborOpen(true); }}
+        onDecorToggle={() => {
+          playSwoosh();
+          setIsDecorMode((prev) => !prev);
+          setSelectedDecorSlot(null);
+        }}
+        isDecorMode={isDecorMode}
+        roomsAllUnlocked={roomsAllUnlocked}
+        currentStage={currentStage}
       />
 
       {/* Main Workspace split panel */}
@@ -1033,7 +1046,9 @@ export function HomeView({ data }: { data: DashboardData }) {
               );
             })}
 
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
+        {/* Top Header Bar */}
+        {/* 1. Desktop version */}
+        <div className="absolute top-4 left-4 right-4 hidden md:flex justify-between items-center z-20">
           {/* Streak pill with click popover */}
           <div className="relative">
             <button
@@ -1125,34 +1140,64 @@ export function HomeView({ data }: { data: DashboardData }) {
           </div>
         </div>
 
+        {/* 2. Mobile version (Optimized to prevent overlap) */}
+        <div className={`absolute top-4 left-4 right-4 md:hidden flex justify-between items-center z-20 transition-all duration-300 ${
+          showToolbars ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none"
+        }`}>
+          {/* Left: Hamburger menu button */}
+          <button
+            type="button"
+            onClick={() => {
+              playSwoosh();
+              setIsMobileSidebarOpen(true);
+            }}
+            className="w-10 h-10 bg-white/70 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm text-amber-950 hover:bg-white/95 active:scale-95 transition-all text-lg font-bold"
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+
+          {/* Center: Room Switcher Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                playTing();
+                setIsRoomSwitcherOpen(true);
+              }}
+              className="bg-white/70 border border-white/50 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1 font-black text-[11px] shadow-sm hover:bg-white/90 active:scale-95 transition-all text-amber-900/80 border-b border-b-amber-200/50"
+            >
+              <DoorOpen className="w-3.5 h-3.5 text-amber-800" />
+              <span>{tRooms(currentRoomId)}</span>
+              <span className="text-[9px] text-amber-900/40 font-normal">▾</span>
+            </button>
+          </div>
+
+          {/* Right: Consolidated status bar (Streak | Coins | Cleaning Energy) */}
+          <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-white/50 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text text-[10px]">
+            {vacationMode && (
+              <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
+            )}
+            <span className="flex items-center gap-0.5 text-orange-600 font-extrabold" title={t("streakDays", { count: currentStreak })}>
+              🔥 {currentStreak}
+            </span>
+            <span className="text-earth-brown/15">|</span>
+            <span className="flex items-center gap-0.5 text-amber-600 font-extrabold" title={`${coins} coins`}>
+              🪙 {coins}
+            </span>
+            <span className="text-earth-brown/15">|</span>
+            <span className="flex items-center gap-0.5 text-emerald-600 font-extrabold" title={t("cleanEnergyTitle", cleaningProgress(cleanedSpots))}>
+              🧹 {cleaningEnergy}
+            </span>
+          </div>
+        </div>
+
         {/* Floating HUD at the top center */}
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none animate-bubble-pop">
           <div className="pointer-events-auto">
             <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
           </div>
         </div>
-
-        {/* Mobile Quick Menu Button */}
-        <div className="absolute left-4 top-24 z-30 md:hidden pointer-events-auto">
-          <button
-            type="button"
-            onClick={() => {
-              playSwoosh();
-              setActiveOverlay("quick_menu");
-            }}
-            className={`flex flex-col items-center group transition-all duration-300 ${
-              showToolbars ? "translate-x-0 opacity-100 scale-100" : "-translate-x-16 opacity-0 scale-75 pointer-events-none"
-            }`}
-          >
-            <div className="w-10 h-10 bg-white/75 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm text-amber-800 hover:scale-105 active:scale-95 transition-all">
-              <span className="text-xl">🎒</span>
-            </div>
-            <span className="text-[9px] font-black text-theme-text/80 mt-1 bg-white/60 border border-white/40 px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.03)] backdrop-blur-sm leading-none whitespace-nowrap">
-              Menu
-            </span>
-          </button>
-        </div>
-
         {/* Left Side Buttons (Desktop only) */}
         <div className="absolute left-4 top-24 z-20 hidden md:flex flex-col gap-3.5 pointer-events-none">
           {/* Profile Button */}
@@ -2450,6 +2495,90 @@ export function HomeView({ data }: { data: DashboardData }) {
               })}
             </div>
 
+          </div>
+        </div>
+      )}
+ 
+      {/* 9. Mobile slide-over Sidebar */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex md:hidden bg-black/45 backdrop-blur-sm animate-fade-in"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        >
+          <div 
+            className="w-64 h-full bg-theme-bg shadow-2xl border-r border-theme-card-border p-5 flex flex-col justify-between animate-slide-right text-theme-text"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-6 overflow-y-auto no-scrollbar">
+              {/* Header with Close */}
+              <div className="flex items-center justify-between shrink-0 px-1 border-b border-theme-card-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🐰</span>
+                  <div>
+                    <h1 className="text-base font-black tracking-tight leading-none text-theme-text">Titroutine</h1>
+                    <span className="text-[9px] font-bold text-theme-text/45 tracking-wider uppercase">Workspace</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(false)} 
+                  className="text-theme-text/45 hover:text-theme-text/80 font-bold p-1 rounded-full hover:bg-black/[0.03]"
+                  aria-label="Đóng"
+                >
+                  ✕
+                </button>
+              </div>
+ 
+              {/* Navigation Items */}
+              <nav className="flex flex-col gap-1">
+                {[
+                  { key: "home", label: t("home"), Icon: Home, onClick: () => { playSwoosh(); setActiveTab("habits"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }, active: activeTab === "habits" && !isDecorMode },
+                  { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: () => { playSwoosh(); setActiveTab("tasks"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }, active: activeTab === "tasks" && !isDecorMode },
+                  
+                  // Core game and mindfulness features
+                  { key: "profile", label: t("profile") || "Hồ sơ thỏ cưng", Icon: CircleUser, onClick: () => { playSwoosh(); setActiveOverlay("pet_profile"); setIsMobileSidebarOpen(false); } },
+                  { key: "adventure", label: t("adventure") || "Thám hiểm", Icon: Compass, onClick: () => { playSwoosh(); setActiveOverlay("adventure_story"); setIsMobileSidebarOpen(false); }, locked: currentStage < 1 },
+                  { key: "mindfulness", label: t("care") || "Chánh niệm", Icon: Heart, onClick: () => { playSwoosh(); setActiveOverlay("mindfulness_menu"); setIsMobileSidebarOpen(false); } },
+                  { key: "neighbors", label: t("neighbor") || "Hàng xóm", Icon: Users, onClick: () => { playSwoosh(); setIsNeighborOpen(true); setIsMobileSidebarOpen(false); }, locked: !roomsAllUnlocked },
+                  { key: "decor", label: isDecorMode ? (t("decorDone") || "Xong trang trí") : (t("decor") || "Trang trí phòng"), Icon: Palette, onClick: () => { playSwoosh(); setIsDecorMode((prev) => !prev); setSelectedDecorSlot(null); setIsMobileSidebarOpen(false); }, locked: currentStage < 1, active: isDecorMode },
+ 
+                  // Utilities
+                  { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: () => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); } },
+                  { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: () => { playSwoosh(); setIsAlbumOpen(true); setIsMobileSidebarOpen(false); } },
+                  { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: () => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); } },
+                  { key: "settings", label: t("settings"), Icon: Settings, onClick: () => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); } },
+                ].map(({ key, label, Icon, onClick, active, locked }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={locked}
+                    onClick={onClick}
+                    className={`flex items-center justify-between w-full px-3.5 py-2.5 rounded-2xl transition-all font-bold text-sm ${
+                      active
+                        ? "bg-theme-accent text-white shadow-sm"
+                        : locked
+                        ? "text-theme-text/30 cursor-not-allowed opacity-50"
+                        : "text-theme-text/65 hover:bg-theme-accent-light hover:text-theme-accent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 2} />
+                      <span>{label}</span>
+                    </div>
+                    {locked && <Lock className="h-3 w-3 text-theme-text/30 shrink-0" />}
+                  </button>
+                ))}
+              </nav>
+            </div>
+ 
+            {/* Footer vibe in slide-over */}
+            <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4 rounded-[20px] shadow-sm backdrop-blur-sm text-center shrink-0">
+              <span className="text-xs font-black text-theme-text/80 leading-snug">
+                {t("footerGreeting")}
+              </span>
+              <span className="text-[9px] font-bold text-theme-text/45 tracking-wide">
+                {t("footerSub")}
+              </span>
+            </div>
           </div>
         </div>
       )}

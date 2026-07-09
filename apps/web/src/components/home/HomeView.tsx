@@ -943,7 +943,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Top half: Pet Room */}
         <section
           ref={roomSectionRef}
-          className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-6 pb-24 min-h-[52vh] md:min-h-0 h-full transition-colors duration-1000 ${roomBackground}`}
+          className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-full transition-colors duration-1000 ${roomBackground}`}
         >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (

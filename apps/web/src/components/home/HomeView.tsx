@@ -9,7 +9,7 @@ import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { RabbitCompanion, STAGES_CONFIG, CompanionAction } from "@/components/pet/RabbitCompanion";
-import { pickAmbientAction, streakMilestoneAction, weatherFromCode } from "@/lib/companion";
+import { pickAmbientAction, streakMilestoneAction } from "@/lib/companion";
 import { EggCompanion } from "@/components/pet/EggCompanion";
 import { PetSpeechBubble } from "@/components/pet/PetSpeechBubble";
 import { HabitModal } from "@/components/home/HabitModal";
@@ -28,12 +28,16 @@ import { MindfulnessMenuSheet } from "@/components/home/MindfulnessMenuSheet";
 import { RoomSwitcherModal } from "@/components/home/RoomSwitcherModal";
 import { MobileSidebar } from "@/components/home/MobileSidebar";
 import type { ActiveOverlay } from "@/components/home/overlayTypes";
+import { useTimeOfDay } from "@/components/home/hooks/useTimeOfDay";
+import { useRealWeather } from "@/components/home/hooks/useRealWeather";
+import { useAutoHideToolbars } from "@/components/home/hooks/useAutoHideToolbars";
+import { useCaptureTimezone } from "@/components/home/hooks/useCaptureTimezone";
+import { useEvolutionCelebration } from "@/components/home/hooks/useEvolutionCelebration";
 
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
 import {
   toggleHabitAction,
-  updateTimezoneAction,
   claimDailyCheckinAction,
   buyFreezeAction,
   incrementCounterHabitAction,
@@ -80,7 +84,6 @@ const ACTION_ROOM: Record<InteractionKind, RoomId> = {
   pat: "living",
 };
 
-const LAST_STAGE_KEY = "titroutine:lastPetStage";
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
@@ -220,7 +223,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   // "Hành động nền" do scheduler chọn theo giờ/mùa (khi không có override/timer).
   const [ambientAction, setAmbientAction] = useState<CompanionAction>("idle");
   // Thời tiết thật (nếu xin được vị trí) → thỏ ngắm mưa/đắp người tuyết đúng lúc.
-  const [weather, setWeather] = useState<"rain" | "snow" | null>(null);
+  const weather = useRealWeather();
 
   // ── Nurture (feeding) state — optimistic mirrors of server truth ──────────
   const [satiety, setSatiety] = useState(data.profile.satiety);
@@ -241,7 +244,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [currentRoomId, setCurrentRoomId] = useState<RoomId>("bedroom");
   // Time-of-day tint for room lighting. Client-only (set in effect) so the first
   // render matches the server and there's no hydration mismatch.
-  const [timeOfDay, setTimeOfDay] = useState<"morning" | "day" | "evening" | "night">("day");
+  const timeOfDay = useTimeOfDay();
 
   // Dev-only overrides (from the Settings → Developer Tools panel) for previewing
   // pet stages / streaks before the higher-stage art lands.
@@ -261,67 +264,15 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [hasClaimedCheckinUI, setHasClaimedCheckinUI] = useState(false);
 
   // Stage the user just evolved INTO this visit (drives the evolution celebration).
-  const [justEvolvedStage, setJustEvolvedStage] = useState<number | null>(null);
+  const [justEvolvedStage, setJustEvolvedStage] = useEvolutionCelebration(data.profile.petStage, () => setCompanionOverrideAction("happy"));
 
   // Tooltip, room switcher & sweeping states
   const [showFreezeTooltip, setShowFreezeTooltip] = useState(false);
   const [isRoomSwitcherOpen, setIsRoomSwitcherOpen] = useState(false);
   const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
 
-  const [showToolbars, setShowToolbars] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const habitsEl = habitsRef.current;
-    if (!habitsEl) return;
-
-    const handleScroll = () => {
-      const currentScrollY = habitsEl.scrollTop;
-      
-      // Nếu cuộn về sát trên cùng, luôn hiện thanh công cụ
-      if (currentScrollY <= 10) {
-        setShowToolbars(true);
-        lastScrollY.current = currentScrollY;
-        return;
-      }
-
-      const diff = currentScrollY - lastScrollY.current;
-      // Khoảng cách cuộn tối thiểu là 15px để tránh quá nhạy
-      if (Math.abs(diff) < 15) return;
-
-      if (diff > 0) {
-        // Đang cuộn xuống -> Ẩn thanh công cụ
-        setShowToolbars(false);
-      } else {
-        // Đang cuộn lên -> Hiện thanh công cụ
-        setShowToolbars(true);
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    habitsEl.addEventListener("scroll", handleScroll);
-    return () => {
-      habitsEl.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  // Detect an evolution since the last visit. We persist the last-seen stage in
-  // localStorage so reaching a new form feels like a milestone event rather than a
-  // silent sprite swap. First-ever load just records the baseline (no popup).
-  useEffect(() => {
-    const serverStage = data.profile.petStage;
-    const stored = window.localStorage.getItem(LAST_STAGE_KEY);
-    if (stored !== null && serverStage > Number(stored)) {
-      setJustEvolvedStage(serverStage);
-      setCompanionOverrideAction("happy");
-      // Cinematic: pháo hoa mừng khoảnh khắc tiến hoá.
-      confetti({ particleCount: 180, spread: 100, startVelocity: 45, origin: { y: 0.5 }, scalar: 1.1 });
-      setTimeout(() => confetti({ particleCount: 110, angle: 60, spread: 70, origin: { x: 0, y: 0.6 } }), 250);
-      setTimeout(() => confetti({ particleCount: 110, angle: 120, spread: 70, origin: { x: 1, y: 0.6 } }), 420);
-    }
-    window.localStorage.setItem(LAST_STAGE_KEY, String(serverStage));
-  }, [data.profile.petStage]);
+  const showToolbars = useAutoHideToolbars(habitsRef);
 
   // Auto-trigger daily checkin popup
   useEffect(() => {
@@ -396,17 +347,6 @@ export function HomeView({ data }: { data: DashboardData }) {
     }
   }, [data.profile.unlockedRooms, currentRoomId, devLevelOverride]);
 
-  // Pick a time-of-day tint once on mount (and refresh it hourly).
-  useEffect(() => {
-    const compute = () => {
-      const h = new Date().getHours();
-      setTimeOfDay(h < 6 || h >= 22 ? "night" : h < 9 ? "morning" : h < 17 ? "day" : "evening");
-    };
-    compute();
-    const id = setInterval(compute, 60 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const goToRoom = (id: RoomId) => {
     setCurrentRoomId(id);
     window.localStorage.setItem(LAST_ROOM_KEY, id);
@@ -422,12 +362,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   // Capture the user's real timezone once so streaks roll over on their local day.
-  useEffect(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz && tz !== data.profile.timezone) {
-      updateTimezoneAction(tz).then(() => router.refresh());
-    }
-  }, [data.profile.timezone, router]);
+  useCaptureTimezone(data.profile.timezone, () => router.refresh());
 
   const completedCount = habits.filter((h) => h.isCompleted).length;
   const totalCount = habits.length;
@@ -797,30 +732,6 @@ export function HomeView({ data }: { data: DashboardData }) {
     const id = setInterval(repick, 11000);
     return () => clearInterval(id);
   }, [currentStage, weather]);
-
-  // Thời tiết thật (một lần/phiên): xin vị trí (im lặng nếu bị từ chối) → Open-Meteo
-  // (không cần API key) → map mã WMO ra mưa/tuyết cho scheduler.
-  useEffect(() => {
-    if (!("geolocation" in navigator)) return;
-    let cancelled = false;
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const res = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=weather_code`
-          );
-          const json = await res.json();
-          const code = json?.current?.weather_code;
-          if (!cancelled && typeof code === "number") setWeather(weatherFromCode(code));
-        } catch {
-          /* mạng lỗi → bỏ qua, dùng sinh hoạt theo giờ/mùa */
-        }
-      },
-      () => {/* từ chối vị trí → bỏ qua */},
-      { timeout: 8000, maximumAge: 3_600_000 }
-    );
-    return () => { cancelled = true; };
-  }, []);
 
   // Ăn mừng mốc streak (30/100/365/1000) một lần duy nhất mỗi mốc.
   useEffect(() => {

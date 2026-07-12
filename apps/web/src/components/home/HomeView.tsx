@@ -1599,7 +1599,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         onPlay={(toyId) => handleInteract("play", toyId)}
       />
 
-      {/* TreeTownModal thay thế cho NeighborModal */}
+      {/* Neighbourhood / Tree Town */}
       <TreeTownModal
         isOpen={isNeighborOpen}
         onClose={() => setIsNeighborOpen(false)}

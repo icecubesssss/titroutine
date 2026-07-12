@@ -112,7 +112,6 @@ pet-room top half inline, delegating the rest to child components + hooks below.
 #### Social
 | Component | File | Purpose |
 |---|---|---|
-| NeighborModal | `components/home/NeighborModal.tsx` | Visit neighbors |
 | VibeInboxModal | `components/social/VibeInboxModal.tsx` | Social vibes inbox |
 | TreeTownModal | `components/social/TreeTownModal.tsx` | Town/community view |
 
@@ -167,7 +166,6 @@ pet-room top half inline, delegating the rest to child components + hooks below.
 ### Hooks
 | Hook | File | Purpose |
 |---|---|---|
-| useDevice | `hooks/useDevice.ts` | Detect mobile/desktop |
 | useSound | `hooks/useSound.ts` | Sound effects (lazy-loaded, failure-tolerant) |
 | useTimeOfDay | `components/home/hooks/useTimeOfDay.ts` | Room lighting tint (client-only, hourly) |
 | useRealWeather | `components/home/hooks/useRealWeather.ts` | Geolocation → Open-Meteo → rain/snow |

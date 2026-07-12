@@ -40,7 +40,8 @@ cd apps/web && npm run build      # build + typecheck (the real verification)
 | DB schema (source of truth) | `packages/database/schema.sql` | ~183 |
 | DB migrations | `packages/database/migrations/*.sql` | varies |
 | Server data fetch (`getDashboard`) | `apps/web/src/lib/data.ts` | ~250 |
-| All server mutations | `apps/web/src/app/[locale]/actions.ts` | ~1445 |
+| All server mutations (barrel) | `apps/web/src/app/[locale]/actions.ts` | ~11 |
+| Server mutations by domain | `apps/web/src/app/[locale]/actions/{profile,habits,pet,shop,adventure,mindfulness,social,memories,tasks}.ts` + `_shared.ts` | 30–335 ea |
 | Auth actions (signIn/signUp/signOut) | `apps/web/src/app/[locale]/login/actions.ts` | ~70 |
 | TypeScript types (`DashboardData`, `Task`, `ProfileSummary`, etc.) | `apps/web/src/lib/types.ts` | ~116 |
 | Pure game rules (streak, stage, coins, feeding, levels) | `apps/web/src/lib/game.ts` | ~206 |
@@ -58,11 +59,20 @@ cd apps/web && npm run build      # build + typecheck (the real verification)
 | Layout (locale wrapper) | `apps/web/src/app/[locale]/layout.tsx` |
 | Middleware (auth + locale) | `apps/web/src/middleware.ts` |
 
-### Main UI Component — HomeView (~1657 lines)
-`apps/web/src/components/home/HomeView.tsx` is the **mega client component**.
-It renders the entire home screen: pet, habits, tasks, sidebar, bottom nav.
-**Key internal state**: `activeTab` (`"habits"` | `"tasks"`), dev overrides,
-companion action, ambient action, weather, room navigation, modals.
+### Main UI Component — HomeView (~1756 lines)
+`apps/web/src/components/home/HomeView.tsx` is the **home-screen orchestrator**.
+It owns the shared state (pet stats, coins, cleaning, decor, dev overrides,
+`activeTab`, companion/ambient action, room nav, modal routing) and renders the
+pet-room top half inline, delegating the rest to child components + hooks below.
+**Where to edit what** (so you don't re-read all ~1756 lines):
+- Habits list / weekly mood grid / task board → `HabitsPanel.tsx` (bottom half)
+- Quick menu / mindfulness sheet / room switcher / mobile sidebar →
+  `QuickMenuSheet.tsx` / `MindfulnessMenuSheet.tsx` / `RoomSwitcherModal.tsx` /
+  `MobileSidebar.tsx` (overlay set; `ActiveOverlay` type in `overlayTypes.ts`)
+- Time-of-day tint, real weather, auto-hide toolbars, timezone capture,
+  evolution celebration → `components/home/hooks/use*.ts`
+- The pet room (sprite, mess spots, decor drag, care dock) is still inline in
+  HomeView (too coupled to extract: ~55 shared locals).
 
 ### Component Map (by feature)
 
@@ -112,6 +122,16 @@ companion action, ambient action, weather, room navigation, modals.
 | AdventureView | `components/adventure/AdventureView.tsx` | Adventure gameplay |
 | StoryDialogModal | `components/adventure/StoryDialogModal.tsx` | Story choices A/B |
 
+#### Home layout / overlays (extracted from HomeView)
+| Component | File | Purpose |
+|---|---|---|
+| HabitsPanel | `components/home/HabitsPanel.tsx` | Bottom half: habit list + weekly mood grid + task board (pure view, callbacks from HomeView) |
+| QuickMenuSheet | `components/home/QuickMenuSheet.tsx` | Mobile "cozy toolbag" quick menu |
+| MindfulnessMenuSheet | `components/home/MindfulnessMenuSheet.tsx` | Mindfulness tools bottom sheet |
+| RoomSwitcherModal | `components/home/RoomSwitcherModal.tsx` | House explorer / room switch modal |
+| MobileSidebar | `components/home/MobileSidebar.tsx` | Mobile slide-over nav |
+| (type) ActiveOverlay | `components/home/overlayTypes.ts` | Union of overlay keys shared by HomeView + overlays |
+
 #### Navigation & Layout
 | Component | File | Purpose |
 |---|---|---|
@@ -149,6 +169,11 @@ companion action, ambient action, weather, room navigation, modals.
 |---|---|---|
 | useDevice | `hooks/useDevice.ts` | Detect mobile/desktop |
 | useSound | `hooks/useSound.ts` | Sound effects (lazy-loaded, failure-tolerant) |
+| useTimeOfDay | `components/home/hooks/useTimeOfDay.ts` | Room lighting tint (client-only, hourly) |
+| useRealWeather | `components/home/hooks/useRealWeather.ts` | Geolocation → Open-Meteo → rain/snow |
+| useAutoHideToolbars | `components/home/hooks/useAutoHideToolbars.ts` | Hide toolbars on scroll-down |
+| useCaptureTimezone | `components/home/hooks/useCaptureTimezone.ts` | Persist real IANA tz once |
+| useEvolutionCelebration | `components/home/hooks/useEvolutionCelebration.ts` | Confetti + "just evolved" state on stage-up |
 
 ### i18n
 - Config: `src/i18n/routing.ts`, `src/i18n/request.ts`
@@ -178,7 +203,16 @@ Auto-create trigger: new auth.user → profiles row + inventory row.
 
 ## Server Actions Quick Reference
 
-All in `apps/web/src/app/[locale]/actions.ts`. Return `{ error?: string }`.
+Actions now live in per-domain modules under `apps/web/src/app/[locale]/actions/`
+(each a `"use server"` file); `actions.ts` is just a barrel re-exporting them, so
+the import path `@/app/[locale]/actions` is unchanged. Shared helpers
+(`getUserId`, `reconcileMemories`, `ActionResult`) are in `actions/_shared.ts`.
+All actions return `{ error?: string }`. **Which file:** `profile.ts`
+(timezone/vacation/checkin/freeze), `habits.ts`, `pet.ts` (feed/interact/clean),
+`shop.ts` (buy/equip/decor/consumable/focus-item), `adventure.ts`,
+`mindfulness.ts` (mood/breathing), `social.ts`, `memories.ts`, `tasks.ts`.
+The `Line` column below is historical (from the old single file) — grep the
+action name inside its domain file.
 
 | Action | Line | Purpose |
 |---|---|---|

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Flame, X, DoorOpen, Users, Home, Settings } from "lucide-react";
+import { Flame, X, DoorOpen } from "lucide-react";
 import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
@@ -87,7 +87,6 @@ export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const tStages = useTranslations("Stages");
   const tRooms = useTranslations("Rooms");
-  const tShop = useTranslations("Shop");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();

@@ -272,7 +272,6 @@ action name inside its domain file.
 
 Generated/binary, never relevant: `node_modules/`, `apps/web/.next/`,
 `package-lock.json` (252K), `apps/web/public/assets/*.png` sprites, `*.woff`,
-`temp_agentpet/` (separate macOS desktop app, has its own `.git`),
 `.turbo/`, `apps/web/tsconfig.tsbuildinfo`.
 
 ## Known gotchas
@@ -281,12 +280,11 @@ Generated/binary, never relevant: `node_modules/`, `apps/web/.next/`,
   Supabase). New users must confirm via email before login; the UI shows
   "check your inbox". For frictionless onboarding, configure SMTP or disable
   email confirmation in Supabase Auth settings.
-- `apps/web/public/assets/sounds/*.mp3` are broken placeholders (S3 error pages);
-  `useSound` loads them lazily and tolerates the failure.
+- Sound effects: `apps/web/public/assets/sounds/` was removed (the old files were
+  broken S3-error placeholders). `useSound` loads sounds lazily and tolerates
+  missing files, so add real `*.mp3`s there to re-enable audio.
 - `middleware.ts` triggers a Next 16 "use proxy instead" deprecation warning —
   not breaking.
-- `temp_agentpet/` is a nested git repo (origin: `ntd4996/agentpet`). Don't
-  try to push it from this repo. Commit inside it separately if needed.
 
 ## Code Modification Rules
 

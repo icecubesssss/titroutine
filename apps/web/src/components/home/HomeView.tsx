@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X, DoorOpen, CircleUser, Users, Palette, Compass, Heart, Lock, Home, ListTodo, ShoppingBag, BookOpen, BarChart3, Settings } from "lucide-react";
+import { CheckCircle, Flame, Pencil, ChevronLeft, ChevronRight, X, DoorOpen, Users, Home, Settings } from "lucide-react";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
 import confetti from "canvas-confetti";
 import Image from "next/image";
@@ -23,6 +23,11 @@ import { BottomNav } from "@/components/home/BottomNav";
 import { InteractionDock } from "@/components/home/InteractionDock";
 import { FeedPicker } from "@/components/home/FeedPicker";
 import { DesktopSidebar } from "@/components/home/DesktopSidebar";
+import { QuickMenuSheet } from "@/components/home/QuickMenuSheet";
+import { MindfulnessMenuSheet } from "@/components/home/MindfulnessMenuSheet";
+import { RoomSwitcherModal } from "@/components/home/RoomSwitcherModal";
+import { MobileSidebar } from "@/components/home/MobileSidebar";
+import type { ActiveOverlay } from "@/components/home/overlayTypes";
 
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
@@ -40,9 +45,9 @@ import {
   setVacationModeAction,
   moveDecorAction,
 } from "@/app/[locale]/actions";
-import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, ROOM_CLEAN_GIFTS, type MessSpot } from "@/lib/cleaning";
+import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, type MessSpot } from "@/lib/cleaning";
 import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
-import { roomDef, unlockedRooms, allRoomsUnlocked, ROOMS, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
+import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
@@ -123,27 +128,6 @@ export function HomeView({ data }: { data: DashboardData }) {
   const habitsRef = useRef<HTMLElement>(null);
   const [, startTransition] = useTransition();
   const [isNavigating, startNavigation] = useTransition();
-
-  type ActiveOverlay =
-    | null
-    | "settings"
-    | "shop"
-    | "album"
-    | "neighbor"
-    | "timer"
-    | "mood_checkin"
-    | "breathing"
-    | "first_aid"
-    | "pet_profile"
-    | "add_habit"
-    | "edit_habit"
-    | "feed"
-    | "celebration"
-    | "friendships"
-    | "adventure_story"
-    | "vibe_inbox"
-    | "mindfulness_menu"
-    | "quick_menu";
 
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
@@ -2079,410 +2063,66 @@ export function HomeView({ data }: { data: DashboardData }) {
         onClose={() => setPendingVibesOpen(false)}
       />
 
-      {/* 8. Hộp Công Cụ Tiện Ích di động (Cozy Toolbag Menu) */}
-      {activeOverlay === "quick_menu" && (
-        <div 
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm animate-fade-in" 
-          onClick={() => setActiveOverlay(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-t-[32px] rounded-b-[24px] bg-theme-bg p-6 shadow-2xl border border-theme-card-border animate-sheet-up text-theme-text"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="mb-5 flex items-center justify-between border-b border-theme-card-border pb-3.5">
-              <h3 className="text-base font-black flex items-center gap-2 text-amber-900">
-                🎒 Hộp Công Cụ Thỏ Cưng
-              </h3>
-              <button 
-                onClick={() => setActiveOverlay(null)} 
-                className="text-theme-text/45 hover:text-theme-text/80 font-bold p-1 rounded-full hover:bg-black/[0.03]"
-                aria-label="Đóng"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Mobile "cozy toolbag" quick menu */}
+      <QuickMenuSheet
+        open={activeOverlay === "quick_menu"}
+        setActiveOverlay={setActiveOverlay}
+        playSwoosh={playSwoosh}
+        adventureReady={data.profile.adventureEnergy >= 30}
+        roomsAllUnlocked={roomsAllUnlocked}
+        onOpenNeighbor={() => setIsNeighborOpen(true)}
+        currentStage={currentStage}
+        isDecorMode={isDecorMode}
+        onToggleDecor={() => {
+          playSwoosh();
+          setIsDecorMode((prev) => !prev);
+          setSelectedDecorSlot(null);
+          setActiveOverlay(null);
+        }}
+      />
 
-            {/* Grid menu */}
-            <div className="grid grid-cols-2 gap-3 mb-2">
-              {/* Profile */}
-              <button
-                onClick={() => {
-                  playSwoosh();
-                  setActiveOverlay("pet_profile");
-                }}
-                className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center"
-              >
-                <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 mb-2 group-hover:scale-110 transition-transform">
-                  <CircleUser className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-black text-amber-950">{t("profile")}</span>
-                <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Thông tin thỏ cưng</span>
-              </button>
+      {/* Mindfulness tools bottom sheet */}
+      <MindfulnessMenuSheet
+        open={activeOverlay === "mindfulness_menu"}
+        setActiveOverlay={setActiveOverlay}
+      />
 
-              {/* Adventure */}
-              <button
-                onClick={() => {
-                  playSwoosh();
-                  setActiveOverlay("adventure_story");
-                }}
-                className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center relative"
-              >
-                <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
-                  <Compass className="w-6 h-6" />
-                </div>
-                {data.profile.adventureEnergy >= 30 && (
-                  <span className="absolute top-2 right-2 text-[8px] animate-pulse">🔥 Sẵn sàng</span>
-                )}
-                <span className="text-xs font-black text-amber-950">{t("adventure")}</span>
-                <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Đi dã ngoại kiếm quà</span>
-              </button>
+      {/* Room switcher / house explorer */}
+      <RoomSwitcherModal
+        open={isRoomSwitcherOpen}
+        onClose={() => setIsRoomSwitcherOpen(false)}
+        onVisitRoom={(id) => {
+          goToRoom(id);
+          setIsRoomSwitcherOpen(false);
+          playTing();
+        }}
+        currentRoomId={currentRoomId}
+        petExp={petExp}
+        devLevelOverride={devLevelOverride}
+        unlockedRooms={data.profile.unlockedRooms}
+        cleanedSpots={cleanedSpots}
+      />
 
-              {/* Neighborhood / Tree Town */}
-              {roomsAllUnlocked ? (
-                <button
-                  onClick={() => {
-                    playSwoosh();
-                    setIsNeighborOpen(true);
-                  }}
-                  className="flex flex-col items-center justify-center p-4 bg-white/70 hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center"
-                >
-                  <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center text-teal-650 mb-2 group-hover:scale-110 transition-transform">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <span className="text-xs font-black text-amber-950">{t("neighbor")}</span>
-                  <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Gặp bạn bè & gửi vibe</span>
-                </button>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-4 bg-black/[0.02] border border-black/[0.04] rounded-2xl opacity-60 text-center select-none relative">
-                  <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center text-stone-400 mb-2">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-black text-stone-500">{t("neighbor")}</span>
-                  <span className="text-[8px] bg-amber-500 text-white px-1 py-0.5 rounded-full font-bold mt-1 scale-90">
-                    Mở khoá ở LV.10
-                  </span>
-                </div>
-              )}
-
-              {/* Decor Mode */}
-              {currentStage >= 1 ? (
-                <button
-                  onClick={() => {
-                    playSwoosh();
-                    setIsDecorMode((prev) => !prev);
-                    setSelectedDecorSlot(null);
-                    setActiveOverlay(null);
-                  }}
-                  className={`flex flex-col items-center justify-center p-4 ${
-                    isDecorMode ? "bg-amber-100/50 border-amber-400" : "bg-white/70"
-                  } hover:bg-theme-accent-light border border-theme-card-border rounded-2xl transition-all active:scale-95 group shadow-sm text-center`}
-                >
-                  <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2 group-hover:scale-110 transition-transform">
-                    <Palette className="w-6 h-6" />
-                  </div>
-                  <span className="text-xs font-black text-amber-950">
-                    {isDecorMode ? t("decorDone") : t("decor")}
-                  </span>
-                  <span className="text-[9px] text-theme-text/45 mt-0.5 leading-none">Sắp xếp phòng ốc</span>
-                </button>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-4 bg-black/[0.02] border border-black/[0.04] rounded-2xl opacity-60 text-center select-none relative">
-                  <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center text-stone-400 mb-2">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-black text-stone-500">{t("decor")}</span>
-                  <span className="text-[8px] bg-amber-500 text-white px-1 py-0.5 rounded-full font-bold mt-1 scale-90">
-                    Mở khoá khi thỏ tiến hoá
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Mindfulness Toolbox Banner */}
-            <button
-              onClick={() => {
-                playSwoosh();
-                setActiveOverlay("mindfulness_menu");
-              }}
-              className="w-full text-left p-3.5 bg-gradient-to-r from-rose-50 to-pink-50 hover:from-rose-100 hover:to-pink-100 border border-rose-100 rounded-2xl transition-all flex items-center gap-3.5 active:scale-98 mt-2"
-            >
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-rose-500 shadow-sm shrink-0">
-                <Heart className="w-5 h-5 fill-rose-500/10" />
-              </div>
-              <div className="flex-1">
-                <div className="text-xs font-black text-rose-950">🧘 Hộp công cụ Chánh niệm</div>
-                <div className="text-[9px] text-rose-900/60 leading-tight">Nhật ký cảm xúc, Luyện thở Box Breathing, Sơ cứu tâm lý SOS</div>
-              </div>
-              <span className="text-rose-400 font-bold text-xs">➔</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 7. Trình đơn Tự chăm sóc (Mindfulness Menu Bottom Sheet) */}
-      {activeOverlay === "mindfulness_menu" && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setActiveOverlay(null)}>
-          <div
-            className="w-full max-w-md rounded-3xl bg-theme-bg p-6 shadow-2xl border border-theme-card-border animate-sheet-up text-theme-text"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between border-b border-theme-card-border pb-3">
-              <h3 className="text-lg font-black flex items-center gap-2">
-                🧘 Hộp Công Cụ Chánh Niệm
-              </h3>
-              <button onClick={() => setActiveOverlay(null)} className="text-theme-text/45 hover:text-theme-text/80 font-bold">✕</button>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <button
-                onClick={() => setActiveOverlay("mood_checkin")}
-                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
-              >
-                <span className="text-3xl">💭</span>
-                <div>
-                  <div className="text-xs font-black">Báo cáo cảm xúc hằng ngày</div>
-                  <div className="text-[10px] text-theme-text/45 leading-tight">Nhìn nhận cảm xúc của bản thân và ghi chép biết ơn (+15 xu)</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveOverlay("breathing")}
-                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
-              >
-                <span className="text-3xl">🌬️</span>
-                <div>
-                  <div className="text-xs font-black">Luyện thở Box Breathing</div>
-                  <div className="text-[10px] text-theme-text/45 leading-tight">2 phút tập thở khoa học giúp xoa dịu stress tức thì (+10 xu)</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveOverlay("first_aid")}
-                className="w-full text-left p-4 bg-theme-card-bg hover:bg-theme-accent-light border-2 border-theme-card-border rounded-2xl transition-all flex items-center gap-3 active:scale-98"
-              >
-                <span className="text-3xl">🚑</span>
-                <div>
-                  <div className="text-xs font-black">Sơ cứu tâm lý khẩn cấp</div>
-                  <div className="text-[10px] text-theme-text/45 leading-tight">Kết nối giác quan, bóp bóng xả giận, thẻ đọc chữa lành</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Room Switcher Modal */}
-      {isRoomSwitcherOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in" onClick={() => setIsRoomSwitcherOpen(false)}>
-          <div className="w-full max-w-md bg-theme-bg rounded-3xl overflow-hidden shadow-2xl relative border border-theme-card-border animate-scale-up text-theme-text p-6" onClick={(e) => e.stopPropagation()}>
-            
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-theme-card-border">
-              <h3 className="text-base font-black flex items-center gap-2 text-amber-900">
-                🏡 {tRooms("title") || "Khám Phá Ngôi Nhà"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsRoomSwitcherOpen(false)}
-                title={t("close")}
-                aria-label={t("close")}
-                className="p-1 rounded-full hover:bg-stone-100 text-stone-500 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <p className="text-[11px] text-theme-text/60 mb-5 leading-relaxed">
-              Mở khoá phòng mới bằng cách nâng cấp level thỏ cưng (cho thỏ ăn để tăng EXP) và dọn sạch các đống bừa bộn để nhận nội thất miễn phí!
-            </p>
-
-            <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 no-scrollbar">
-              {ROOMS.map((room) => {
-                const unlocked = devLevelOverride !== null ? levelFromExp(petExp) >= room.unlockLevel : data.profile.unlockedRooms.includes(room.id);
-                const spots = spotsForRoom(room.id);
-                const cleanedCount = spots.filter(s => cleanedSpots[s.id]).length;
-                const totalSpots = spots.length;
-                const isCurrent = currentRoomId === room.id;
-                const cleanProgressPercent = totalSpots > 0 ? Math.round((cleanedCount / totalSpots) * 100) : 100;
-                const isFullyClean = cleanedCount === totalSpots;
-
-                // Gift item display name
-                const giftItemId = ROOM_CLEAN_GIFTS[room.id];
-                const giftName = giftItemId ? tShop(`item_${giftItemId}_name`) : "";
-
-                return (
-                  <div
-                    key={room.id}
-                    className={`p-3.5 rounded-2xl border transition-all ${
-                      isCurrent
-                        ? "border-amber-500 bg-amber-50/20 ring-1 ring-amber-500/30"
-                        : "border-theme-card-border bg-theme-card-bg hover:border-amber-300"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{room.icon}</span>
-                        <div>
-                          <h4 className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                            {tRooms(room.id)}
-                            {isCurrent && (
-                              <span className="text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-extrabold tracking-wide uppercase">
-                                Đang ở
-                              </span>
-                            )}
-                          </h4>
-                          {!unlocked && (
-                            <span className="text-[9px] text-orange-655 bg-orange-50 border border-orange-100 px-1.5 rounded flex items-center gap-0.5 mt-0.5">
-                              <Lock size={8} className="inline" /> {tRooms("lockedHint", { level: room.unlockLevel })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {unlocked && (
-                        <button
-                          type="button"
-                          disabled={isCurrent}
-                          onClick={() => {
-                            goToRoom(room.id);
-                            setIsRoomSwitcherOpen(false);
-                            playTing();
-                          }}
-                          className={`text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm transition-all ${
-                            isCurrent
-                              ? "bg-stone-100 text-stone-400 cursor-default"
-                              : "bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white active:scale-95"
-                          }`}
-                        >
-                          Ghé thăm
-                        </button>
-                      )}
-                    </div>
-
-                    {unlocked && (
-                      <div className="space-y-2 border-t border-black/[0.03] pt-2 mt-2">
-                        {/* Progress Bar */}
-                        <div className="flex items-center justify-between text-[9px] text-theme-text/50 font-bold">
-                          <span className="flex items-center gap-0.5">
-                            🧹 Sạch sẽ: {cleanedCount}/{totalSpots} ({cleanProgressPercent}%)
-                          </span>
-                          {isFullyClean && (
-                            <span className="text-emerald-600 flex items-center gap-0.5 font-extrabold">
-                              ✨ Sạch bóng!
-                            </span>
-                          )}
-                        </div>
-                        <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
-                          <div
-                            ref={(el) => {
-                              if (el) el.style.width = `${cleanProgressPercent}%`;
-                            }}
-                            className={`h-full w-0 rounded-full transition-all duration-500 ${
-                              isFullyClean ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-amber-400 to-orange-500"
-                            }`}
-                          />
-                        </div>
-
-                        {/* Gift Info */}
-                        {giftName && (
-                          <div className="text-[9px] text-amber-900/60 bg-amber-50/50 border border-amber-900/5 p-1.5 rounded-lg flex items-center justify-between font-bold">
-                            <span>🎁 Quà dọn dẹp:</span>
-                            <span className="text-amber-950 font-extrabold">{giftName}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        </div>
-      )}
- 
-      {/* 9. Mobile slide-over Sidebar */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex md:hidden bg-black/45 backdrop-blur-sm animate-fade-in"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        >
-          <div 
-            className="w-64 h-full bg-theme-bg shadow-2xl border-r border-theme-card-border p-5 flex flex-col justify-between animate-slide-right text-theme-text"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col gap-6 overflow-y-auto no-scrollbar">
-              {/* Header with Close */}
-              <div className="flex items-center justify-between shrink-0 px-1 border-b border-theme-card-border pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">🐰</span>
-                  <div>
-                    <h1 className="text-base font-black tracking-tight leading-none text-theme-text">Titroutine</h1>
-                    <span className="text-[9px] font-bold text-theme-text/45 tracking-wider uppercase">Workspace</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsMobileSidebarOpen(false)} 
-                  className="text-theme-text/45 hover:text-theme-text/80 font-bold p-1 rounded-full hover:bg-black/[0.03]"
-                  aria-label="Đóng"
-                >
-                  ✕
-                </button>
-              </div>
- 
-              {/* Navigation Items */}
-              <nav className="flex flex-col gap-1">
-                {[
-                  { key: "home", label: t("home"), Icon: Home, onClick: () => { playSwoosh(); setActiveTab("habits"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }, active: activeTab === "habits" && !isDecorMode },
-                  { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: () => { playSwoosh(); setActiveTab("tasks"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }, active: activeTab === "tasks" && !isDecorMode },
-                  
-                  // Core game and mindfulness features
-                  { key: "profile", label: t("profile") || "Hồ sơ thỏ cưng", Icon: CircleUser, onClick: () => { playSwoosh(); setActiveOverlay("pet_profile"); setIsMobileSidebarOpen(false); } },
-                  { key: "adventure", label: t("adventure") || "Thám hiểm", Icon: Compass, onClick: () => { playSwoosh(); setActiveOverlay("adventure_story"); setIsMobileSidebarOpen(false); }, locked: currentStage < 1 },
-                  { key: "mindfulness", label: t("care") || "Chánh niệm", Icon: Heart, onClick: () => { playSwoosh(); setActiveOverlay("mindfulness_menu"); setIsMobileSidebarOpen(false); } },
-                  { key: "neighbors", label: t("neighbor") || "Hàng xóm", Icon: Users, onClick: () => { playSwoosh(); setIsNeighborOpen(true); setIsMobileSidebarOpen(false); }, locked: !roomsAllUnlocked },
-                  { key: "decor", label: isDecorMode ? (t("decorDone") || "Xong trang trí") : (t("decor") || "Trang trí phòng"), Icon: Palette, onClick: () => { playSwoosh(); setIsDecorMode((prev) => !prev); setSelectedDecorSlot(null); setIsMobileSidebarOpen(false); }, locked: currentStage < 1, active: isDecorMode },
- 
-                  // Utilities
-                  { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: () => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); } },
-                  { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: () => { playSwoosh(); setIsAlbumOpen(true); setIsMobileSidebarOpen(false); } },
-                  { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: () => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); } },
-                  { key: "settings", label: t("settings"), Icon: Settings, onClick: () => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); } },
-                ].map(({ key, label, Icon, onClick, active, locked }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={locked}
-                    onClick={onClick}
-                    className={`flex items-center justify-between w-full px-3.5 py-2.5 rounded-2xl transition-all font-bold text-sm ${
-                      active
-                        ? "bg-theme-accent text-white shadow-sm"
-                        : locked
-                        ? "text-theme-text/30 cursor-not-allowed opacity-50"
-                        : "text-theme-text/65 hover:bg-theme-accent-light hover:text-theme-accent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 2} />
-                      <span>{label}</span>
-                    </div>
-                    {locked && <Lock className="h-3 w-3 text-theme-text/30 shrink-0" />}
-                  </button>
-                ))}
-              </nav>
-            </div>
- 
-            {/* Footer vibe in slide-over */}
-            <div className="flex flex-col gap-1.5 bg-white/40 border border-white/20 p-4 rounded-[20px] shadow-sm backdrop-blur-sm text-center shrink-0">
-              <span className="text-xs font-black text-theme-text/80 leading-snug">
-                {t("footerGreeting")}
-              </span>
-              <span className="text-[9px] font-bold text-theme-text/45 tracking-wide">
-                {t("footerSub")}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile slide-over sidebar */}
+      <MobileSidebar
+        open={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        activeTab={activeTab}
+        isDecorMode={isDecorMode}
+        currentStage={currentStage}
+        roomsAllUnlocked={roomsAllUnlocked}
+        onHome={() => { playSwoosh(); setActiveTab("habits"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }}
+        onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsDecorMode(false); setIsMobileSidebarOpen(false); }}
+        onProfile={() => { playSwoosh(); setActiveOverlay("pet_profile"); setIsMobileSidebarOpen(false); }}
+        onAdventure={() => { playSwoosh(); setActiveOverlay("adventure_story"); setIsMobileSidebarOpen(false); }}
+        onMindfulness={() => { playSwoosh(); setActiveOverlay("mindfulness_menu"); setIsMobileSidebarOpen(false); }}
+        onNeighbors={() => { playSwoosh(); setIsNeighborOpen(true); setIsMobileSidebarOpen(false); }}
+        onToggleDecor={() => { playSwoosh(); setIsDecorMode((prev) => !prev); setSelectedDecorSlot(null); setIsMobileSidebarOpen(false); }}
+        onShop={() => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); }}
+        onAlbum={() => { playSwoosh(); setIsAlbumOpen(true); setIsMobileSidebarOpen(false); }}
+        onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); }}
+        onSettings={() => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); }}
+      />
     </main>
   );
 }

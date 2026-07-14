@@ -14,6 +14,7 @@ import { PetSpeechBubble } from "@/components/pet/PetSpeechBubble";
 import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
@@ -145,6 +146,9 @@ export function HomeView({ data }: { data: DashboardData }) {
     _setTimerHabit(val);
     setActiveOverlay(val ? "timer" : null);
   };
+
+  // The strict focus timer is phone-only (relies on the flip-face-down sensor).
+  const isMobile = useIsMobile();
 
   const isSettingsOpen = activeOverlay === "settings";
   const setIsSettingsOpen = (val: boolean) => setActiveOverlay(val ? "settings" : null);
@@ -476,7 +480,9 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   const handleDoIt = (habit: HabitWithLog) => {
-    if (habit.type === "timer") {
+    // Timer habits open the strict focus countdown — but only on phones. On
+    // desktop the flip-face-down sensor is unavailable, so we just mark it done.
+    if (habit.type === "timer" && isMobile) {
       playSwoosh();
       setTimerHabit(habit);
       return;
@@ -1489,14 +1495,18 @@ export function HomeView({ data }: { data: DashboardData }) {
         onClose={() => setEditingHabit(null)}
         onSaved={() => router.refresh()}
       />
-      <TimerModal
-        habit={timerHabit}
-        onClose={() => setTimerHabit(null)}
-        onComplete={(seconds) => {
-          if (timerHabit) commitToggle(timerHabit, seconds);
-          setTimerHabit(null);
-        }}
-      />
+      {timerHabit && (
+        <TimerModal
+          title={timerHabit.title}
+          durationSeconds={timerHabit.config.target_time ?? 15 * 60}
+          reward
+          onClose={() => setTimerHabit(null)}
+          onComplete={(seconds) => {
+            commitToggle(timerHabit, seconds);
+            setTimerHabit(null);
+          }}
+        />
+      )}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

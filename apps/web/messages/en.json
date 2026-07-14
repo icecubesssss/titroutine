@@ -279,7 +279,15 @@
     "keepsake_clover_desc": "Symbol of luck and mindful efforts.",
     "keepsake_pencil_desc": "Represents wisdom and study habits.",
     "keepsake_magnifying_glass_desc": "Ignites curiosity and creative learning.",
-    "keepsake_hourglass_desc": "Proof of patience and resilience."
+    "keepsake_hourglass_desc": "Proof of patience and resilience.",
+    "focusModeLabel": "Focus mode",
+    "modeStrict": "Strict",
+    "modeStrictSub": "Phone face-down",
+    "modeNormal": "Normal",
+    "modeNormalSub": "Stay in the app",
+    "normalFocus": "Normal mode. Hold your phone however you like — just don’t leave the app until the timer ends.",
+    "strictRunning": "Screen is face-down",
+    "normalRunning": "Stay in the app"
   },
   "Settings": {
     "title": "Settings",

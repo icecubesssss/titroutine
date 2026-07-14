@@ -6,6 +6,8 @@ import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, X } 
 import type { Task } from "@/lib/types";
 import { updateTaskStatusAction, updateTaskDetailsAction, createTaskAction, deleteTaskAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { TimerModal } from "@/components/home/TimerModal";
 import { TaskDrawer } from "./TaskDrawer";
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -44,8 +46,11 @@ interface TaskBoardProps {
 
 export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefresh }) => {
   const { playPop } = useSound();
+  const isMobile = useIsMobile();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // The task a focus countdown is currently running for (phone-only ritual).
+  const [focusTask, setFocusTask] = useState<Task | null>(null);
 
   // Optimistic tasks state
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(serverTasks);
@@ -89,6 +94,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t))
     );
 
+    // Starting a task (todo → đang làm) opens the strict focus timer on phones.
+    // Finishing the countdown only ends the session — the task stays "đang làm".
+    if (isMobile && original.status === "todo" && newStatus === "in_progress") {
+      setFocusTask(original);
+    }
+
     const result = await updateTaskStatusAction(taskId, newStatus);
     if (result?.error) {
       // Rollback
@@ -98,7 +109,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       addToast(`Lỗi chuyển cột: ${result.error}`);
     }
     onRefresh();
-  }, [optimisticTasks, playPop, addToast, onRefresh, isTempTask]);
+  }, [optimisticTasks, playPop, addToast, onRefresh, isTempTask, isMobile]);
 
   // 2. Update Subtasks Optimistic Handler
   const updateTaskNotes = useCallback(async (taskId: string, notesJson: string) => {
@@ -294,6 +305,17 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
       />
+
+      {/* Focus countdown for a task in progress. onComplete just closes it —
+          the task keeps its "đang làm" status (no auto-done, no reward). */}
+      {focusTask && (
+        <TimerModal
+          title={focusTask.title}
+          durationSeconds={focusTask.focusDuration * 60}
+          onClose={() => setFocusTask(null)}
+          onComplete={() => setFocusTask(null)}
+        />
+      )}
     </div>
   );
 };

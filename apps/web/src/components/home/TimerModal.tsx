@@ -2,13 +2,19 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Play, X, Smartphone, AlertTriangle, Music } from "lucide-react";
+import { Play, X, Smartphone, AlertTriangle, Music, Lock, Eye } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { claimKeepsakeAction } from "@/app/[locale]/actions";
-import type { HabitWithLog } from "@/lib/types";
+
+type FocusMode = "strict" | "normal";
 
 interface TimerModalProps {
-  habit: HabitWithLog | null;
+  /** Session title shown in the header (habit or task name). */
+  title: string;
+  /** Countdown length in seconds. */
+  durationSeconds: number;
+  /** Grant a random keepsake on finish (habits). Tasks pass false. */
+  reward?: boolean;
   onClose: () => void;
   onComplete: (seconds: number) => void;
 }
@@ -19,39 +25,32 @@ function format(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComplete }) => {
+export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, reward = false, onClose, onComplete }) => {
   const t = useTranslations("Timer");
-  const total = habit?.config.target_time ?? 15 * 60;
+  const total = durationSeconds;
 
   const [remaining, setRemaining] = useState(total);
   const [hasStarted, setHasStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [failed, setFailed] = useState(false);
-  
+
+  // Strict = must flip phone face-down. Normal = just don't leave the app.
+  const [focusMode, setFocusMode] = useState<FocusMode>("strict");
+
   const [isFaceDown, setIsFaceDown] = useState(false);
   const [penaltySeconds, setPenaltySeconds] = useState<number | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<"prompt" | "granted" | "denied">("prompt");
-  
+
   // Background music audio state & keepsake reward
   const [audioVibe, setAudioVibe] = useState<"none" | "lofi" | "rain">("none");
   const [earnedKeepsake, setEarnedKeepsake] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
-  
+
   const progressRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Reset state when a new habit is opened
-  useEffect(() => {
-    if (habit) {
-      setRemaining(habit.config.target_time ?? 15 * 60);
-      setHasStarted(false);
-      setFinished(false);
-      setFailed(false);
-      setPenaltySeconds(null);
-      setIsFaceDown(false);
-      setEarnedKeepsake(null);
-    }
-  }, [habit]);
+  // Flip-to-focus only applies in strict mode once orientation permission is granted.
+  const requiresFlip = focusMode === "strict" && permissionStatus === "granted";
 
   // Audio track switching during focusing
   useEffect(() => {
@@ -62,7 +61,6 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
       audioRef.current.loop = true;
     }
 
-    const requiresFlip = permissionStatus === "granted";
     const isRunning = hasStarted && !finished && !failed && (!requiresFlip || isFaceDown);
 
     if (isRunning && audioVibe !== "none") {
@@ -74,7 +72,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
     } else {
       audioRef.current.pause();
     }
-  }, [hasStarted, finished, failed, isFaceDown, audioVibe, permissionStatus]);
+  }, [hasStarted, finished, failed, isFaceDown, audioVibe, requiresFlip]);
 
   // Audio cleanup on unmount
   useEffect(() => {
@@ -86,38 +84,38 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
     };
   }, []);
 
-  // Keepsake select once finished
+  // Keepsake select once finished (habits only)
   useEffect(() => {
-    if (finished && !earnedKeepsake) {
+    if (reward && finished && !earnedKeepsake) {
       const keepsakes = ["keepsake_clover", "keepsake_pencil", "keepsake_magnifying_glass", "keepsake_hourglass"];
       const random = keepsakes[Math.floor(Math.random() * keepsakes.length)];
       setEarnedKeepsake(random);
     }
-  }, [finished, earnedKeepsake]);
+  }, [reward, finished, earnedKeepsake]);
 
-  const requestPermissionAndStart = async () => {
-    type IOSDeviceOrientationEvent = { requestPermission?: () => Promise<"granted" | "denied"> };
-    const win = window as unknown as { DeviceOrientationEvent: IOSDeviceOrientationEvent };
+  const startFocus = async () => {
+    // Only strict mode needs the device-orientation sensor (iOS 13+ gates it
+    // behind a permission prompt). Normal mode just watches for app-switching.
+    if (focusMode === "strict") {
+      type IOSDeviceOrientationEvent = { requestPermission?: () => Promise<"granted" | "denied"> };
+      const win = window as unknown as { DeviceOrientationEvent: IOSDeviceOrientationEvent };
 
-    if (
-      typeof window !== "undefined" &&
-      "DeviceOrientationEvent" in window &&
-      typeof win.DeviceOrientationEvent.requestPermission === "function"
-    ) {
-      try {
-        const permissionState = await win.DeviceOrientationEvent.requestPermission();
-        if (permissionState === "granted") {
-          setPermissionStatus("granted");
-        } else {
+      if (
+        typeof window !== "undefined" &&
+        "DeviceOrientationEvent" in window &&
+        typeof win.DeviceOrientationEvent.requestPermission === "function"
+      ) {
+        try {
+          const permissionState = await win.DeviceOrientationEvent.requestPermission();
+          setPermissionStatus(permissionState === "granted" ? "granted" : "denied");
+        } catch (error) {
+          console.error(error);
           setPermissionStatus("denied");
         }
-      } catch (error) {
-        console.error(error);
-        setPermissionStatus("denied");
+      } else {
+        // Non-iOS 13+ devices grant orientation access implicitly.
+        setPermissionStatus("granted");
       }
-    } else {
-      // Non-iOS 13+ devices
-      setPermissionStatus("granted");
     }
     setHasStarted(true);
   };
@@ -138,12 +136,12 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Strict mode: leaving the app immediately fails the timer
+        // Both modes fail if you leave the app mid-session.
         setFailed(true);
       }
     };
 
-    if (permissionStatus === "granted") {
+    if (requiresFlip) {
       window.addEventListener("deviceorientation", handleOrientation);
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -152,7 +150,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
       window.removeEventListener("deviceorientation", handleOrientation);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [hasStarted, finished, failed, permissionStatus]);
+  }, [hasStarted, finished, failed, requiresFlip]);
 
   // Timer logic
   useEffect(() => {
@@ -160,14 +158,12 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
 
     let timerId: NodeJS.Timeout;
 
-    const requiresFlip = permissionStatus === "granted";
-
     if (requiresFlip && !isFaceDown) {
-      // Penalty mode
+      // Penalty mode: strict session with the phone facing up.
       if (penaltySeconds === null) {
         setPenaltySeconds(5);
       }
-      
+
       timerId = setInterval(() => {
         setPenaltySeconds((prev) => {
           if (prev !== null && prev <= 1) {
@@ -182,7 +178,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
       if (penaltySeconds !== null) {
         setPenaltySeconds(null); // Clear penalty if they flip it back in time
       }
-      
+
       timerId = setInterval(() => {
         setRemaining((prev) => {
           if (prev <= 1) {
@@ -195,7 +191,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
     }
 
     return () => clearInterval(timerId);
-  }, [hasStarted, finished, failed, isFaceDown, penaltySeconds, permissionStatus]);
+  }, [hasStarted, finished, failed, isFaceDown, penaltySeconds, requiresFlip]);
 
   useEffect(() => {
     if (progressRef.current) {
@@ -204,13 +200,11 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
     }
   }, [remaining, total, hasStarted]);
 
-  if (!habit) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl overflow-hidden border-4 border-earth-brown/10 p-6 flex flex-col items-center animate-bubble-pop">
         <div className="w-full flex items-center justify-between mb-2">
-          <h2 className="text-lg font-black text-earth-text truncate pr-2">{habit.title}</h2>
+          <h2 className="text-lg font-black text-earth-text truncate pr-2">{title}</h2>
           <button
             aria-label={t("cancel")}
             title={t("cancel")}
@@ -228,8 +222,46 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
               <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto text-fire-orange">
                 <Smartphone size={40} />
               </div>
+
+              {/* Focus mode selection */}
+              <div className="w-full flex flex-col gap-2 text-left px-4">
+                <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider">
+                  {t("focusModeLabel")}
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFocusMode("strict")}
+                    className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                      focusMode === "strict"
+                        ? "border-fire-orange bg-orange-50"
+                        : "border-gray-200 bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "strict" ? "text-fire-orange" : "text-stone-500"}`}>
+                      <Lock size={12} /> {t("modeStrict")}
+                    </span>
+                    <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeStrictSub")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFocusMode("normal")}
+                    className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                      focusMode === "normal"
+                        ? "border-fire-orange bg-orange-50"
+                        : "border-gray-200 bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "normal" ? "text-fire-orange" : "text-stone-500"}`}>
+                      <Eye size={12} /> {t("modeNormal")}
+                    </span>
+                    <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeNormalSub")}</span>
+                  </button>
+                </div>
+              </div>
+
               <p className="text-stone-600 font-medium text-xs px-4">
-                {t("strictFocus")}
+                {focusMode === "strict" ? t("strictFocus") : t("normalFocus")}
               </p>
 
               {/* BGM Audio Selection */}
@@ -256,7 +288,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
               </div>
 
               <div className="px-4 pt-2">
-                <DuoButton variant="primary" fullWidth size="lg" onClick={requestPermissionAndStart}>
+                <DuoButton variant="primary" fullWidth size="lg" onClick={startFocus}>
                   <span className="flex items-center gap-2 justify-center">
                     <Play size={20} /> {t("startFocus")}
                   </span>
@@ -281,8 +313,8 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
               <div className="text-6xl mb-2 animate-bounce">🎉</div>
               <h3 className="text-2xl font-black text-green-600">{t("completed")}</h3>
               <p className="text-stone-600 font-medium text-xs">{t("completedSub")}</p>
-              
-              {earnedKeepsake && (
+
+              {reward && earnedKeepsake && (
                 <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 my-2 flex flex-col items-center shadow-inner max-w-xs w-full animate-bubble-pop">
                   <span className="text-[10px] font-black text-amber-800/80 mb-2 uppercase tracking-wide">{t("keepsakeEarned")}</span>
                   <span className="text-4xl mb-1 select-none">
@@ -304,7 +336,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                 size="lg"
                 disabled={isClaiming}
                 onClick={async () => {
-                  if (earnedKeepsake) {
+                  if (reward && earnedKeepsake) {
                     setIsClaiming(true);
                     try {
                       await claimKeepsakeAction(earnedKeepsake);
@@ -316,7 +348,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                   onComplete(total);
                 }}
               >
-                {isClaiming ? t("done") : t("claimReward")}
+                {isClaiming ? t("done") : reward ? t("claimReward") : t("done")}
               </DuoButton>
             </div>
           ) : (
@@ -338,7 +370,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                       className="h-full bg-fire-orange transition-[width] duration-1000 ease-linear"
                     />
                   </div>
-                  
+
                   {/* BGM Toggle Switch during Focus */}
                   <div className="flex flex-col items-center gap-2 w-full">
                     <div className="flex gap-2 justify-center bg-stone-50 border border-stone-100 p-1 rounded-lg">
@@ -359,14 +391,18 @@ export const TimerModal: React.FC<TimerModalProps> = ({ habit, onClose, onComple
                     </div>
                   </div>
 
-                  {permissionStatus === "granted" && (
+                  {requiresFlip ? (
                     <p className="text-green-600 font-bold text-xs flex items-center gap-2 whitespace-pre-wrap">
-                      <Smartphone className="rotate-180" size={18} /> Đang úp màn hình
+                      <Smartphone className="rotate-180" size={18} /> {t("strictRunning")}
+                    </p>
+                  ) : (
+                    <p className="text-stone-500 font-bold text-xs flex items-center gap-2 whitespace-pre-wrap">
+                      <Eye size={16} /> {t("normalRunning")}
                     </p>
                   )}
                 </div>
               )}
-              
+
               <button
                 type="button"
                 onClick={() => setFailed(true)}

@@ -279,7 +279,15 @@
     "keepsake_clover_desc": "象征着幸运与心流努力。",
     "keepsake_pencil_desc": "代表智慧与勤奋学习。",
     "keepsake_magnifying_glass_desc": "唤醒好奇与创意探索。",
-    "keepsake_hourglass_desc": "坚韧与耐心的专注见证。"
+    "keepsake_hourglass_desc": "坚韧与耐心的专注见证。",
+    "focusModeLabel": "专注模式",
+    "modeStrict": "严格",
+    "modeStrictSub": "手机朝下",
+    "modeNormal": "普通",
+    "modeNormalSub": "勿离开应用",
+    "normalFocus": "普通模式。手机怎么放都行，只要在倒计时结束前不要离开应用。",
+    "strictRunning": "屏幕已朝下",
+    "normalRunning": "请勿离开应用"
   },
   "Settings": {
     "title": "设置",

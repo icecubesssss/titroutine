@@ -279,7 +279,15 @@
     "keepsake_clover_desc": "Tượng trưng cho sự may mắn và nỗ lực.",
     "keepsake_pencil_desc": "Đại diện cho sự thông thái và chăm chỉ.",
     "keepsake_magnifying_glass_desc": "Khơi gợi tò mò và sáng tạo.",
-    "keepsake_hourglass_desc": "Bảo chứng cho tính kiên nhẫn vượt khó."
+    "keepsake_hourglass_desc": "Bảo chứng cho tính kiên nhẫn vượt khó.",
+    "focusModeLabel": "Chế độ tập trung",
+    "modeStrict": "Nghiêm ngặt",
+    "modeStrictSub": "Úp điện thoại",
+    "modeNormal": "Thường",
+    "modeNormalSub": "Không thoát app",
+    "normalFocus": "Chế độ Thường. Cứ để điện thoại thoải mái, chỉ cần đừng rời khỏi ứng dụng cho tới khi hết giờ nhé.",
+    "strictRunning": "Đang úp màn hình",
+    "normalRunning": "Đừng rời khỏi ứng dụng nhé"
   },
   "Settings": {
     "title": "Cài đặt",

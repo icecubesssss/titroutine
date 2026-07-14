@@ -2,17 +2,23 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 
 // Hide the floating toolbars while the user scrolls down inside the given
 // scroll container, reveal them on scroll-up or near the top. 15px dead-zone
-// keeps it from flickering on tiny scrolls.
-export function useAutoHideToolbars(scrollRef: RefObject<HTMLElement | null>): boolean {
+// keeps it from flickering on tiny scrolls. Supports dual refs for desktop
+// and mobile scroll containers.
+export function useAutoHideToolbars(
+  scrollRef: RefObject<HTMLElement | null>,
+  mobileScrollRef?: RefObject<HTMLElement | null>
+): boolean {
   const [showToolbars, setShowToolbars] = useState(true);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     const habitsEl = scrollRef.current;
-    if (!habitsEl) return;
+    const mobileEl = mobileScrollRef?.current;
 
-    const handleScroll = () => {
-      const currentScrollY = habitsEl.scrollTop;
+    const handleScroll = (e: Event) => {
+      const target = e.currentTarget as HTMLElement;
+      if (!target) return;
+      const currentScrollY = target.scrollTop;
 
       // Nếu cuộn về sát trên cùng, luôn hiện thanh công cụ
       if (currentScrollY <= 10) {
@@ -35,11 +41,23 @@ export function useAutoHideToolbars(scrollRef: RefObject<HTMLElement | null>): b
       lastScrollY.current = currentScrollY;
     };
 
-    habitsEl.addEventListener("scroll", handleScroll);
+    if (habitsEl) {
+      habitsEl.addEventListener("scroll", handleScroll);
+    }
+    if (mobileEl) {
+      mobileEl.addEventListener("scroll", handleScroll);
+    }
+
     return () => {
-      habitsEl.removeEventListener("scroll", handleScroll);
+      if (habitsEl) {
+        habitsEl.removeEventListener("scroll", handleScroll);
+      }
+      if (mobileEl) {
+        mobileEl.removeEventListener("scroll", handleScroll);
+      }
     };
-  }, [scrollRef]);
+  }, [scrollRef, mobileScrollRef]);
 
   return showToolbars;
 }
+

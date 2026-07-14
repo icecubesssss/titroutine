@@ -127,6 +127,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const inFlight = useRef<Set<string>>(new Set());
   // The internally-scrolling habits pane (the shell itself never scrolls).
   const habitsRef = useRef<HTMLElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
   const [isNavigating, startNavigation] = useTransition();
 
@@ -273,7 +274,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const showToolbars = useAutoHideToolbars(habitsRef);
+  const showToolbars = useAutoHideToolbars(habitsRef, mobileScrollRef);
 
   // Auto-trigger daily checkin popup
   useEffect(() => {
@@ -837,11 +838,14 @@ export function HomeView({ data }: { data: DashboardData }) {
       />
 
       {/* Main Workspace split panel */}
-      <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full relative">
+      <div
+        ref={mobileScrollRef}
+        className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
+      >
         {/* Top half: Pet Room */}
         <section
           ref={roomSectionRef}
-          className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-full transition-colors duration-1000 ${roomBackground}`}
+          className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-[65vh] md:h-full transition-colors duration-1000 ${roomBackground}`}
         >
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -946,7 +950,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Top Header Bar */}
         {/* 1. Desktop version */}
-        <div className="absolute top-4 left-4 right-4 hidden md:flex justify-between items-center z-20">
+        <div className="absolute top-4 left-4 right-4 hidden md:flex justify-between items-center z-40">
           {/* Streak pill with click popover */}
           <div className="relative">
             <button
@@ -1039,7 +1043,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
 
         {/* 2. Mobile version (Optimized to prevent overlap) */}
-        <div className={`absolute top-4 left-4 right-4 md:hidden flex justify-between items-center z-20 transition-all duration-300 ${
+        <div className={`absolute top-4 left-4 right-4 md:hidden flex justify-between items-center z-40 transition-all duration-300 ${
           showToolbars ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none"
         }`}>
           {/* Left: Hamburger menu button */}
@@ -1091,7 +1095,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         </div>
 
         {/* Floating HUD at the top center */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none animate-bubble-pop">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none animate-bubble-pop">
           <div className="pointer-events-auto">
             <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
           </div>

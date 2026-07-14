@@ -182,7 +182,7 @@ export function HabitsPanel({
   );
 
   return (
-    <section ref={scrollRef} className={`flex-[1.3] min-h-0 bg-earth-bg p-6 md:p-8 pb-28 overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
+    <section ref={scrollRef} className={`flex-[1.3] min-h-0 bg-earth-bg p-6 md:p-8 pb-28 overflow-y-visible md:overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
       {weekHeader}
 
       {activeTab === "habits" ? (

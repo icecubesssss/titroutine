@@ -42,9 +42,13 @@ const Toast: React.FC<{ toast: ToastData; onDismiss: (id: number) => void }> = (
 interface TaskBoardProps {
   tasks: Task[];
   onRefresh: () => void;
+  /** Selected week bounds (YYYY-MM-DD). Tasks are filtered by deadline against
+   *  this range; tasks with no deadline always show. Omit to show everything. */
+  weekStart?: string;
+  weekEnd?: string;
 }
 
-export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefresh }) => {
+export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefresh, weekStart, weekEnd }) => {
   const { playPop } = useSound();
   const isMobile = useIsMobile();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -265,7 +269,19 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 items-start">
           {columns.map((col) => {
-            const colTasks = optimisticTasks.filter((t) => t.status === col.id);
+            // Week filter: keep tasks whose deadline falls in the selected week;
+            // tasks without a deadline always show. In the "done" column, put the
+            // most recently completed on top (updated_at bumps on status change).
+            const colTasks = optimisticTasks
+              .filter((t) => {
+                if (t.status !== col.id) return false;
+                if (!t.deadline || !weekStart || !weekEnd) return true;
+                const due = t.deadline.slice(0, 10);
+                return due >= weekStart && due <= weekEnd;
+              })
+              .sort((a, b) =>
+                col.id === "done" ? Date.parse(b.updatedAt) - Date.parse(a.updatedAt) : 0
+              );
             return (
               <Column
                 key={col.id}

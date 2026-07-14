@@ -73,6 +73,7 @@ export async function addHabitAction(input: {
 export async function updateHabitAction(input: {
   id: string;
   title: string;
+  type?: HabitType;
   durationMinutes?: number;
   targetCount?: number;
   frequency?: Record<string, unknown>;
@@ -85,11 +86,24 @@ export async function updateHabitAction(input: {
   if (!title) return { error: "empty_title" };
 
   const patch: Record<string, unknown> = { title };
-  if (input.durationMinutes != null) {
-    patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 };
-  }
-  if (input.targetCount != null) {
-    patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_count: Math.max(1, Math.round(input.targetCount)) };
+  if (input.type != null) {
+    // Switching type must rebuild config from scratch so a converted habit
+    // (e.g. boolean → timer) never carries stale keys from its old type.
+    patch.type = input.type;
+    const config: Record<string, unknown> = {};
+    if (input.type === "timer" && input.durationMinutes) {
+      config.target_time = Math.max(1, Math.round(input.durationMinutes)) * 60;
+    } else if (input.type === "counter" && input.targetCount) {
+      config.target_count = Math.max(1, Math.round(input.targetCount));
+    }
+    patch.config = config;
+  } else {
+    if (input.durationMinutes != null) {
+      patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 };
+    }
+    if (input.targetCount != null) {
+      patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_count: Math.max(1, Math.round(input.targetCount)) };
+    }
   }
   if (input.frequency != null) {
     patch.frequency = input.frequency;

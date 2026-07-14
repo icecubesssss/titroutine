@@ -74,6 +74,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           ? await updateHabitAction({
               id: habit!.id,
               title,
+              type,
               durationMinutes: type === "timer" ? duration : undefined,
               targetCount: type === "counter" ? targetCount : undefined,
               frequency,
@@ -152,57 +153,55 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
             />
           </div>
 
-          {!isEdit && (
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-earth-text">{t("type")}</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setType("boolean")}
-                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
-                    type === "boolean"
-                      ? "border-fire-orange bg-orange-50 text-fire-orange"
-                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  💧 {t("typeDaily")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setType("timer")}
-                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
-                    type === "timer"
-                      ? "border-fire-orange bg-orange-50 text-fire-orange"
-                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  ⏳ {t("typeTimer")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setType("counter")}
-                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
-                    type === "counter"
-                      ? "border-fire-orange bg-orange-50 text-fire-orange"
-                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  🔢 {t("typeCounter")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setType("negative")}
-                  className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
-                    type === "negative"
-                      ? "border-red-500 bg-red-50 text-red-600"
-                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  💥 {t("typeNegative")}
-                </button>
-              </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-earth-text">{t("type")}</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setType("boolean")}
+                className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                  type === "boolean"
+                    ? "border-fire-orange bg-orange-50 text-fire-orange"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                💧 {t("typeDaily")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("timer")}
+                className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                  type === "timer"
+                    ? "border-fire-orange bg-orange-50 text-fire-orange"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                ⏳ {t("typeTimer")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("counter")}
+                className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                  type === "counter"
+                    ? "border-fire-orange bg-orange-50 text-fire-orange"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                🔢 {t("typeCounter")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("negative")}
+                className={`flex-1 p-3 rounded-xl border-2 font-bold transition-all ${
+                  type === "negative"
+                    ? "border-red-500 bg-red-50 text-red-600"
+                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                💥 {t("typeNegative")}
+              </button>
             </div>
-          )}
+          </div>
 
           {type === "timer" && (
             <div className="space-y-2 animate-in slide-in-from-top-2">

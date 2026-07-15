@@ -34,6 +34,7 @@ import { useRealWeather } from "@/components/home/hooks/useRealWeather";
 import { useAutoHideToolbars } from "@/components/home/hooks/useAutoHideToolbars";
 import { useCaptureTimezone } from "@/components/home/hooks/useCaptureTimezone";
 import { useEvolutionCelebration } from "@/components/home/hooks/useEvolutionCelebration";
+import { RoomBackdrop } from "@/components/home/RoomBackdrop";
 
 import { SHOP_ITEMS } from "@/lib/items";
 import { useSound } from "@/hooks/useSound";
@@ -847,6 +848,14 @@ export function HomeView({ data }: { data: DashboardData }) {
           ref={roomSectionRef}
           className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-[65vh] md:h-full transition-colors duration-1000 ${roomBackground}`}
         >
+        {/* Room Specific Backdrop Details */}
+        <RoomBackdrop
+          roomId={currentRoomId}
+          timeOfDay={timeOfDay}
+          weather={weather}
+          showWallpaper={showWallpaper}
+        />
+
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
           <Image
@@ -883,7 +892,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             <span key={i} className="dust-mote" />
           ))}
         </div>
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor" aria-hidden />
+        <div className={`pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor room-floor-${currentRoomId}`} aria-hidden />
 
         {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
             room; tap to spend cleaning energy and clear them permanently. */}

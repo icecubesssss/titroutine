@@ -242,14 +242,24 @@ export function HabitsPanel({
                           >
                             {habit.title}
                           </h3>
-                          <p className={`text-sm font-medium ${habit.type === "negative" ? "text-red-400" : "text-gray-400"}`}>
-                            {habit.type === "timer" && habit.config.target_time
-                              ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
-                              : habit.type === "counter" && habit.config.target_count
-                              ? t("targetGoal", { count: habit.config.target_count })
-                              : habit.type === "negative"
-                              ? t("noViolate")
-                              : t("daily")}
+                           <p className={`text-sm font-medium ${habit.type === "negative" ? "text-red-400" : "text-gray-400"} flex items-center gap-1.5 flex-wrap`}>
+                            <span>
+                              {habit.type === "timer" && habit.config.target_time
+                                ? t("minutes", { count: Math.round(habit.config.target_time / 60) })
+                                : habit.type === "counter" && habit.config.target_count
+                                ? t("targetGoal", { count: habit.config.target_count })
+                                : habit.type === "negative"
+                                ? t("noViolate")
+                                : t("daily")}
+                            </span>
+                            {habit.streak !== undefined && habit.streak > 0 && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="flex items-center gap-0.5 text-orange-600 font-semibold text-xs">
+                                  🔥 {habit.streak} {t("streakDays", { count: habit.streak })}
+                                </span>
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -320,21 +330,26 @@ export function HabitsPanel({
                               const dayNames = t("weekdaysShort").split(",");
 
                               let bgClass = "bg-black/[0.04]";
+                              let textClass = "text-theme-text/30";
                               let tooltipText = `${dayNames[i]}: ${t("notDone")}`;
 
                               if (completed) {
                                 bgClass = "bg-theme-accent";
+                                textClass = "text-white";
                                 tooltipText = `${dayNames[i]}: ${t("completedText")} 🎉`;
                               } else if (isPast) {
                                 bgClass = "bg-black/[0.12]";
+                                textClass = "text-theme-text/50";
                               }
 
                               return (
                                 <div
                                   key={dateStr}
-                                  className={`w-7 h-2.5 rounded-full transition-all duration-300 ${bgClass}`}
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-extrabold transition-all duration-200 hover:scale-105 select-none shadow-sm border border-black/[0.03] ${bgClass} ${textClass}`}
                                   title={tooltipText}
-                                />
+                                >
+                                  {dayNames[i]}
+                                </div>
                               );
                             })}
                           </div>

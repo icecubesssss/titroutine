@@ -32,6 +32,44 @@ interface LogRow {
   date: string;
 }
 
+function isScheduledDay(dateObj: Date, frequency: HabitFrequency): boolean {
+  if (frequency.type === "specific_days" && Array.isArray(frequency.days)) {
+    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    return frequency.days.includes(dayOfWeek);
+  }
+  return true; // daily or other types are scheduled every day
+}
+
+function calculateStreak(completedDates: Set<string>, todayStr: string, frequency: HabitFrequency): number {
+  let streak = 0;
+  let currentDateObj = parseISO(todayStr);
+  
+  for (let i = 0; i < 365; i++) {
+    const dateStr = format(currentDateObj, "yyyy-MM-dd");
+    const isToday = dateStr === todayStr;
+    const completed = completedDates.has(dateStr);
+    const scheduled = isScheduledDay(currentDateObj, frequency);
+    
+    if (isToday) {
+      if (completed) {
+        streak++;
+      }
+    } else {
+      if (scheduled) {
+        if (completed) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+    }
+    
+    currentDateObj = addDays(currentDateObj, -1);
+  }
+  
+  return streak;
+}
+
 /**
  * Loads everything the home screen needs for the signed-in user, scoped to
  * "today" in their own timezone. Returns null when there is no session.
@@ -109,7 +147,16 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const weekStart = startOfWeek(targetDateObj, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }).map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
 
-  const [{ data: habitRows }, { data: logRows }, { data: inventoryData }, { data: memoryRows }, { data: vibeRows }, { data: beanRows }, { data: taskRows }] = await Promise.all([
+  const [
+    { data: habitRows },
+    { data: logRows },
+    { data: inventoryData },
+    { data: memoryRows },
+    { data: vibeRows },
+    { data: beanRows },
+    { data: taskRows },
+    { data: allCompletedLogs }
+  ] = await Promise.all([
     supabase
       .from("habits")
       .select("id, title, type, config, frequency, time_of_day")
@@ -146,7 +193,13 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .from("tasks")
       .select("id, user_id, title, notes, status, priority, assignee_type, focus_duration, deadline, created_at, updated_at")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("habit_logs")
+      .select("habit_id, date")
+      .eq("user_id", user.id)
+      .eq("is_completed", true)
+      .order("date", { ascending: false })
   ]);
 
   // Grant a starter kit ONLY to genuinely new users (never fed before).
@@ -212,6 +265,19 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     weekly[log.date] = Boolean(log.is_completed);
   }
 
+  // Group completed log dates by habit
+  const completedDatesByHabit = new Map<string, Set<string>>();
+  if (allCompletedLogs) {
+    for (const log of allCompletedLogs as { habit_id: string; date: string }[]) {
+      let dates = completedDatesByHabit.get(log.habit_id);
+      if (!dates) {
+        dates = new Set<string>();
+        completedDatesByHabit.set(log.habit_id, dates);
+      }
+      dates.add(log.date);
+    }
+  }
+
   // Calculate day of week safely (0 = Sunday, 1 = Monday, etc.)
   // We append T00:00:00 to avoid timezone shift in new Date() parsing
   const dayOfWeek = new Date(`${today}T00:00:00`).getDay();
@@ -219,16 +285,18 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const habits: HabitWithLog[] = ((habitRows ?? []) as HabitRow[])
     .map((h) => {
       const log = logByHabit.get(h.id);
+      const freq = h.frequency ?? { type: "daily" };
       return {
         id: h.id,
         title: h.title,
         type: h.type ?? "boolean",
         config: h.config ?? {},
-        frequency: h.frequency ?? { type: "daily" },
+        frequency: freq,
         timeOfDay: h.time_of_day ?? "anytime",
         isCompleted: Boolean(log?.is_completed),
         value: log?.value ?? null,
         weeklyLogs: weeklyLogsByHabit.get(h.id) || {},
+        streak: calculateStreak(completedDatesByHabit.get(h.id) || new Set<string>(), today, freq),
       };
     })
     .filter((h) => {

@@ -27,6 +27,7 @@ export interface HabitWithLog {
   isCompleted: boolean;
   value: number | null;
   weeklyLogs?: Record<string, boolean>; // map of date YYYY-MM-DD to completion status
+  streak?: number;
 }
 
 export interface ProfileSummary {

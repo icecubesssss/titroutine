@@ -326,6 +326,7 @@
     "modeNormal": "Normal",
     "modeNormalSub": "Stay in the app",
     "normalFocus": "Normal mode. Hold your phone however you like — just don’t leave the app until the timer ends.",
+    "desktopFocus": "Focus mode. Please do not leave the tab or switch windows until the timer ends.",
     "strictRunning": "Screen is face-down",
     "normalRunning": "Stay in the app"
   },

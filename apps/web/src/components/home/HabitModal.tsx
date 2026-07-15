@@ -21,6 +21,7 @@ interface HabitModalProps {
 
 export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved, habit }) => {
   const t = useTranslations("HabitModal");
+  const tTimer = useTranslations("Timer");
   const isEdit = Boolean(habit);
 
   const [title, setTitle] = useState("");
@@ -28,6 +29,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("anytime");
   const [duration, setDuration] = useState(15);
   const [targetCount, setTargetCount] = useState(5);
+  const [focusMode, setFocusMode] = useState<"strict" | "normal">("strict");
   const [freqType, setFreqType] = useState<FrequencyType>("daily");
   const [freqDays, setFreqDays] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
       setTimeOfDay(habit.timeOfDay || "anytime");
       setDuration(habit.config.target_time ? Math.round(habit.config.target_time / 60) : 15);
       setTargetCount(habit.config.target_count || 5);
+      setFocusMode(habit.config.focus_mode || "strict");
       setFreqType(habit.frequency?.type || "daily");
       setFreqDays(habit.frequency?.days || []);
     } else {
@@ -50,6 +53,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
       setTimeOfDay("anytime");
       setDuration(15);
       setTargetCount(5);
+      setFocusMode("strict");
       setFreqType("daily");
       setFreqDays([]);
     }
@@ -77,6 +81,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
               type,
               durationMinutes: type === "timer" ? duration : undefined,
               targetCount: type === "counter" ? targetCount : undefined,
+              focusMode: type === "timer" ? focusMode : undefined,
               frequency,
               timeOfDay,
             })
@@ -85,6 +90,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
               type: type as HabitType,
               durationMinutes: type === "timer" ? duration : undefined,
               targetCount: type === "counter" ? targetCount : undefined,
+              focusMode: type === "timer" ? focusMode : undefined,
               frequency,
               timeOfDay,
             });
@@ -204,19 +210,50 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           </div>
 
           {type === "timer" && (
-            <div className="space-y-2 animate-in slide-in-from-top-2">
-              <label className="block text-sm font-bold text-earth-text">{t("duration")}</label>
-              <input
-                aria-label={t("duration")}
-                title={t("duration")}
-                type="number"
-                min={1}
-                max={120}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl focus:border-fire-orange focus:outline-none transition-colors"
-              />
-            </div>
+            <>
+              <div className="space-y-2 animate-in slide-in-from-top-2">
+                <label className="block text-sm font-bold text-earth-text">{t("duration")}</label>
+                <input
+                  aria-label={t("duration")}
+                  title={t("duration")}
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl focus:border-fire-orange focus:outline-none transition-colors"
+                />
+              </div>
+              <div className="space-y-2 animate-in slide-in-from-top-2">
+                <label className="block text-sm font-bold text-earth-text">{tTimer("focusModeLabel")}</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFocusMode("strict")}
+                    className={`flex-1 p-2.5 rounded-xl border-2 text-left transition-all ${
+                      focusMode === "strict"
+                        ? "border-fire-orange bg-orange-50 text-fire-orange"
+                        : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="block text-xs font-black">🔒 {tTimer("modeStrict")}</span>
+                    <span className="block text-[9px] font-medium text-stone-400 mt-0.5">{tTimer("modeStrictSub")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFocusMode("normal")}
+                    className={`flex-1 p-2.5 rounded-xl border-2 text-left transition-all ${
+                      focusMode === "normal"
+                        ? "border-fire-orange bg-orange-50 text-fire-orange"
+                        : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="block text-xs font-black">👁️ {tTimer("modeNormal")}</span>
+                    <span className="block text-[9px] font-medium text-stone-400 mt-0.5">{tTimer("modeNormalSub")}</span>
+                  </button>
+                </div>
+              </div>
+            </>
           )}
 
           {type === "counter" && (

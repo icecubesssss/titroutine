@@ -482,9 +482,8 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   const handleDoIt = (habit: HabitWithLog) => {
-    // Timer habits open the strict focus countdown — but only on phones. On
-    // desktop the flip-face-down sensor is unavailable, so we just mark it done.
-    if (habit.type === "timer" && isMobile) {
+    // Timer habits open the focus countdown on both mobile and desktop.
+    if (habit.type === "timer") {
       playSwoosh();
       setTimerHabit(habit);
       return;
@@ -1513,6 +1512,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           title={timerHabit.title}
           durationSeconds={timerHabit.config.target_time ?? 15 * 60}
           reward
+          defaultFocusMode={timerHabit.config.focus_mode}
           onClose={() => setTimerHabit(null)}
           onComplete={(seconds) => {
             commitToggle(timerHabit, seconds);

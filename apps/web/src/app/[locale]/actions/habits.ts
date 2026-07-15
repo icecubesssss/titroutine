@@ -40,6 +40,7 @@ export async function addHabitAction(input: {
   type: HabitType;
   durationMinutes?: number;
   targetCount?: number;
+  focusMode?: "strict" | "normal";
   frequency?: Record<string, unknown>;
   timeOfDay?: string;
 }): Promise<ActionResult> {
@@ -52,6 +53,9 @@ export async function addHabitAction(input: {
   const config: Record<string, unknown> = {};
   if (input.type === "timer" && input.durationMinutes) {
     config.target_time = Math.max(1, Math.round(input.durationMinutes)) * 60;
+    if (input.focusMode) {
+      config.focus_mode = input.focusMode;
+    }
   } else if (input.type === "counter" && input.targetCount) {
     config.target_count = Math.max(1, Math.round(input.targetCount));
   }
@@ -76,6 +80,7 @@ export async function updateHabitAction(input: {
   type?: HabitType;
   durationMinutes?: number;
   targetCount?: number;
+  focusMode?: "strict" | "normal";
   frequency?: Record<string, unknown>;
   timeOfDay?: string;
 }): Promise<ActionResult> {
@@ -93,6 +98,9 @@ export async function updateHabitAction(input: {
     const config: Record<string, unknown> = {};
     if (input.type === "timer" && input.durationMinutes) {
       config.target_time = Math.max(1, Math.round(input.durationMinutes)) * 60;
+      if (input.focusMode) {
+        config.focus_mode = input.focusMode;
+      }
     } else if (input.type === "counter" && input.targetCount) {
       config.target_count = Math.max(1, Math.round(input.targetCount));
     }
@@ -100,6 +108,9 @@ export async function updateHabitAction(input: {
   } else {
     if (input.durationMinutes != null) {
       patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_time: Math.max(1, Math.round(input.durationMinutes)) * 60 };
+    }
+    if (input.focusMode != null) {
+      patch.config = { ...((patch.config as Record<string, unknown>) || {}), focus_mode: input.focusMode };
     }
     if (input.targetCount != null) {
       patch.config = { ...((patch.config as Record<string, unknown>) || {}), target_count: Math.max(1, Math.round(input.targetCount)) };

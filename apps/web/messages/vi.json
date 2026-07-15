@@ -326,6 +326,7 @@
     "modeNormal": "Thường",
     "modeNormalSub": "Không thoát app",
     "normalFocus": "Chế độ Thường. Cứ để điện thoại thoải mái, chỉ cần đừng rời khỏi ứng dụng cho tới khi hết giờ nhé.",
+    "desktopFocus": "Chế độ Tập trung. Vui lòng không rời khỏi trang hoặc chuyển tab khác cho tới khi hết giờ nhé.",
     "strictRunning": "Đang úp màn hình",
     "normalRunning": "Đừng rời khỏi ứng dụng nhé"
   },

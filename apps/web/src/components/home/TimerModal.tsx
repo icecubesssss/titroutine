@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Play, X, Smartphone, AlertTriangle, Music, Lock, Eye } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { claimKeepsakeAction } from "@/app/[locale]/actions";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type FocusMode = "strict" | "normal";
 
@@ -15,6 +16,7 @@ interface TimerModalProps {
   durationSeconds: number;
   /** Grant a random keepsake on finish (habits). Tasks pass false. */
   reward?: boolean;
+  defaultFocusMode?: "strict" | "normal";
   onClose: () => void;
   onComplete: (seconds: number) => void;
 }
@@ -25,7 +27,7 @@ function format(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, reward = false, onClose, onComplete }) => {
+export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, reward = false, defaultFocusMode = "strict", onClose, onComplete }) => {
   const t = useTranslations("Timer");
   const total = durationSeconds;
 
@@ -35,7 +37,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, 
   const [failed, setFailed] = useState(false);
 
   // Strict = must flip phone face-down. Normal = just don't leave the app.
-  const [focusMode, setFocusMode] = useState<FocusMode>("strict");
+  const [focusMode, setFocusMode] = useState<FocusMode>(defaultFocusMode);
 
   const [isFaceDown, setIsFaceDown] = useState(false);
   const [penaltySeconds, setPenaltySeconds] = useState<number | null>(null);
@@ -49,8 +51,18 @@ export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, 
   const progressRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (!isMobile) {
+      setFocusMode("normal");
+    } else {
+      setFocusMode(defaultFocusMode);
+    }
+  }, [isMobile, defaultFocusMode]);
+
   // Flip-to-focus only applies in strict mode once orientation permission is granted.
-  const requiresFlip = focusMode === "strict" && permissionStatus === "granted";
+  const requiresFlip = focusMode === "strict" && permissionStatus === "granted" && isMobile;
 
   // Audio track switching during focusing
   useEffect(() => {
@@ -224,44 +236,46 @@ export const TimerModal: React.FC<TimerModalProps> = ({ title, durationSeconds, 
               </div>
 
               {/* Focus mode selection */}
-              <div className="w-full flex flex-col gap-2 text-left px-4">
-                <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider">
-                  {t("focusModeLabel")}
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFocusMode("strict")}
-                    className={`p-2.5 rounded-xl border-2 text-left transition-all ${
-                      focusMode === "strict"
-                        ? "border-fire-orange bg-orange-50"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "strict" ? "text-fire-orange" : "text-stone-500"}`}>
-                      <Lock size={12} /> {t("modeStrict")}
-                    </span>
-                    <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeStrictSub")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFocusMode("normal")}
-                    className={`p-2.5 rounded-xl border-2 text-left transition-all ${
-                      focusMode === "normal"
-                        ? "border-fire-orange bg-orange-50"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "normal" ? "text-fire-orange" : "text-stone-500"}`}>
-                      <Eye size={12} /> {t("modeNormal")}
-                    </span>
-                    <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeNormalSub")}</span>
-                  </button>
+              {isMobile && (
+                <div className="w-full flex flex-col gap-2 text-left px-4">
+                  <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider">
+                    {t("focusModeLabel")}
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFocusMode("strict")}
+                      className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                        focusMode === "strict"
+                          ? "border-fire-orange bg-orange-50"
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "strict" ? "text-fire-orange" : "text-stone-500"}`}>
+                        <Lock size={12} /> {t("modeStrict")}
+                      </span>
+                      <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeStrictSub")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFocusMode("normal")}
+                      className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                        focusMode === "normal"
+                          ? "border-fire-orange bg-orange-50"
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className={`flex items-center gap-1 text-xs font-black ${focusMode === "normal" ? "text-fire-orange" : "text-stone-500"}`}>
+                        <Eye size={12} /> {t("modeNormal")}
+                      </span>
+                      <span className="block text-[10px] font-medium text-stone-400 mt-0.5">{t("modeNormalSub")}</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <p className="text-stone-600 font-medium text-xs px-4">
-                {focusMode === "strict" ? t("strictFocus") : t("normalFocus")}
+                {focusMode === "strict" ? t("strictFocus") : (isMobile ? t("normalFocus") : t("desktopFocus"))}
               </p>
 
               {/* BGM Audio Selection */}

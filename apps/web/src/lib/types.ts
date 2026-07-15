@@ -14,6 +14,7 @@ export interface HabitFrequency {
 export interface HabitConfig {
   target_time?: number; // seconds, for timer habits
   target_count?: number; // for counter habits
+  focus_mode?: "strict" | "normal"; // focus mode for timer habits
 }
 
 export interface HabitWithLog {

@@ -19,3 +19,6 @@ Before doing ANY research, file scanning, or grep commands, **read `CLAUDE.md`**
 - Skip `temp_agentpet/` unless explicitly asked about the macOS desktop app
 - Skip sprite PNGs and font files
 - The `CLAUDE.md` file has the full server actions table with line numbers — use it instead of grepping
+
+## AgentPet Project Location
+- When referencing the `agentpet` app, note that it is located outside the `titroutine` workspace in the sibling directory: `file:///Users/admin/Library/CloudStorage/OneDrive-lovenhu/Code/Antigravity/agentpet`.

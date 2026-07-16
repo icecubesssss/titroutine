@@ -16,7 +16,7 @@ export default async function AnalyticsPage(props: {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-stone-50 text-stone-800 w-full overflow-y-auto relative pb-12">
+    <main className="flex h-dvh flex-col bg-stone-50 text-stone-800 w-full overflow-y-auto relative pb-12">
       {/* Header */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 border-b-2 border-stone-100 px-6 py-4">
         <div className="w-full max-w-5xl mx-auto flex items-center justify-between">
@@ -115,13 +115,11 @@ export default async function AnalyticsPage(props: {
           <h2 className="text-sm font-black text-stone-400 uppercase tracking-wider mb-3">
             Lịch sử hoạt động (60 ngày qua)
           </h2>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-stone-200">
-            <HeatmapCalendar
-              heatmapData={data.heatmapData}
-              startDate={data.startDate}
-              endDate={data.endDate}
-            />
-          </div>
+          <HeatmapCalendar
+            heatmapData={data.heatmapData}
+            startDate={data.startDate}
+            endDate={data.endDate}
+          />
         </div>
 
         {/* Mood Journal Calendar (Habit-Rabbit style month view) */}

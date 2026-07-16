@@ -41,14 +41,52 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
   const startDateObj = new Date(endDateObj.getTime() - 60 * 24 * 60 * 60 * 1000);
   const startDate = startDateObj.toISOString().split("T")[0];
 
-  // Fetch all completed logs for the last 60 days
-  const { data: recentLogs } = await supabase
-    .from("habit_logs")
-    .select("date, is_completed")
-    .eq("user_id", user.id)
-    .gte("date", startDate)
-    .lte("date", today)
-    .eq("is_completed", true);
+  const moodStartObj = new Date(endDateObj.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const moodStart = moodStartObj.toISOString().split("T")[0];
+
+  // Fetch remaining data in parallel
+  const [
+    recentLogsResult,
+    totalCompletedResult,
+    completedTasksResult,
+    pendingTasksResult,
+    beanRowsResult,
+  ] = await Promise.all([
+    supabase
+      .from("habit_logs")
+      .select("date, is_completed")
+      .eq("user_id", user.id)
+      .gte("date", startDate)
+      .lte("date", today)
+      .eq("is_completed", true),
+    supabase
+      .from("habit_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_completed", true),
+    supabase
+      .from("tasks")
+      .select("focus_duration")
+      .eq("user_id", user.id)
+      .eq("status", "done"),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("status", ["todo", "in_progress"]),
+    supabase
+      .from("daily_bean_logs")
+      .select("logged_date, mood, activities, note")
+      .eq("user_id", user.id)
+      .gte("logged_date", moodStart)
+      .lte("logged_date", today),
+  ]);
+
+  const recentLogs = recentLogsResult.data;
+  const totalCompletedAllTime = totalCompletedResult.count;
+  const completedTasks = completedTasksResult.data;
+  const pendingTasksCount = pendingTasksResult.count;
+  const beanRows = beanRowsResult.data;
 
   const heatmapData: Record<string, number> = {};
   if (recentLogs) {
@@ -57,40 +95,8 @@ export async function getAnalyticsData(): Promise<AnalyticsData | null> {
     }
   }
 
-  // Count all-time completed logs
-  const { count: totalCompletedAllTime } = await supabase
-    .from("habit_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("is_completed", true);
-
-  // Fetch completed tasks to calculate counts and focus minutes
-  const { data: completedTasks } = await supabase
-    .from("tasks")
-    .select("focus_duration")
-    .eq("user_id", user.id)
-    .eq("status", "done");
-
   const totalTasksCompleted = completedTasks?.length ?? 0;
   const totalFocusMinutes = completedTasks?.reduce((acc, t) => acc + (t.focus_duration ?? 0), 0) ?? 0;
-
-  // Count pending tasks (todo & in_progress)
-  const { count: pendingTasksCount } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .in("status", ["todo", "in_progress"]);
-
-  // Mood check-ins for the mood calendar (last ~6 months keeps the payload small
-  // while covering every month the calendar can navigate to with data).
-  const moodStartObj = new Date(endDateObj.getTime() - 180 * 24 * 60 * 60 * 1000);
-  const moodStart = moodStartObj.toISOString().split("T")[0];
-  const { data: beanRows } = await supabase
-    .from("daily_bean_logs")
-    .select("logged_date, mood, activities, note")
-    .eq("user_id", user.id)
-    .gte("logged_date", moodStart)
-    .lte("logged_date", today);
 
   const moodLogs: Record<string, { mood: string; activities: string[]; note: string | null }> = {};
   for (const row of (beanRows ?? []) as { logged_date: string; mood: string; activities: string[] | null; note: string | null }[]) {

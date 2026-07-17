@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, useMemo } from "react";
+import React, { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Flame, X, DoorOpen } from "lucide-react";
@@ -304,6 +304,13 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [rabbitY, setRabbitY] = useState<number>(50);
   const [facingLeft, setFacingLeft] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsTransitioning(true);
+    const timer = setTimeout(() => setIsTransitioning(false), 400);
+    return () => clearTimeout(timer);
+  }, [currentRoomId]);
 
   // Load rabbit position per room from localStorage
   useEffect(() => {
@@ -379,10 +386,54 @@ export function HomeView({ data }: { data: DashboardData }) {
     if (!isDragging) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
     setIsDragging(false);
+
+    let finalX = rabbitX;
+    let finalY = rabbitY;
+
+    // Resolve current equipped items for snapping using type-safe helper
+    const equippedRugId = equippedFor("rug");
+    const customRug = SHOP_ITEMS.find((item) => item.id === equippedRugId);
+    const equippedObjectId = equippedFor("object");
+    const customObject = SHOP_ITEMS.find((item) => item.id === equippedObjectId);
+    const objectPos = decorPositions[currentRoomId];
+
+    // Proximity Snap to Equipped Object (Furniture)
+    if (customObject && objectPos) {
+      const objFloor = getFloorCoords(objectPos.x, objectPos.y);
+      const distToObj = Math.hypot(rabbitX - objFloor.x, rabbitY - objFloor.y);
+      if (distToObj < 12) {
+        finalX = objFloor.x;
+        finalY = objFloor.y;
+        
+        // Choose sweet action animations
+        if (customObject.id.includes("desk") || customObject.id.includes("study")) {
+          setCompanionOverrideAction("study");
+        } else if (customObject.id.includes("bath") || customObject.id.includes("tub")) {
+          setCompanionOverrideAction("brush_hair");
+        } else if (customObject.id.includes("bed") || customObject.id.includes("sleep")) {
+          setCompanionOverrideAction("sleep");
+        } else {
+          setCompanionOverrideAction("happy");
+        }
+      }
+    } 
+    // Proximity Snap to Custom Rug (Center of the room)
+    else if (customRug) {
+      const distToRug = Math.hypot(rabbitX - 50, rabbitY - 50);
+      if (distToRug < 12) {
+        finalX = 50;
+        finalY = 50;
+        setCompanionOverrideAction("happy");
+      }
+    }
+
+    setRabbitX(finalX);
+    setRabbitY(finalY);
+
     // Save to localStorage
     window.localStorage.setItem(
       `titroutine:rabbitPos:${currentRoomId}`,
-      JSON.stringify({ x: rabbitX, y: rabbitY })
+      JSON.stringify({ x: finalX, y: finalY })
     );
     playTing();
   };
@@ -931,6 +982,24 @@ export function HomeView({ data }: { data: DashboardData }) {
     // the habits section scrolls internally, so the bottom nav + FAB stay on
     // screen no matter how long the habit list gets.
     <main className={`flex h-dvh w-full max-w-md md:max-w-none flex-col md:flex-row bg-earth-bg text-earth-text shadow-xl md:shadow-none overflow-hidden relative theme-${theme}`}>
+      <style>{`
+        @keyframes floatDiorama {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+          100% { transform: translateY(0px); }
+        }
+        @keyframes scaleShadow {
+          0% { transform: scale(1); opacity: 0.22; }
+          50% { transform: scale(0.88); opacity: 0.12; }
+          100% { transform: scale(1); opacity: 0.22; }
+        }
+        .float-diorama {
+          animation: floatDiorama 4.5s infinite ease-in-out;
+        }
+        .scale-shadow {
+          animation: scaleShadow 4.5s infinite ease-in-out;
+        }
+      `}</style>
       {/* Desktop Sidebar (Notion-style) */}
       <DesktopSidebar
         activeTab={activeTab}
@@ -963,18 +1032,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         <section
           className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-[65vh] md:h-full transition-colors duration-1000 ${roomBackground}`}
         >
-          {/* Shared 3D Isometric Viewport Box */}
-          <div
-            className="relative w-[340px] h-[340px] mt-8 pointer-events-auto select-none flex items-center justify-center z-10"
-          >
-            {/* Room Specific Backdrop Details */}
-            <RoomBackdrop
-              roomId={currentRoomId}
-              timeOfDay={timeOfDay}
-              weather={weather}
-              showWallpaper={showWallpaper}
-            />
-          </div>
+
 
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -1013,11 +1071,46 @@ export function HomeView({ data }: { data: DashboardData }) {
           ))}
         </div>
 
-        {/* Shared 3D Isometric Interactive Layer */}
+        {/* Floating 3D Diorama Island */}
         <div
           ref={roomSectionRef}
-          className="absolute w-[340px] h-[340px] mt-8 pointer-events-auto select-none flex items-center justify-center z-10"
+          className={`relative w-full max-w-[400px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
+            isTransitioning ? "scale-90 opacity-0 blur-sm" : "scale-100 opacity-100 blur-0"
+          }`}
         >
+          {/* Diorama Ambient Floating Shadow */}
+          <div className="absolute bottom-[2%] left-1/2 -translate-x-1/2 w-[65%] h-5 bg-black/20 rounded-full blur-[6px] scale-shadow pointer-events-none -z-10" />
+
+          {/* 3D Isometric Room Backdrop */}
+          <RoomBackdrop
+            roomId={currentRoomId}
+            timeOfDay={timeOfDay}
+            weather={weather}
+            showWallpaper={showWallpaper}
+            customWallpaper={customWallpaper}
+          />
+
+          {/* Glowing guide grid in Decor Mode */}
+          {isDecorMode && (
+            <svg 
+              className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-30 animate-pulse"
+              viewBox="0 0 340 340"
+            >
+              {Array.from({ length: 9 }).map((_, i) => {
+                const gX = 10 + i * 10;
+                const startLine = getIsoCoords(gX, 10);
+                const endLine = getIsoCoords(gX, 90);
+                const startLineCross = getIsoCoords(10, gX);
+                const endLineCross = getIsoCoords(90, gX);
+                return (
+                  <React.Fragment key={`grid-${i}`}>
+                    <line x1={`${startLine.left}%`} y1={`${startLine.top}%`} x2={`${endLine.left}%`} y2={`${endLine.top}%`} stroke="#eab308" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1={`${startLineCross.left}%`} y1={`${startLineCross.top}%`} x2={`${endLineCross.left}%`} y2={`${endLineCross.top}%`} stroke="#eab308" strokeWidth="1" strokeDasharray="3 3" />
+                  </React.Fragment>
+                );
+              })}
+            </svg>
+          )}
           {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
               room; tap to spend cleaning energy and clear them permanently. */}
           {!isDecorMode &&

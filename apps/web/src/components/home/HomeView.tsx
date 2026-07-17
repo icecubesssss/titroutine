@@ -965,7 +965,6 @@ export function HomeView({ data }: { data: DashboardData }) {
         >
           {/* Shared 3D Isometric Viewport Box */}
           <div
-            ref={roomSectionRef}
             className="relative w-[340px] h-[340px] mt-8 pointer-events-auto select-none flex items-center justify-center z-10"
           >
             {/* Room Specific Backdrop Details */}
@@ -975,6 +974,7 @@ export function HomeView({ data }: { data: DashboardData }) {
               weather={weather}
               showWallpaper={showWallpaper}
             />
+          </div>
 
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -1012,9 +1012,15 @@ export function HomeView({ data }: { data: DashboardData }) {
             <span key={i} className="dust-mote" />
           ))}
         </div>
-        {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
-            room; tap to spend cleaning energy and clear them permanently. */}
-        {!isDecorMode &&
+
+        {/* Shared 3D Isometric Interactive Layer */}
+        <div
+          ref={roomSectionRef}
+          className="absolute w-[340px] h-[340px] mt-8 pointer-events-auto select-none flex items-center justify-center z-10"
+        >
+          {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
+              room; tap to spend cleaning energy and clear them permanently. */}
+          {!isDecorMode &&
           spotsForRoom(currentRoomId)
             .filter((spot) => !cleanedSpots[spot.id])
             .map((spot) => {

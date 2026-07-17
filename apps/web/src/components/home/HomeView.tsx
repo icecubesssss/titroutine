@@ -776,7 +776,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   // Kéo-thả nội thất (Habit-Rabbit draggable decor): giữ + kéo món object trong
   // phòng, vị trí (%) lưu theo từng phòng. Kéo < 8px được coi là "chạm" để giữ
   // nguyên hành vi bật/tắt đèn-nến-đài cũ.
-  const roomSectionRef = useRef<HTMLElement | null>(null);
+  const roomSectionRef = useRef<HTMLDivElement | null>(null);
   const decorDragRef = useRef<{ down: boolean; moved: boolean; startX: number; startY: number; prev?: { x: number; y: number } } | null>(null);
   const decorDragMovedRef = useRef(false);
   const latestDecorPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -961,16 +961,20 @@ export function HomeView({ data }: { data: DashboardData }) {
       >
         {/* Top half: Pet Room */}
         <section
-          ref={roomSectionRef}
           className={`relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 pb-20 md:p-6 md:pb-24 min-h-[60vh] md:min-h-0 h-[65vh] md:h-full transition-colors duration-1000 ${roomBackground}`}
         >
-        {/* Room Specific Backdrop Details */}
-        <RoomBackdrop
-          roomId={currentRoomId}
-          timeOfDay={timeOfDay}
-          weather={weather}
-          showWallpaper={showWallpaper}
-        />
+          {/* Shared 3D Isometric Viewport Box */}
+          <div
+            ref={roomSectionRef}
+            className="relative w-[340px] h-[340px] mt-8 pointer-events-auto select-none flex items-center justify-center z-10"
+          >
+            {/* Room Specific Backdrop Details */}
+            <RoomBackdrop
+              roomId={currentRoomId}
+              timeOfDay={timeOfDay}
+              weather={weather}
+              showWallpaper={showWallpaper}
+            />
 
         {/* Equipped wallpaper (bedroom only) — sits under the lighting/motes layers. */}
         {showWallpaper && customWallpaper && (
@@ -1472,6 +1476,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
           );
         })()}
+          </div>
 
         {/* Interactive Rug Target (Decor Mode) */}
         {isDecorMode && (

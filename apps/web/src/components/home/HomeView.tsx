@@ -1185,29 +1185,29 @@ export function HomeView({ data }: { data: DashboardData }) {
         
         {/* Left Side: Compact Pet Status mini-HUD */}
         <div 
-          className={`absolute top-4 left-4 z-40 transition-all duration-300 flex flex-col gap-1.5 p-2 bg-white/65 backdrop-blur-md rounded-2xl border border-white/40 shadow-md text-theme-text max-w-[130px] pointer-events-auto ${
+          className={`absolute top-4 left-4 z-40 transition-all duration-300 flex flex-col gap-2 p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text max-w-[140px] pointer-events-auto hover:scale-102 transition-transform ${
             showToolbars ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none"
           }`}
         >
           {/* Level Badge */}
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center text-[10px] font-black text-amber-955 shadow-sm animate-pulse-glow">
+            <div className="w-5.5 h-5.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white animate-pulse-glow">
               ⭐
             </div>
-            <span className="text-[10px] font-black text-amber-900 leading-none">Lvl. {petLevel}</span>
+            <span className="text-[11px] font-black text-amber-950/90 tracking-tight">Cấp {petLevel}</span>
           </div>
           {/* Satiety Mini progress bar */}
-          <div className="flex items-center gap-1 text-[9px] font-extrabold text-amber-800">
-            <span>🍲</span>
-            <div className="flex-1 w-14 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-              <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-900">
+            <span className="leading-none text-xs">🍲</span>
+            <div className="flex-1 w-16 h-2 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
+              <div className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
             </div>
           </div>
           {/* Affection Mini progress bar */}
-          <div className="flex items-center gap-1 text-[9px] font-extrabold text-rose-800">
-            <span>❤️</span>
-            <div className="flex-1 w-14 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-              <div className="h-full bg-rose-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-900">
+            <span className="leading-none text-xs">❤️</span>
+            <div className="flex-1 w-16 h-2 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
+              <div className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
             </div>
           </div>
         </div>
@@ -1224,22 +1224,22 @@ export function HomeView({ data }: { data: DashboardData }) {
               playTing();
               setShowFreezeTooltip((prev) => !prev);
             }}
-            className="flex flex-col gap-1.5 p-2.5 bg-white/65 hover:bg-white/80 active:scale-95 backdrop-blur-md rounded-2xl border border-white/40 shadow-md text-theme-text min-w-[100px] items-end text-right transition-all animate-bubble-pop"
+            className="flex flex-col gap-1.5 p-3 bg-white/70 hover:bg-white/85 active:scale-95 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text min-w-[110px] items-end text-right transition-all animate-bubble-pop"
           >
-            <div className="flex items-center gap-1 text-[10px] font-black text-orange-600">
+            <div className="flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50/50 border border-orange-100 px-2 py-0.5 rounded-full">
               {vacationMode && (
                 <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
               )}
               <span>🔥 {currentStreak} {t("streakDaysShort", { defaultValue: "ngày" })}</span>
               {data.profile.streakFreezes > 0 && (
-                <span className="text-[8px] bg-blue-50 border border-blue-250/30 px-1 rounded-full">❄️ {data.profile.streakFreezes}</span>
+                <span className="text-[8px] bg-blue-100/80 border border-blue-200 px-1 rounded-full ml-0.5">❄️ {data.profile.streakFreezes}</span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600">
-              🪙 <span>{coins}</span>
+            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50/50 border border-amber-100 px-2 py-0.5 rounded-full">
+              <span>🪙 {coins}</span>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600">
-              🧹 <span>{cleaningEnergy}</span>
+            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/50 border border-emerald-100 px-2 py-0.5 rounded-full">
+              <span>🧹 {cleaningEnergy}</span>
             </div>
           </button>
 
@@ -1280,13 +1280,13 @@ export function HomeView({ data }: { data: DashboardData }) {
             playSwoosh();
             setIsMobileSidebarOpen(true);
           }}
-          className={`absolute bottom-28 left-4 w-12 h-12 md:hidden rounded-full bg-white/80 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all z-40 text-amber-955 pointer-events-auto ${
+          className={`absolute bottom-28 left-4 w-12 h-12 md:hidden rounded-full bg-gradient-to-b from-stone-500 to-stone-600 border-b-4 border-b-stone-800 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(87,83,78,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all z-40 text-white pointer-events-auto ${
             showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
           }`}
           aria-label="Menu"
         >
           <span className="text-lg leading-none -mb-0.5">☰</span>
-          <span className="text-[8px] font-black tracking-tighter text-amber-950/80">Menu</span>
+          <span className="text-[8px] font-extrabold tracking-tighter text-white/90">Menu</span>
         </button>
 
         {/* Bottom Floating Map / Room Switcher Button (Both mobile & desktop) */}
@@ -1296,12 +1296,12 @@ export function HomeView({ data }: { data: DashboardData }) {
             playTing();
             setIsRoomSwitcherOpen(true);
           }}
-          className={`absolute bottom-28 right-4 w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all z-40 text-amber-900 pointer-events-auto border-b-2 border-b-amber-200/50 ${
+          className={`absolute bottom-28 right-4 w-13 h-13 rounded-full bg-gradient-to-b from-amber-400 via-amber-500 to-orange-500 border-b-4 border-b-amber-700 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(217,119,6,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all z-40 text-white pointer-events-auto ${
             showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
           }`}
         >
-          <DoorOpen className="w-5 h-5 text-amber-800" />
-          <span className="text-[8px] font-black tracking-tighter text-amber-955/80 -mt-0.5">{tRooms(currentRoomId)}</span>
+          <DoorOpen className="w-5.5 h-5.5 text-white" />
+          <span className="text-[8px] font-black tracking-tighter text-white -mt-0.5">{tRooms(currentRoomId)}</span>
         </button>
         {/* Right-aligned vertical glassmorphic menu (REPLACED by Quick Menu) */}
 

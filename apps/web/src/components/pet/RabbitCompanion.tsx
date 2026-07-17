@@ -25,6 +25,7 @@ export interface RabbitCompanionProps {
   action: CompanionAction;
   equippedOutfit?: string;
   className?: string;
+  flipX?: boolean;
 }
 
 const BABY_FRAME_W = 262;
@@ -299,6 +300,7 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
   action,
   equippedOutfit,
   className,
+  flipX = false,
 }) => {
   const config = STAGES_CONFIG[stage] || STAGES_CONFIG[0];
 
@@ -337,6 +339,7 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
         fps={actionConfig.fps || 4}
         idle={false} // Tắt idle hop mặc định để dùng hẳn animation
         className={className}
+        flipX={flipX}
       />
     );
   }
@@ -356,6 +359,7 @@ export const RabbitCompanion: React.FC<RabbitCompanionProps> = ({
       scale={config.defaultScale}
       idle={config.idle}
       className={className}
+      flipX={flipX}
     />
   );
 };

@@ -28,6 +28,8 @@ export interface VirtualPetProps {
   /** Apply a gentle idle "breathing / hop in place" animation. */
   idle?: boolean;
   className?: string;
+  /** Flip the sprite horizontally (e.g. when walking left) */
+  flipX?: boolean;
 }
 
 export const VirtualPet: React.FC<VirtualPetProps> = ({
@@ -43,6 +45,7 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
   sheetHeight,
   idle = false,
   className,
+  flipX = false,
 }) => {
   const [currentFrame, setCurrentFrame] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,8 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
           image-rendering: pixelated;
           image-rendering: -moz-crisp-edges;
           image-rendering: crisp-edges;
+          transform: ${flipX ? "scaleX(-1)" : "none"};
+          transform-origin: 50% 50%;
         }
       `}</style>
       <div

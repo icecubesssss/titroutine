@@ -14,7 +14,6 @@ import { PetSpeechBubble } from "@/components/pet/PetSpeechBubble";
 import { HabitModal } from "@/components/home/HabitModal";
 import { SettingsModal } from "@/components/home/SettingsModal";
 import { TimerModal } from "@/components/home/TimerModal";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
@@ -84,6 +83,33 @@ const ACTION_ROOM: Record<InteractionKind, RoomId> = {
   pat: "living",
 };
 
+const SPOT_ISO_COORDS: Record<string, { x: number; y: number }> = {
+  // Bedroom
+  bedroom_socks: { x: 30, y: 70 },
+  bedroom_laundry: { x: 75, y: 30 },
+  bedroom_papers: { x: 25, y: 40 },
+  bedroom_cobweb: { x: 15, y: 15 },
+  // Kitchen
+  kitchen_dishes: { x: 35, y: 65 },
+  kitchen_peels: { x: 70, y: 35 },
+  kitchen_trash: { x: 20, y: 45 },
+  kitchen_spill: { x: 55, y: 55 },
+  // Living
+  living_pillows: { x: 70, y: 30 },
+  living_books: { x: 25, y: 45 },
+  living_crumbs: { x: 45, y: 60 },
+  living_dust: { x: 15, y: 25 },
+  // Garden
+  garden_leaves: { x: 30, y: 60 },
+  garden_weeds: { x: 75, y: 35 },
+  garden_branches: { x: 25, y: 40 },
+  garden_snail_trail: { x: 50, y: 50 },
+  // Bathroom
+  bathroom_towels: { x: 30, y: 65 },
+  bathroom_puddle: { x: 70, y: 40 },
+  bathroom_soap: { x: 20, y: 40 },
+  bathroom_mirror: { x: 15, y: 15 },
+};
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
@@ -150,7 +176,6 @@ export function HomeView({ data }: { data: DashboardData }) {
   };
 
   // The strict focus timer is phone-only (relies on the flip-face-down sensor).
-  const isMobile = useIsMobile();
 
   const isSettingsOpen = activeOverlay === "settings";
   const setIsSettingsOpen = (val: boolean) => setActiveOverlay(val ? "settings" : null);
@@ -273,6 +298,95 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [showFreezeTooltip, setShowFreezeTooltip] = useState(false);
   const [isRoomSwitcherOpen, setIsRoomSwitcherOpen] = useState(false);
   const [sweepingSpotId, setSweepingSpotId] = useState<string | null>(null);
+
+  // Coordinates and dragging state for the rabbit companion
+  const [rabbitX, setRabbitX] = useState<number>(50);
+  const [rabbitY, setRabbitY] = useState<number>(50);
+  const [facingLeft, setFacingLeft] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Load rabbit position per room from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(`titroutine:rabbitPos:${currentRoomId}`);
+      if (saved) {
+        try {
+          const { x, y } = JSON.parse(saved);
+          if (typeof x === "number" && typeof y === "number") {
+            setRabbitX(x);
+            setRabbitY(y);
+          }
+        } catch {
+          setRabbitX(50);
+          setRabbitY(50);
+        }
+      } else {
+        setRabbitX(50);
+        setRabbitY(50);
+      }
+    }
+  }, [currentRoomId]);
+
+  // Forward isometric projection: maps x (10 to 90), y (10 to 90) to screen percentage coordinates
+  const getIsoCoords = (x: number, y: number) => {
+    const left = 50 + (x - y) * 0.42;
+    const top = 52 + (x + y) * 0.18;
+    return { left, top };
+  };
+
+  // Inverse isometric projection: maps screen percentage coordinates back to x, y
+  const getFloorCoords = (left: number, top: number) => {
+    const L = (left - 50) / 0.42;
+    const T = (top - 52) / 0.18;
+    const x = (L + T) / 2;
+    const y = (T - L) / 2;
+    return {
+      x: Math.max(10, Math.min(90, x)),
+      y: Math.max(10, Math.min(90, y)),
+    };
+  };
+
+  const handlePetPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    petDragMovedRef.current = false;
+    playTing();
+  };
+
+  const handlePetPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !roomSectionRef.current) return;
+    petDragMovedRef.current = true;
+    const rect = roomSectionRef.current.getBoundingClientRect();
+    const pX = ((e.clientX - rect.left) / rect.width) * 100;
+    const pY = ((e.clientY - rect.top) / rect.height) * 100;
+
+    const newPos = getFloorCoords(pX, pY);
+
+    // Determine facing direction based on horizontal position delta
+    const oldCoords = getIsoCoords(rabbitX, rabbitY);
+    const newCoords = getIsoCoords(newPos.x, newPos.y);
+    if (newCoords.left < oldCoords.left - 0.5) {
+      setFacingLeft(true);
+    } else if (newCoords.left > oldCoords.left + 0.5) {
+      setFacingLeft(false);
+    }
+
+    setRabbitX(newPos.x);
+    setRabbitY(newPos.y);
+  };
+
+  const handlePetPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setIsDragging(false);
+    // Save to localStorage
+    window.localStorage.setItem(
+      `titroutine:rabbitPos:${currentRoomId}`,
+      JSON.stringify({ x: rabbitX, y: rabbitY })
+    );
+    playTing();
+  };
+
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const showToolbars = useAutoHideToolbars(habitsRef, mobileScrollRef);
@@ -666,6 +780,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const decorDragRef = useRef<{ down: boolean; moved: boolean; startX: number; startY: number; prev?: { x: number; y: number } } | null>(null);
   const decorDragMovedRef = useRef(false);
   const latestDecorPosRef = useRef<{ x: number; y: number } | null>(null);
+  const petDragMovedRef = useRef(false);
 
   const handleDecorPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -685,9 +800,11 @@ export function HomeView({ data }: { data: DashboardData }) {
     d.moved = true;
     const rect = roomSectionRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const x = Math.min(94, Math.max(6, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.min(92, Math.max(18, ((e.clientY - rect.top) / rect.height) * 100));
-    const pos = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    const pX = ((e.clientX - rect.left) / rect.width) * 100;
+    const pY = ((e.clientY - rect.top) / rect.height) * 100;
+    const floorPos = getFloorCoords(pX, pY);
+    const screenPos = getIsoCoords(floorPos.x, floorPos.y);
+    const pos = { x: Math.round(screenPos.left * 10) / 10, y: Math.round(screenPos.top * 10) / 10 };
     latestDecorPosRef.current = pos;
     setDecorPositions((m) => ({ ...m, [currentRoomId]: pos }));
   };
@@ -891,8 +1008,6 @@ export function HomeView({ data }: { data: DashboardData }) {
             <span key={i} className="dust-mote" />
           ))}
         </div>
-        <div className={`pointer-events-none absolute bottom-0 left-0 right-0 z-0 h-44 room-floor room-floor-${currentRoomId}`} aria-hidden />
-
         {/* Mess spots (Habit-Rabbit cleaning loop): clutter piles of the current
             room; tap to spend cleaning energy and clear them permanently. */}
         {!isDecorMode &&
@@ -901,6 +1016,8 @@ export function HomeView({ data }: { data: DashboardData }) {
             .map((spot) => {
               const affordable = cleaningEnergy >= spot.cost;
               const isSweeping = sweepingSpotId === spot.id;
+              const isoCoord = SPOT_ISO_COORDS[spot.id];
+              const { left, top } = isoCoord ? getIsoCoords(isoCoord.x, isoCoord.y) : { left: 50, top: 70 };
               return (
                 <button
                   key={spot.id}
@@ -909,7 +1026,13 @@ export function HomeView({ data }: { data: DashboardData }) {
                   onClick={() => handleCleanSpot(spot)}
                   title={t("cleanSpotTitle", { cost: spot.cost })}
                   aria-label={t("cleanSpotTitle", { cost: spot.cost })}
-                  className={`absolute ${spot.positionClass} z-20 pointer-events-auto flex flex-col items-center group`}
+                  style={{
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    transform: "translate(-50%, -85%)",
+                    zIndex: isoCoord ? Math.round(isoCoord.x + isoCoord.y) : 20,
+                  }}
+                  className="absolute pointer-events-auto flex flex-col items-center group"
                 >
                   <div className="relative w-12 h-12 flex items-center justify-center">
                     {isSweeping ? (
@@ -1129,56 +1252,67 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Equipped decor object — draggable anywhere in the room (position saved
             per room); defaults to the bottom-left corner until first moved. */}
-        {customObject && !isDecorMode && (
-          <div
-            onPointerDown={handleDecorPointerDown}
-            onPointerMove={handleDecorPointerMove}
-            onPointerUp={handleDecorPointerUp}
-            onPointerCancel={handleDecorPointerUp}
-            title={t("dragObjectHint")}
-            onClick={() => {
-              // Cú kéo vừa kết thúc cũng bắn onClick — bỏ qua để không bật/tắt nhầm.
-              if (decorDragMovedRef.current) {
-                decorDragMovedRef.current = false;
-                return;
+        {customObject && !isDecorMode && (() => {
+          const finalObjectStyle = objectPos
+            ? {
+                left: `${objectPos.x}%`,
+                top: `${objectPos.y}%`,
+                zIndex: Math.round(getFloorCoords(objectPos.x, objectPos.y).x + getFloorCoords(objectPos.x, objectPos.y).y),
               }
-              if (equippedObjectId === "object_lamp_warm") {
-                setIsLampOn((prev) => !prev);
-                playTing();
-              } else if (equippedObjectId === "object_scented_candle") {
-                setIsCandleOn((prev) => !prev);
-                playTing();
-              } else if (equippedObjectId === "object_vintage_radio") {
-                setIsRadioOn((prev) => !prev);
-                playTing();
-              }
-            }}
-            {...(objectPos ? { style: { left: `${objectPos.x}%`, top: `${objectPos.y}%` } } : {})}
-            className={`absolute z-20 h-24 w-24 object-contain drop-shadow-md select-none touch-none pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-105 transition-transform ${
-              objectPos ? "-translate-x-1/2 -translate-y-1/2" : "bottom-3 left-3"
-            }`}
-          >
-            <Image
-              src={customObject.imageUrl}
-              alt=""
-              width={120}
-              height={120}
-              className="h-full w-full object-contain"
-            />
-            {/* Scented candle flame particle */}
-            {isCandleOn && equippedObjectId === "object_scented_candle" && (
-              <span className="absolute top-[28%] left-[48%] -translate-x-1/2 w-1.5 h-2 bg-amber-400 rounded-full blur-[0.5px] animate-pulse z-30 shadow-[0_0_4px_rgba(251,191,36,0.8)]"></span>
-            )}
-            {/* Vintage radio music notes */}
-            {isRadioOn && equippedObjectId === "object_vintage_radio" && (
-              <div className="absolute inset-0 pointer-events-none">
-                <span className="music-note-float">🎵</span>
-                <span className="music-note-float">🎶</span>
-                <span className="music-note-float">♪</span>
-              </div>
-            )}
-          </div>
-        )}
+            : {
+                left: "41.6%",
+                top: "62.8%",
+                zIndex: 60,
+              };
+          return (
+            <div
+              onPointerDown={handleDecorPointerDown}
+              onPointerMove={handleDecorPointerMove}
+              onPointerUp={handleDecorPointerUp}
+              onPointerCancel={handleDecorPointerUp}
+              title={t("dragObjectHint")}
+              onClick={() => {
+                // Cú kéo vừa kết thúc cũng bắn onClick — bỏ qua để không bật/tắt nhầm.
+                if (decorDragMovedRef.current) {
+                  decorDragMovedRef.current = false;
+                  return;
+                }
+                if (equippedObjectId === "object_lamp_warm") {
+                  setIsLampOn((prev) => !prev);
+                  playTing();
+                } else if (equippedObjectId === "object_scented_candle") {
+                  setIsCandleOn((prev) => !prev);
+                  playTing();
+                } else if (equippedObjectId === "object_vintage_radio") {
+                  setIsRadioOn((prev) => !prev);
+                  playTing();
+                }
+              }}
+              style={finalObjectStyle}
+              className="absolute h-24 w-24 object-contain drop-shadow-md select-none touch-none pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-105 transition-all -translate-x-1/2 -translate-y-[80%]"
+            >
+              <Image
+                src={customObject.imageUrl}
+                alt=""
+                width={120}
+                height={120}
+                className="h-full w-full object-contain"
+              />
+              {/* Scented candle flame particle */}
+              {isCandleOn && equippedObjectId === "object_scented_candle" && (
+                <span className="absolute top-[28%] left-[48%] -translate-x-1/2 w-1.5 h-2 bg-amber-400 rounded-full blur-[0.5px] animate-pulse z-30 shadow-[0_0_4px_rgba(251,191,36,0.8)]"></span>
+              )}
+              {/* Vintage radio music notes */}
+              {isRadioOn && equippedObjectId === "object_vintage_radio" && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <span className="music-note-float">🎵</span>
+                  <span className="music-note-float">🎶</span>
+                  <span className="music-note-float">♪</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Interactive Object Target Overlay (Decor Mode) */}
         {isDecorMode && (
@@ -1194,6 +1328,40 @@ export function HomeView({ data }: { data: DashboardData }) {
             🛋️ <span className="leading-none">{t("selectObject")}</span>
           </button>
         )}
+
+        {/* Custom Rug (Fixed flat on the floor center) */}
+        {(() => {
+          if (isDecorMode) return null;
+          return customRug ? (
+            <div 
+              className="absolute w-[180px] h-[180px] pointer-events-none transition-all duration-700"
+              style={{
+                left: "50%",
+                top: "70%",
+                transform: "translate(-50%, -50%) rotate(45deg) scale(1, 0.5)",
+                zIndex: 5,
+              }}
+            >
+              <Image
+                src={customRug.imageUrl}
+                alt="Rug"
+                fill
+                sizes="180px"
+                className="object-contain opacity-90"
+              />
+            </div>
+          ) : (
+            <div 
+              className="absolute w-[140px] h-[140px] bg-black/[0.08] rounded-full blur-[2px] pointer-events-none transition-all duration-700"
+              style={{
+                left: "50%",
+                top: "70%",
+                transform: "translate(-50%, -50%) rotate(45deg) scale(1, 0.5)",
+                zIndex: 4,
+              }}
+            />
+          );
+        })()}
 
         {/* Pet Container with dynamic offset for bed/sofa sleeping or sitting */}
         {(() => {
@@ -1228,31 +1396,29 @@ export function HomeView({ data }: { data: DashboardData }) {
             );
           }
 
-          let containerClass = "relative mt-2 drop-shadow-lg z-10 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-          let containerStyle: React.CSSProperties | undefined;
-          if (!isDecorMode) {
-            const onFurniture =
-              (equippedObjectId === "object_bed_cozy" && currentAction === "sleep") ||
-              (equippedObjectId === "object_cozy_sofa" && currentAction === "idle") ||
-              (equippedObjectId === "object_gaming_chair" && (currentAction === "study" || currentAction === "idle"));
-            if (onFurniture) {
-              if (objectPos) {
-                // Nội thất đã được kéo đi chỗ khác → thỏ ngồi/ngủ theo món đồ.
-                containerClass =
-                  "absolute -translate-x-1/2 -translate-y-[92%] drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-                containerStyle = { left: `${objectPos.x}%`, top: `${objectPos.y}%` };
-              } else if (equippedObjectId === "object_cozy_sofa") {
-                containerClass = "absolute bottom-10 left-9 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-              } else {
-                containerClass = "absolute bottom-10 left-8 drop-shadow-lg z-30 transition-all duration-700 hover:scale-105 cursor-pointer animate-sheet-up";
-              }
-            }
-          }
+          const { left, top } = getIsoCoords(rabbitX, rabbitY);
+          const containerClass = `absolute -translate-x-1/2 -translate-y-[92%] cursor-pointer select-none touch-none pointer-events-auto transition-all ${
+            isDragging ? "drop-shadow-2xl scale-105 z-40 opacity-90" : "drop-shadow-lg hover:scale-102 z-25"
+          }`;
+          const containerStyle = {
+            left: `${left}%`,
+            top: `${isDragging ? top - 3 : top}%`, // Lift slightly when dragging
+            zIndex: Math.round(rabbitX + rabbitY),
+          };
+
           return (
             <div
               className={containerClass}
-              {...(containerStyle ? { style: containerStyle } : {})}
+              style={containerStyle}
+              onPointerDown={handlePetPointerDown}
+              onPointerMove={handlePetPointerMove}
+              onPointerUp={handlePetPointerUp}
+              onPointerCancel={handlePetPointerUp}
               onClick={() => {
+                if (petDragMovedRef.current) {
+                  petDragMovedRef.current = false;
+                  return;
+                }
                 playSwoosh();
                 const reactions: CompanionAction[] = ["happy", "proud_smile", "embarrassed_blush", "eat"];
                 setCompanionOverrideAction(reactions[Math.floor(Math.random() * reactions.length)]);
@@ -1274,18 +1440,11 @@ export function HomeView({ data }: { data: DashboardData }) {
                 className={`pet-spotlight pet-spotlight-${mood} pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2`}
                 aria-hidden
               />
-
-              {customRug ? (
-                <Image
-                  src={customRug.imageUrl}
-                  alt="Rug"
-                  width={250}
-                  height={125}
-                  className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[220px] object-contain opacity-95 -z-10"
-                />
-              ) : (
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-8 bg-black/20 rounded-[100%] blur-[4px] -z-10"></div>
-              )}
+              {/* Foot shadow under pet */}
+              <div 
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-14 h-4 bg-black/20 rounded-full blur-[2px] -z-10 pointer-events-none"
+                style={{ transform: "translateX(-50%) scale(1, 0.4)" }}
+              />
 
               {currentStage === 0 ? (
                 <EggCompanion streak={currentStreak} action={currentAction} className="drop-shadow-lg" />
@@ -1296,6 +1455,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                   action={currentAction}
                   equippedOutfit={equippedFor("outfit") ?? undefined}
                   className="drop-shadow-lg"
+                  flipX={facingLeft}
                 />
               )}
 

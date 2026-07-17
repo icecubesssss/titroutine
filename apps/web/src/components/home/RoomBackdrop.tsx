@@ -16,232 +16,228 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper }: Room
   const getSkyGradient = () => {
     switch (timeOfDay) {
       case "morning":
-        return "from-amber-200 via-orange-100 to-rose-200";
+        return "from-amber-200 via-orange-150 to-rose-250";
       case "evening":
-        return "from-orange-400 via-rose-300 to-indigo-850";
+        return "from-orange-400 via-rose-300 to-indigo-900";
       case "night":
-        return "from-indigo-950 via-slate-900 to-purple-950";
+        return "from-indigo-950 via-slate-950 to-purple-950";
       case "day":
       default:
-        return "from-sky-300 to-sky-100";
+        return "from-sky-400 to-sky-150";
     }
   };
 
   const skyGradient = getSkyGradient();
 
-  switch (roomId) {
-    case "bedroom":
-      if (showWallpaper) return null; // Let the equipped wallpaper shine
-      return (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex flex-col justify-between">
-          {/* Wall texture - warm cream paneling */}
-          <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/50 via-purple-50/30 to-rose-50/20" />
-          <div className="absolute inset-x-0 top-0 bottom-44 border-b border-stone-200/40 bg-[linear-gradient(90deg,rgba(0,0,0,0.015)_1px,transparent_1px)] bg-[size:48px_100%]" />
+  // Common weather/sky elements for windows
+  const renderSkyWindowContent = () => (
+    <>
+      <div className={`absolute inset-0 bg-gradient-to-b ${skyGradient} z-0`} />
+      {weather === "rain" && (
+        <div className="absolute inset-0 bg-sky-950/20 z-0 room-rain-overlay opacity-50" />
+      )}
+      {(timeOfDay === "day" || timeOfDay === "morning") && (
+        <div className="absolute top-2 left-3 w-6 h-6 rounded-full bg-amber-200/90 blur-[0.5px] shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+      )}
+      {(timeOfDay === "night" || timeOfDay === "evening") && (
+        <>
+          <div className="absolute top-2 right-4 w-4 h-4 rounded-full bg-yellow-100/90 shadow-[0_0_6px_rgba(253,224,71,0.3)]" />
+          <div className="absolute top-4 left-3 w-0.5 h-0.5 bg-white rounded-full opacity-60 animate-pulse" />
+          <div className="absolute top-6 left-6 w-0.5 h-0.5 bg-white rounded-full opacity-80" />
+        </>
+      )}
+    </>
+  );
 
-          {/* Arched Window in the center */}
-          <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-32 h-44 border-4 border-white bg-white rounded-t-full shadow-md overflow-hidden flex flex-col justify-between z-0">
-            {/* Sky Background */}
-            <div className={`absolute inset-0 bg-gradient-to-b ${skyGradient} z-0`} />
-
-            {/* Rain Inside Window */}
-            {weather === "rain" && (
-              <div className="absolute inset-0 bg-sky-950/20 z-0 room-rain-overlay opacity-40" />
-            )}
-
-            {/* Sun or Moon */}
-            {(timeOfDay === "day" || timeOfDay === "morning") && (
-              <div className="absolute top-4 left-6 w-8 h-8 rounded-full bg-amber-200/90 blur-[1px] shadow-[0_0_12px_rgba(251,191,36,0.5)]" />
-            )}
-            {(timeOfDay === "night" || timeOfDay === "evening") && (
-              <>
-                <div className="absolute top-4 right-6 w-6 h-6 rounded-full bg-yellow-100/90 shadow-[0_0_8px_rgba(253,224,71,0.4)]" />
-                {/* Twinkling stars */}
-                <div className="absolute top-8 left-4 w-1 h-1 bg-white rounded-full opacity-60 animate-pulse" />
-                <div className="absolute top-12 left-10 w-0.5 h-0.5 bg-white rounded-full opacity-80" />
-                <div className="absolute top-6 left-16 w-1 h-1 bg-white rounded-full opacity-40 animate-pulse" />
-              </>
-            )}
-
-            {/* Window windowpane bars */}
-            <div className="absolute inset-0 flex justify-center z-10">
-              <div className="w-1 h-full bg-white/70" />
+  return (
+    <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center select-none">
+      {/* 3D Isometric Dollhouse Frame */}
+      <div className="relative w-full max-w-sm h-full max-h-[85%] flex items-center justify-center">
+        
+        {/* Core Isometric Room Box (340px x 340px) */}
+        <div className="relative w-[340px] h-[340px] mt-8 flex items-center justify-center">
+          
+          {/* FLOOR PLANE (Rotated 45deg, scaled to form 2:1 isometric diamond) */}
+          {roomId !== "bedroom" || !showWallpaper ? (
+            <div 
+              className={`absolute w-[240px] h-[240px] rounded-[4px] border-2 border-stone-800/15 shadow-xl transition-all duration-700 ${
+                roomId === "bedroom" ? "bg-amber-100/80 border-amber-900/10 [background-image:linear-gradient(45deg,rgba(0,0,0,0.015)_25%,transparent_25%,transparent_50%,rgba(0,0,0,0.015)_50%,rgba(0,0,0,0.015)_75%,transparent_75%,transparent)] [background-size:24px_24px]" :
+                roomId === "kitchen" ? "bg-amber-50 border-amber-900/15 [background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0.02),rgba(0,0,0,0.02)_12px,transparent_12px,transparent_24px)]" :
+                roomId === "living" ? "bg-amber-900/20 border-amber-955/15 [background-image:linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)] [background-size:16px_100%]" :
+                roomId === "garden" ? "bg-gradient-to-br from-emerald-500 to-green-600 border-green-800/20" :
+                "bg-gradient-to-br from-cyan-100 to-blue-200 border-cyan-300/30"
+              }`}
+              style={{
+                transform: "rotate(45deg) scale(1, 0.5)",
+                bottom: "20px",
+                zIndex: 1,
+              }}
+            >
+              {/* Extra details drawn flat on the floor */}
+              {roomId === "kitchen" && (
+                /* River stream running at the front-right edge of the kitchen floor */
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-sky-200/60 border-l border-sky-300/40 flex flex-col justify-around items-center text-[10px]">
+                  <span>🪷</span>
+                  <span>🍀</span>
+                </div>
+              )}
+              {roomId === "garden" && (
+                /* Garden soil path */
+                <div className="absolute inset-x-8 inset-y-12 bg-amber-800/20 border border-amber-900/10 rounded-full blur-[0.5px] flex items-center justify-around text-xs">
+                  <span>🌱</span>
+                  <span>🌱</span>
+                </div>
+              )}
             </div>
-            <div className="absolute inset-y-1/2 inset-x-0 h-1 bg-white/70 z-10" />
+          ) : null}
 
-            {/* Clouds inside window */}
-            {timeOfDay === "day" && (
-              <div className="absolute top-10 left-[-10px] w-12 h-4 bg-white/75 rounded-full blur-[0.5px] opacity-80 animate-pulse" style={{ animationDuration: "8s" }} />
-            )}
-          </div>
+          {/* LEFT WALL PLANE (Skewed 26.565deg) */}
+          {roomId !== "bedroom" || !showWallpaper ? (
+            <div 
+              className={`absolute w-[170px] h-[200px] origin-bottom-right transition-all duration-700 ${
+                roomId === "bedroom" ? "bg-gradient-to-b from-indigo-50/70 via-purple-50/50 to-rose-50/40 border-l border-t border-purple-200/50" :
+                roomId === "kitchen" ? "bg-gradient-to-b from-emerald-100/50 via-teal-50/40 to-green-100/30 border-l border-t border-emerald-300/40" :
+                roomId === "living" ? "bg-gradient-to-b from-emerald-950/10 via-teal-900/5 to-transparent border-l border-t border-stone-300" :
+                roomId === "garden" ? "bg-transparent border-l-2 border-dashed border-stone-300/25" :
+                "bg-gradient-to-b from-cyan-50/80 via-blue-50/60 to-transparent border-l border-t border-cyan-200"
+              }`}
+              style={{
+                transform: "skewY(26.565deg)",
+                bottom: "190px",
+                right: "50%",
+                zIndex: 2,
+              }}
+            >
+              {/* Bamboo textures for kitchen wall */}
+              {roomId === "kitchen" && (
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,185,129,0.1)_2px,transparent_2px)] bg-[size:16px_100%]" />
+              )}
+              {/* Mosaic tiles for bathroom wall */}
+              {roomId === "bathroom" && (
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,180,216,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(0,180,216,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
+              )}
 
-          {/* Curtains on both sides of the window */}
-          <div className="absolute top-[10%] left-[calc(50%-74px)] w-8 h-44 bg-rose-200/80 rounded-b-xl shadow-sm z-10 backdrop-blur-[0.5px] border-r border-rose-300/20" />
-          <div className="absolute top-[10%] left-[calc(50%+42px)] w-8 h-44 bg-rose-200/80 rounded-b-xl shadow-sm z-10 backdrop-blur-[0.5px] border-l border-rose-300/20" />
-          {/* Curtain rod */}
-          <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-40 h-2 bg-amber-800/85 rounded-full z-20" />
+              {/* Windows and Wall Hanging items (Auto-skewed with the parent wall!) */}
+              {roomId === "bedroom" && (
+                /* Arch Window */
+                <div className="absolute top-[18%] left-[20%] w-16 h-22 border-2 border-white bg-white/40 rounded-t-full shadow-sm overflow-hidden flex flex-col justify-between">
+                  {renderSkyWindowContent()}
+                  <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/70" />
+                  <div className="absolute inset-x-0 top-1/2 h-0.5 bg-white/70" />
+                </div>
+              )}
 
-          {/* Cozy Nightstand on the left */}
-          <div className="absolute bottom-44 left-[10%] w-16 h-16 flex flex-col justify-end z-10">
-            {/* Lamp on nightstand */}
-            <div className="w-8 h-8 mx-auto relative flex flex-col justify-end">
-              <div className={`w-6 h-5 mx-auto rounded-t-xl bg-amber-100 border border-amber-200 shadow-sm ${timeOfDay === "night" ? "shadow-[0_0_12px_rgba(253,224,71,0.5)] bg-yellow-200" : ""}`} />
-              <div className="w-1.5 h-3 mx-auto bg-stone-400" />
+              {roomId === "kitchen" && (
+                /* Round Window in the kitchen */
+                <div className="absolute top-[20%] left-[24%] w-16 h-16 border-2 border-white bg-white/40 rounded-full shadow-sm overflow-hidden relative">
+                  {renderSkyWindowContent()}
+                  <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/60" />
+                  <div className="absolute inset-x-0 top-1/2 h-0.5 bg-white/60" />
+                </div>
+              )}
+
+              {roomId === "living" && (
+                /* Cute photo frame */
+                <div className="absolute top-[24%] left-[25%] w-10 h-12 border-2 border-amber-800 bg-amber-50 shadow p-0.5 flex items-center justify-center">
+                  <div className="w-full h-full bg-emerald-100/50 flex items-center justify-center text-[10px]">
+                    🖼️
+                  </div>
+                </div>
+              )}
+
+              {roomId === "garden" && (
+                /* Open picket fence along the skewed boundary */
+                <div className="absolute bottom-0 inset-x-0 h-10 flex justify-around items-end">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="w-2.5 h-8 bg-white border border-stone-250 rounded-t-sm shadow-sm" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 100%, 0% 100%, 0% 25%)" }} />
+                  ))}
+                  <div className="absolute bottom-1.5 inset-x-0 h-1 bg-white border border-stone-200" />
+                </div>
+              )}
+
+              {roomId === "bathroom" && (
+                /* Hanging towel */
+                <div className="absolute top-[18%] left-[24%] w-6 h-16 flex flex-col items-center">
+                  <div className="w-4 h-1 bg-stone-300 rounded-full" />
+                  <div className="w-3.5 h-12 bg-cyan-100 border border-cyan-200 rounded-b shadow-sm" />
+                </div>
+              )}
             </div>
-            {/* Nightstand body */}
-            <div className="w-full h-10 bg-amber-700/90 rounded-t-md border-t border-amber-600 shadow-sm flex flex-col justify-around p-1">
-              <div className="w-2 h-2 rounded-full bg-amber-900 mx-auto" />
-            </div>
-          </div>
+          ) : null}
 
-          {/* Cozy Bed Headboard on the right */}
-          <div className="absolute bottom-44 right-[-10px] w-28 h-20 bg-amber-850/90 rounded-l-2xl border-l-4 border-amber-900 shadow-lg z-0 flex flex-col justify-start items-start p-2">
-            {/* White Pillow silhouette */}
-            <div className="w-16 h-8 bg-stone-100 rounded-lg shadow-sm border border-stone-200 -mt-4 ml-2 rotate-[-5deg]" />
-          </div>
+          {/* RIGHT WALL PLANE (Skewed -26.565deg) */}
+          {roomId !== "bedroom" || !showWallpaper ? (
+            <div 
+              className={`absolute w-[170px] h-[200px] origin-bottom-left transition-all duration-700 ${
+                roomId === "bedroom" ? "bg-gradient-to-b from-indigo-50/60 via-purple-50/40 to-rose-50/30 border-r border-t border-purple-250/40" :
+                roomId === "kitchen" ? "bg-gradient-to-b from-emerald-100/40 via-teal-50/30 to-green-100/20 border-r border-t border-emerald-300/30" :
+                roomId === "living" ? "bg-gradient-to-b from-emerald-950/15 via-teal-900/10 to-transparent border-r border-t border-stone-300" :
+                roomId === "garden" ? "bg-transparent border-r-2 border-dashed border-stone-300/25" :
+                "bg-gradient-to-b from-cyan-50/70 via-blue-50/50 to-transparent border-r border-t border-cyan-200"
+              }`}
+              style={{
+                transform: "skewY(-26.565deg)",
+                bottom: "190px",
+                left: "50%",
+                zIndex: 2,
+              }}
+            >
+              {/* Bamboo textures for kitchen wall */}
+              {roomId === "kitchen" && (
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,185,129,0.1)_2px,transparent_2px)] bg-[size:16px_100%]" />
+              )}
+              {/* Mosaic tiles for bathroom wall */}
+              {roomId === "bathroom" && (
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,180,216,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(0,180,216,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
+              )}
+
+              {/* Windows, Bookshelves, and Wall decorations (Auto-skewed with the parent wall!) */}
+              {roomId === "bedroom" && (
+                /* Bed wall poster */
+                <div className="absolute top-[22%] right-[25%] w-8 h-10 bg-rose-100/80 border border-rose-200 shadow-sm p-0.5 flex items-center justify-center rotate-[-1deg]">
+                  <span className="text-[10px]">🌸</span>
+                </div>
+              )}
+
+              {roomId === "kitchen" && (
+                /* Cozy kitchen shelf */
+                <div className="absolute top-[28%] right-[20%] w-20 h-10 flex flex-col justify-end">
+                  <div className="flex gap-2 justify-center text-xs opacity-95">🏺☕🪴</div>
+                  <div className="w-full h-1 bg-amber-800 rounded-full shadow-sm" />
+                </div>
+              )}
+
+              {roomId === "living" && (
+                /* Wall shelf with books and vase */
+                <div className="absolute top-[30%] right-[15%] w-24 h-24 bg-amber-900/10 border-l border-stone-300/40 p-1 flex flex-col justify-around">
+                  <div className="h-0.5 bg-stone-350 w-full" />
+                  <div className="flex justify-around text-[10px]">📚🏺</div>
+                  <div className="h-0.5 bg-stone-350 w-full" />
+                </div>
+              )}
+
+              {roomId === "garden" && (
+                /* Open picket fence along the right skewed boundary */
+                <div className="absolute bottom-0 inset-x-0 h-10 flex justify-around items-end">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="w-2.5 h-8 bg-white border border-stone-250 rounded-t-sm shadow-sm" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 100%, 0% 100%, 0% 25%)" }} />
+                  ))}
+                  <div className="absolute bottom-1.5 inset-x-0 h-1 bg-white border border-stone-200" />
+                </div>
+              )}
+
+              {roomId === "bathroom" && (
+                /* Arched Bathroom Mirror */
+                <div className="absolute top-[18%] right-[24%] w-12 h-16 border-2 border-stone-250 bg-sky-50/60 rounded-t-full shadow overflow-hidden flex items-center justify-center">
+                  <div className="absolute top-1 right-1 w-8 h-1 bg-white/25 rotate-[-45deg] skew-x-12" />
+                  <span className="text-[10px] filter opacity-45">🫧</span>
+                </div>
+              )}
+            </div>
+          ) : null}
+
         </div>
-      );
-
-    case "kitchen":
-      return (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex flex-col justify-between">
-          {/* Wall tiles texture */}
-          <div className="absolute inset-0 kitchen-tiles-wall" />
-
-          {/* Kitchen Window */}
-          <div className="absolute top-[15%] right-[15%] w-24 h-24 border-4 border-stone-300/90 bg-white shadow-sm overflow-hidden flex flex-col justify-between z-0">
-            <div className={`absolute inset-0 bg-gradient-to-b ${skyGradient} z-0`} />
-
-            {/* Rain Inside Window */}
-            {weather === "rain" && (
-              <div className="absolute inset-0 bg-sky-950/20 z-0 room-rain-overlay opacity-40" />
-            )}
-            <div className="absolute inset-0 flex justify-center z-10"><div className="w-0.5 h-full bg-stone-350" /></div>
-            <div className="absolute inset-y-1/2 inset-x-0 h-0.5 bg-stone-350 z-10" />
-            {/* Sun or Moon */}
-            {(timeOfDay === "day" || timeOfDay === "morning") && (
-              <div className="absolute top-2 left-4 w-5 h-5 rounded-full bg-amber-200/90" />
-            )}
-          </div>
-
-          {/* Wall Hanging Kitchen Shelf */}
-          <div className="absolute top-[22%] left-[12%] w-44 h-16 z-10 flex flex-col justify-between">
-            {/* Shelf Items (Cups, Spice jars, Small plant) */}
-            <div className="flex gap-4 px-3 items-end justify-start h-12">
-              <span className="text-xl select-none filter drop-shadow-sm">🪴</span>
-              <span className="text-lg select-none filter drop-shadow-sm">☕</span>
-              <span className="text-base select-none filter drop-shadow-sm">🧂</span>
-            </div>
-            {/* Wooden shelf board */}
-            <div className="w-full h-2 bg-amber-800/90 rounded-full shadow-sm" />
-            {/* Shelf supports */}
-            <div className="flex justify-between px-6">
-              <div className="w-1.5 h-3 bg-amber-900/80" />
-              <div className="w-1.5 h-3 bg-amber-900/80" />
-            </div>
-          </div>
-
-          {/* Kitchen Countertop (cabinet) at the floor line */}
-          <div className="absolute bottom-44 left-0 right-0 h-10 bg-amber-900/10 border-b-4 border-amber-800/25 flex items-end justify-between px-6 z-0">
-            {/* Small countertop shelf outlines */}
-            <div className="w-24 h-8 bg-stone-100/90 rounded-t border-t border-x border-stone-200/50 shadow-sm flex items-center justify-center">
-              <span className="text-[10px] text-stone-400 font-bold">COOKER</span>
-            </div>
-            <div className="w-16 h-8 bg-stone-200/80 rounded-t border-t border-x border-stone-300/40 shadow-sm flex items-center justify-center">
-              <span className="text-sm select-none">🍯</span>
-            </div>
-          </div>
-        </div>
-      );
-
-    case "living":
-      return (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {/* Wall paper */}
-          <div className="absolute inset-0 living-striped-wall" />
-
-          {/* Wall hanging photo frame */}
-          <div className="absolute top-[16%] left-[15%] w-14 h-18 border-4 border-amber-800 bg-amber-50 shadow-md flex items-center justify-center p-1 z-10 rotate-[2deg]">
-            <div className="w-full h-full bg-emerald-100 border border-emerald-250 flex items-center justify-center">
-              <span className="text-xs select-none">🖼️</span>
-            </div>
-          </div>
-
-          {/* Wall bookshelf in the right corner */}
-          <div className="absolute top-[25%] right-0 w-24 h-48 bg-amber-850/80 rounded-l-xl border-l-4 border-amber-900 shadow-md p-2 flex flex-col justify-between z-0">
-            <div className="h-1 bg-amber-900/60 w-full" />
-            <div className="flex justify-around text-xs select-none opacity-80">📚</div>
-            <div className="h-1 bg-amber-900/60 w-full" />
-            <div className="flex justify-around text-xs select-none opacity-80">🏺</div>
-            <div className="h-1 bg-amber-900/60 w-full" />
-          </div>
-        </div>
-      );
-
-    case "garden":
-      return (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex flex-col justify-between">
-          {/* Dynamic Sky backdrop */}
-          <div className={`absolute inset-0 bg-gradient-to-b ${skyGradient} z-0`} />
-
-          {/* Rain Overlay */}
-          {weather === "rain" && (
-            <div className="absolute inset-0 bg-sky-950/10 z-0 room-rain-overlay opacity-30" />
-          )}
-
-          {/* Sun or Moon */}
-          {(timeOfDay === "day" || timeOfDay === "morning") && (
-            <div className="absolute top-10 left-12 w-12 h-12 rounded-full bg-amber-200/90 blur-[1px] shadow-[0_0_16px_rgba(251,191,36,0.4)]" />
-          )}
-          {(timeOfDay === "night" || timeOfDay === "evening") && (
-            <div className="absolute top-10 right-12 w-10 h-10 rounded-full bg-yellow-100/90 shadow-[0_0_12px_rgba(253,224,71,0.35)]" />
-          )}
-
-          {/* Clouds */}
-          {timeOfDay === "day" && (
-            <>
-              <div className="absolute top-16 left-[20%] w-24 h-6 bg-white/70 rounded-full blur-[1px] animate-pulse" style={{ animationDuration: "12s" }} />
-              <div className="absolute top-24 right-[15%] w-32 h-8 bg-white/60 rounded-full blur-[1.5px] animate-pulse" style={{ animationDuration: "16s" }} />
-            </>
-          )}
-
-          {/* Background hills */}
-          <div className="absolute bottom-44 left-0 right-0 h-28 bg-gradient-to-t from-emerald-200/80 to-emerald-100/50 rounded-t-[50%] scale-x-125 z-0 translate-y-6" />
-          <div className="absolute bottom-44 left-[-10%] right-[-10%] h-20 bg-gradient-to-t from-lime-200/90 to-lime-100/60 rounded-t-[40%] z-0 translate-y-2" />
-
-          {/* Cozy White picket fence */}
-          <div className="absolute bottom-44 left-0 right-0 h-12 z-10 flex justify-around items-end opacity-85 px-4">
-            {Array.from({ length: 9 }).map((_, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <div className="w-2.5 h-8 bg-white border border-stone-200 rounded-t-sm shadow-sm" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 100%, 0% 100%, 0% 25%)" }} />
-              </div>
-            ))}
-            {/* Crossbar */}
-            <div className="absolute bottom-2 left-0 right-0 h-1.5 bg-white border border-stone-200 shadow-sm" />
-          </div>
-        </div>
-      );
-
-    case "bathroom":
-      return (
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {/* Mosaic wall */}
-          <div className="absolute inset-0 bathroom-mosaic-wall" />
-
-          {/* Hanging towel */}
-          <div className="absolute top-[20%] left-[10%] w-8 h-24 flex flex-col items-center z-10">
-            <div className="w-6 h-2 bg-stone-350 rounded-full" />
-            <div className="w-5 h-20 bg-cyan-100 border-x border-b border-cyan-200 rounded-b-md shadow-sm" />
-          </div>
-
-          {/* Arched Mirror on the wall */}
-          <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-28 h-32 border-4 border-stone-250 bg-sky-50/70 rounded-t-full shadow-md overflow-hidden flex items-center justify-center z-0">
-            <div className="absolute top-2 right-2 w-20 h-4 bg-white/20 rotate-[-45deg] skew-x-12" />
-            <span className="text-xl select-none filter opacity-45">🧼</span>
-          </div>
-        </div>
-      );
-
-    default:
-      return null;
-  }
+      </div>
+    </div>
+  );
 }

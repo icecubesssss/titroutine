@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Lock, X } from "lucide-react";
+import { Lock, X, Home } from "lucide-react";
 import { ROOMS, type RoomId } from "@/lib/rooms";
 import { spotsForRoom, ROOM_CLEAN_GIFTS } from "@/lib/cleaning";
 import { levelFromExp } from "@/lib/game";
@@ -9,6 +9,7 @@ import { levelFromExp } from "@/lib/game";
 // "Explore the house" modal: lists every room with its unlock state, cleaning
 // progress and the free furniture gift for fully cleaning it. Unlock is derived
 // from the pet level (or the dev level override) vs the persisted unlocked list.
+// Features a gorgeous 3D Isometric Dollhouse Map at the top.
 export function RoomSwitcherModal({
   open,
   onClose,
@@ -34,13 +35,34 @@ export function RoomSwitcherModal({
 
   if (!open) return null;
 
+  const currentLevel = devLevelOverride !== null ? devLevelOverride : levelFromExp(petExp);
+
+  // Screen coordinates for the 3D Dollhouse map buttons
+  const getRoomMapPos = (id: RoomId) => {
+    switch (id) {
+      case "bedroom":
+        return { left: "calc(50% - 78px)", top: "32px", zIndex: 10 };
+      case "bathroom":
+        return { left: "calc(50% + 8px)", top: "32px", zIndex: 10 };
+      case "living":
+        return { left: "calc(50% - 78px)", top: "94px", zIndex: 10 };
+      case "kitchen":
+        return { left: "calc(50% + 8px)", top: "94px", zIndex: 10 };
+      case "garden":
+      default:
+        return { left: "calc(50% - 35px)", top: "144px", zIndex: 15 };
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-md bg-theme-bg rounded-3xl overflow-hidden shadow-2xl relative border border-theme-card-border animate-scale-up text-theme-text p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-theme-bg rounded-3xl overflow-hidden shadow-2xl relative border border-theme-card-border animate-scale-up text-theme-text p-6 max-h-[95vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
 
-        <div className="flex justify-between items-center mb-4 pb-3 border-b border-theme-card-border">
-          <h3 className="text-base font-black flex items-center gap-2 text-amber-900">
-            🏡 {tRooms("title") || "Khám Phá Ngôi Nhà"}
+        {/* Header */}
+        <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-theme-card-border shrink-0">
+          <h3 className="text-sm font-black flex items-center gap-2 text-amber-900">
+            <Home className="w-4 h-4 text-amber-800" />
+            {tRooms("title") || "Khám Phá Ngôi Nhà 3D"}
           </h3>
           <button
             type="button"
@@ -53,13 +75,72 @@ export function RoomSwitcherModal({
           </button>
         </div>
 
-        <p className="text-[11px] text-theme-text/60 mb-5 leading-relaxed">
-          Mở khoá phòng mới bằng cách nâng cấp level thỏ cưng (cho thỏ ăn để tăng EXP) và dọn sạch các đống bừa bộn để nhận nội thất miễn phí!
-        </p>
+        {/* 3D Isometric Dollhouse Map Section */}
+        <div className="relative w-full h-[225px] bg-amber-500/[0.03] border border-amber-900/5 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 mb-4 shadow-inner">
+          {/* Sky background backdrop */}
+          <div className="absolute inset-0 bg-gradient-to-b from-sky-100/30 to-amber-50/20 pointer-events-none" />
 
-        <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 no-scrollbar">
+          {/* Roof silhouette */}
+          <div 
+            className="absolute w-0 h-0 border-l-[82px] border-l-transparent border-r-[82px] border-r-transparent border-b-[24px] border-b-amber-800/10 pointer-events-none"
+            style={{ left: "calc(50% - 82px)", top: "8px" }}
+          />
+
+          {/* Grass lawn at bottom */}
+          <div 
+            className="absolute w-[190px] h-[36px] bg-emerald-500/10 rounded-full blur-[1px] pointer-events-none"
+            style={{ left: "calc(50% - 95px)", top: "156px" }}
+          />
+
+          {/* Render rooms on map */}
           {ROOMS.map((room) => {
-            const unlocked = devLevelOverride !== null ? levelFromExp(petExp) >= room.unlockLevel : unlockedRooms.includes(room.id);
+            const unlocked = devLevelOverride !== null ? currentLevel >= room.unlockLevel : unlockedRooms.includes(room.id);
+            const isCurrent = currentRoomId === room.id;
+            const { left, top, zIndex } = getRoomMapPos(room.id);
+
+            return (
+              <button
+                key={`map-${room.id}`}
+                type="button"
+                disabled={!unlocked || isCurrent}
+                onClick={() => {
+                  onVisitRoom(room.id);
+                  onClose();
+                }}
+                title={unlocked ? tRooms(room.id) : tRooms("lockedHint", { level: room.unlockLevel })}
+                className={`absolute w-[70px] h-[52px] rounded-xl flex flex-col items-center justify-center text-center transition-all ${
+                  isCurrent
+                    ? "bg-amber-150 border-2 border-amber-500 shadow-none translate-y-0.5 cursor-default text-amber-950 font-black"
+                    : unlocked
+                    ? "bg-white border border-stone-200 hover:border-amber-400 hover:-translate-y-0.5 active:translate-y-0.5 shadow-[0_3px_0_rgba(180,83,9,0.15)] hover:shadow-[0_4px_0_rgba(180,83,9,0.2)] active:shadow-none text-theme-text"
+                    : "bg-stone-50/80 border border-stone-200 text-stone-400/70 opacity-60 cursor-not-allowed"
+                }`}
+                style={{ left, top, zIndex }}
+              >
+                {/* Active current room glow indicator */}
+                {isCurrent && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+                )}
+                
+                <span className="text-base leading-none mb-0.5">{room.icon}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">
+                  {tRooms(room.id)}
+                </span>
+                
+                {isCurrent ? (
+                  <span className="text-[6px] text-amber-700 font-extrabold uppercase mt-0.5 leading-none">Ở đây</span>
+                ) : !unlocked ? (
+                  <span className="text-[6px] text-stone-400 font-bold mt-0.5 leading-none">Lv{room.unlockLevel} 🔒</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Detailed Room List */}
+        <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3.5">
+          {ROOMS.map((room) => {
+            const unlocked = devLevelOverride !== null ? currentLevel >= room.unlockLevel : unlockedRooms.includes(room.id);
             const spots = spotsForRoom(room.id);
             const cleanedCount = spots.filter(s => cleanedSpots[s.id]).length;
             const totalSpots = spots.length;
@@ -104,7 +185,10 @@ export function RoomSwitcherModal({
                     <button
                       type="button"
                       disabled={isCurrent}
-                      onClick={() => onVisitRoom(room.id)}
+                      onClick={() => {
+                        onVisitRoom(room.id);
+                        onClose();
+                      }}
                       className={`text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm transition-all ${
                         isCurrent
                           ? "bg-stone-100 text-stone-400 cursor-default"
@@ -131,10 +215,8 @@ export function RoomSwitcherModal({
                     </div>
                     <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
                       <div
-                        ref={(el) => {
-                          if (el) el.style.width = `${cleanProgressPercent}%`;
-                        }}
-                        className={`h-full w-0 rounded-full transition-all duration-500 ${
+                        style={{ width: `${cleanProgressPercent}%` }}
+                        className={`h-full rounded-full transition-all duration-500 ${
                           isFullyClean ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-amber-400 to-orange-500"
                         }`}
                       />

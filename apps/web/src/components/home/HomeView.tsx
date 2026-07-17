@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Flame, X, DoorOpen } from "lucide-react";
+import { X, DoorOpen } from "lucide-react";
 import confetti from "canvas-confetti";
 import Image from "next/image";
 import { DuoButton } from "@/components/ui/DuoButton";
@@ -17,7 +17,6 @@ import { TimerModal } from "@/components/home/TimerModal";
 import { MemoryAlbumModal } from "@/components/home/MemoryAlbumModal";
 import { ShopModal } from "@/components/home/ShopModal";
 import { CelebrationModal } from "@/components/home/CelebrationModal";
-import { PetHud } from "@/components/home/PetHud";
 import { BottomNav } from "@/components/home/BottomNav";
 import { InteractionDock } from "@/components/home/InteractionDock";
 import { FeedPicker } from "@/components/home/FeedPicker";
@@ -50,7 +49,7 @@ import {
   setVacationModeAction,
   moveDecorAction,
 } from "@/app/[locale]/actions";
-import { spotsForRoom, cleaningProgress, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, type MessSpot } from "@/lib/cleaning";
+import { spotsForRoom, SPOT_CLEAN_COINS, ROOM_CLEAN_BONUS_COINS, type MessSpot } from "@/lib/cleaning";
 import { stageFromStreak, daysBetween, moodFromStats, levelFromExp, expToNextLevel, foodTier } from "@/lib/game";
 import { roomDef, unlockedRooms, allRoomsUnlocked, INTERACTION_ACTION, type RoomId, type InteractionKind } from "@/lib/rooms";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
@@ -1182,160 +1181,128 @@ export function HomeView({ data }: { data: DashboardData }) {
               );
             })}
 
-        {/* Top Header Bar */}
-        {/* 1. Desktop version */}
-        <div className="absolute top-4 left-4 right-4 hidden md:flex justify-between items-center z-40">
-          {/* Streak pill with click popover */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                playTing();
-                setShowFreezeTooltip((prev) => !prev);
-              }}
-              className="bg-white/70 border border-white/50 backdrop-blur-md px-3.5 py-1.5 rounded-full flex items-center gap-2 font-bold shadow-sm hover:bg-white/95 active:scale-95 transition-all text-theme-text"
-            >
-              <Flame className="w-4.5 h-4.5 text-orange-500 fill-orange-500/10" />
-              <span className="text-orange-600 text-xs">
-                {t("streakDays", { count: currentStreak })}
-              </span>
-              {data.profile.streakFreezes > 0 && (
-                <span className="ml-1 flex items-center text-blue-600 text-[10px] bg-blue-50/90 border border-blue-200/40 px-1.5 py-0.5 rounded-full font-black" title={t("freezeTitle")}>
-                  ❄️ {data.profile.streakFreezes}
-                </span>
-              )}
-            </button>
-
-            {showFreezeTooltip && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowFreezeTooltip(false)} />
-                <div className="absolute top-full left-0 mt-2.5 w-52 bg-white/95 border border-amber-900/10 p-3.5 rounded-2xl shadow-xl z-50 text-left pointer-events-auto text-theme-text animate-sheet-up">
-                  <div className="text-[10px] font-black text-amber-950/40 uppercase tracking-wider mb-1">
-                    ❄️ {t("freezeTitle")}
-                  </div>
-                  <p className="text-[11px] text-theme-text/80 mb-2.5 leading-relaxed">
-                    {t("freezeTooltip", { price: 50 })}
-                  </p>
-                  <button
-                    type="button"
-                    className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white text-[11px] font-extrabold py-2 rounded-xl disabled:opacity-50 disabled:from-stone-200 disabled:to-stone-300 shadow-sm transition-all"
-                    disabled={coins < 50}
-                    onClick={() => {
-                      setCoins(c => c - 50);
-                      setShowFreezeTooltip(false);
-                      startTransition(async () => {
-                         await buyFreezeAction();
-                         router.refresh();
-                      });
-                    }}
-                  >
-                    {t("buyFreeze")}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Center: Room Switcher Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                playTing();
-                setIsRoomSwitcherOpen(true);
-              }}
-              className="bg-white/70 border border-white/50 backdrop-blur-md px-4 py-1.5 rounded-full flex items-center gap-1.5 font-black text-xs shadow-sm hover:bg-white/90 active:scale-95 transition-all text-amber-900/80 border-b-2 border-b-amber-200/50"
-            >
-              <DoorOpen className="w-4 h-4 text-amber-800" />
-              <span>{tRooms(currentRoomId)}</span>
-              <span className="text-[10px] text-amber-900/40 font-normal">▾</span>
-            </button>
-          </div>
-
-          {/* Right: Coins + broom (cleaning energy) */}
-          <div className="flex items-center gap-2">
-            {vacationMode && (
-              <div
-                title={t("vacationActive")}
-                className="flex items-center rounded-full bg-sky-100/85 border border-sky-200/60 px-2.5 py-1.5 shadow-sm backdrop-blur-md cursor-help animate-pulse"
-              >
-                <span className="text-sm leading-none">🏖️</span>
-              </div>
-            )}
-            <div
-              title={t("cleanEnergyTitle", cleaningProgress(cleanedSpots))}
-              className="flex items-center gap-1 rounded-full bg-white/70 border border-white/50 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text cursor-help"
-            >
-              <span className="text-sm leading-none">🧹</span>
-              <span className="tabular-nums text-emerald-600 text-xs font-black">{cleaningEnergy}</span>
+        {/* Unified Mobile/Desktop Premium Game HUD */}
+        
+        {/* Left Side: Compact Pet Status mini-HUD */}
+        <div 
+          className={`absolute top-4 left-4 z-40 transition-all duration-300 flex flex-col gap-1.5 p-2 bg-white/65 backdrop-blur-md rounded-2xl border border-white/40 shadow-md text-theme-text max-w-[130px] pointer-events-auto ${
+            showToolbars ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none"
+          }`}
+        >
+          {/* Level Badge */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center text-[10px] font-black text-amber-955 shadow-sm animate-pulse-glow">
+              ⭐
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-white/50 px-3 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text">
-              <Image src="/assets/ui/icon_coin.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
-              <span className="tabular-nums text-amber-600 text-xs font-black">{coins}</span>
+            <span className="text-[10px] font-black text-amber-900 leading-none">Lvl. {petLevel}</span>
+          </div>
+          {/* Satiety Mini progress bar */}
+          <div className="flex items-center gap-1 text-[9px] font-extrabold text-amber-800">
+            <span>🍲</span>
+            <div className="flex-1 w-14 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+              <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
+            </div>
+          </div>
+          {/* Affection Mini progress bar */}
+          <div className="flex items-center gap-1 text-[9px] font-extrabold text-rose-800">
+            <span>❤️</span>
+            <div className="flex-1 w-14 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+              <div className="h-full bg-rose-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
             </div>
           </div>
         </div>
 
-        {/* 2. Mobile version (Optimized to prevent overlap) */}
-        <div className={`absolute top-4 left-4 right-4 md:hidden flex justify-between items-center z-40 transition-all duration-300 ${
-          showToolbars ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none"
-        }`}>
-          {/* Left: Hamburger menu button */}
+        {/* Right Side: Currency & Stats Card (Streak | Coins | Cleaning Energy) */}
+        <div 
+          className={`absolute top-4 right-4 z-40 transition-all duration-300 pointer-events-auto ${
+            showToolbars ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none"
+          }`}
+        >
           <button
             type="button"
             onClick={() => {
-              playSwoosh();
-              setIsMobileSidebarOpen(true);
+              playTing();
+              setShowFreezeTooltip((prev) => !prev);
             }}
-            className="w-10 h-10 bg-white/70 border border-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm text-amber-950 hover:bg-white/95 active:scale-95 transition-all text-lg font-bold"
-            aria-label="Menu"
+            className="flex flex-col gap-1.5 p-2.5 bg-white/65 hover:bg-white/80 active:scale-95 backdrop-blur-md rounded-2xl border border-white/40 shadow-md text-theme-text min-w-[100px] items-end text-right transition-all animate-bubble-pop"
           >
-            ☰
+            <div className="flex items-center gap-1 text-[10px] font-black text-orange-600">
+              {vacationMode && (
+                <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
+              )}
+              <span>🔥 {currentStreak} {t("streakDaysShort", { defaultValue: "ngày" })}</span>
+              {data.profile.streakFreezes > 0 && (
+                <span className="text-[8px] bg-blue-50 border border-blue-250/30 px-1 rounded-full">❄️ {data.profile.streakFreezes}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600">
+              🪙 <span>{coins}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600">
+              🧹 <span>{cleaningEnergy}</span>
+            </div>
           </button>
 
-          {/* Center: Room Switcher Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                playTing();
-                setIsRoomSwitcherOpen(true);
-              }}
-              className="bg-white/70 border border-white/50 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1 font-black text-[11px] shadow-sm hover:bg-white/90 active:scale-95 transition-all text-amber-900/80 border-b border-b-amber-200/50"
-            >
-              <DoorOpen className="w-3.5 h-3.5 text-amber-800" />
-              <span>{tRooms(currentRoomId)}</span>
-              <span className="text-[9px] text-amber-900/40 font-normal">▾</span>
-            </button>
-          </div>
-
-          {/* Right: Consolidated status bar (Streak | Coins | Cleaning Energy) */}
-          <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-white/50 px-2.5 py-1.5 font-bold shadow-sm backdrop-blur-md text-theme-text text-[10px]">
-            {vacationMode && (
-              <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
-            )}
-            <span className="flex items-center gap-0.5 text-orange-600 font-extrabold" title={t("streakDays", { count: currentStreak })}>
-              🔥 {currentStreak}
-            </span>
-            <span className="text-earth-brown/15">|</span>
-            <span className="flex items-center gap-0.5 text-amber-600 font-extrabold" title={`${coins} coins`}>
-              🪙 {coins}
-            </span>
-            <span className="text-earth-brown/15">|</span>
-            <span className="flex items-center gap-0.5 text-emerald-600 font-extrabold" title={t("cleanEnergyTitle", cleaningProgress(cleanedSpots))}>
-              🧹 {cleaningEnergy}
-            </span>
-          </div>
+          {showFreezeTooltip && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowFreezeTooltip(false)} />
+              <div className="absolute top-full right-0 mt-2.5 w-52 bg-white/95 border border-amber-900/10 p-3.5 rounded-2xl shadow-xl z-50 text-left pointer-events-auto text-theme-text animate-sheet-up">
+                <div className="text-[10px] font-black text-amber-955/40 uppercase tracking-wider mb-1">
+                  ❄️ {t("freezeTitle")}
+                </div>
+                <p className="text-[11px] text-theme-text/80 mb-2.5 leading-relaxed">
+                  {t("freezeTooltip", { price: 50 })}
+                </p>
+                <button
+                  type="button"
+                  className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white text-[11px] font-extrabold py-2 rounded-xl disabled:opacity-50 disabled:from-stone-200 disabled:to-stone-300 shadow-sm transition-all"
+                  disabled={coins < 50}
+                  onClick={() => {
+                    setCoins(c => c - 50);
+                    setShowFreezeTooltip(false);
+                    startTransition(async () => {
+                       await buyFreezeAction();
+                       router.refresh();
+                    });
+                  }}
+                >
+                  {t("buyFreeze")}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Floating HUD at the top center */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none animate-bubble-pop">
-          <div className="pointer-events-auto">
-            <PetHud level={petLevel} levelProgress={levelProgress} satiety={effSatiety} affection={affection} mood={mood} />
-          </div>
-        </div>
+        {/* Bottom Floating Menu Trigger (Mobile only) */}
+        <button
+          type="button"
+          onClick={() => {
+            playSwoosh();
+            setIsMobileSidebarOpen(true);
+          }}
+          className={`absolute bottom-28 left-4 w-12 h-12 md:hidden rounded-full bg-white/80 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all z-40 text-amber-955 pointer-events-auto ${
+            showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
+          }`}
+          aria-label="Menu"
+        >
+          <span className="text-lg leading-none -mb-0.5">☰</span>
+          <span className="text-[8px] font-black tracking-tighter text-amber-950/80">Menu</span>
+        </button>
 
-
+        {/* Bottom Floating Map / Room Switcher Button (Both mobile & desktop) */}
+        <button
+          type="button"
+          onClick={() => {
+            playTing();
+            setIsRoomSwitcherOpen(true);
+          }}
+          className={`absolute bottom-28 right-4 w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all z-40 text-amber-900 pointer-events-auto border-b-2 border-b-amber-200/50 ${
+            showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
+          }`}
+        >
+          <DoorOpen className="w-5 h-5 text-amber-800" />
+          <span className="text-[8px] font-black tracking-tighter text-amber-955/80 -mt-0.5">{tRooms(currentRoomId)}</span>
+        </button>
         {/* Right-aligned vertical glassmorphic menu (REPLACED by Quick Menu) */}
 
         {/* Interactive Wallpaper Target */}

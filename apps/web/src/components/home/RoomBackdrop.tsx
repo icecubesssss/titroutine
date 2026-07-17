@@ -12,53 +12,40 @@ interface RoomBackdropProps {
   customWallpaper?: { imageUrl: string } | null;
 }
 
-export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, customWallpaper }: RoomBackdropProps) {
-  // Sky colors inside window based on time of day
-  const getSkyGradient = () => {
-    switch (timeOfDay) {
-      case "morning":
-        return "from-amber-200 via-orange-150 to-rose-250";
-      case "evening":
-        return "from-orange-400 via-rose-300 to-indigo-900";
-      case "night":
-        return "from-indigo-950 via-slate-950 to-purple-950";
-      case "day":
-      default:
-        return "from-sky-400 to-sky-150";
+export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper }: RoomBackdropProps) {
+
+  // Wall base colors (when no wallpaper is equipped)
+  const getLeftWallFill = () => {
+    switch (roomId) {
+      case "bedroom": return "url(#bedroomWallLeft)";
+      case "kitchen": return "url(#kitchenWallLeft)";
+      case "living": return "url(#livingWallLeft)";
+      case "garden": return "none";
+      case "bathroom": return "url(#bathroomWallLeft)";
+      default: return "#e2e8f0";
     }
   };
 
-  const skyGradient = getSkyGradient();
-
-  // Common weather/sky elements for windows
-  const renderSkyWindowContent = () => (
-    <>
-      <div className={`absolute inset-0 bg-gradient-to-b ${skyGradient} z-0`} />
-      {weather === "rain" && (
-        <div className="absolute inset-0 bg-sky-950/20 z-0 room-rain-overlay opacity-50" />
-      )}
-      {(timeOfDay === "day" || timeOfDay === "morning") && (
-        <div className="absolute top-2 left-3 w-6 h-6 rounded-full bg-amber-200/90 blur-[0.5px] shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
-      )}
-      {(timeOfDay === "night" || timeOfDay === "evening") && (
-        <>
-          <div className="absolute top-2 right-4 w-4 h-4 rounded-full bg-yellow-100/90 shadow-[0_0_6px_rgba(253,224,71,0.3)]" />
-          <div className="absolute top-4 left-3 w-0.5 h-0.5 bg-white rounded-full opacity-60 animate-pulse" />
-          <div className="absolute top-6 left-6 w-0.5 h-0.5 bg-white rounded-full opacity-80" />
-        </>
-      )}
-    </>
-  );
+  const getRightWallFill = () => {
+    switch (roomId) {
+      case "bedroom": return "url(#bedroomWallRight)";
+      case "kitchen": return "url(#kitchenWallRight)";
+      case "living": return "url(#livingWallRight)";
+      case "garden": return "none";
+      case "bathroom": return "url(#bathroomWallRight)";
+      default: return "#cbd5e1";
+    }
+  };
 
   return (
     <>
       {/* Self-contained UI Masterpiece Animations */}
       <style>{`
         @keyframes floatFirefly {
-          0% { transform: translateY(100px) translateX(0); opacity: 0; }
+          0% { transform: translateY(80px) translateX(0); opacity: 0; }
           40% { opacity: 0.8; }
           80% { opacity: 0.8; }
-          100% { transform: translateY(-30px) translateX(15px); opacity: 0; }
+          100% { transform: translateY(-20px) translateX(10px); opacity: 0; }
         }
         @keyframes floatBubble {
           0% { transform: translateY(110%) scale(0.6); opacity: 0; }
@@ -100,14 +87,58 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
         .bubble-5 { left: 70%; bottom: 20%; width: 12px; height: 12px; animation: floatBubble 6.5s infinite linear 0.8s; }
       `}</style>
 
-      {/* 3D PLATFORM DIORAMA BASE (Vector-sharp SVG) */}
+      {/* ONE UNIFIED SVG VIEWBOX (Ensures walls, windows, and floors scale with sub-pixel alignment) */}
       <svg 
         className="absolute inset-0 w-full h-full pointer-events-none" 
         style={{ zIndex: 1 }}
         viewBox="0 0 340 340"
       >
         <defs>
-          {/* Wood patterns & gradients */}
+          {/* Custom equipped wallpaper pattern */}
+          {showWallpaper && customWallpaper && (
+            <pattern id="customWallpaperPattern" width="1" height="1" patternContentUnits="objectBoundingBox">
+              <image href={customWallpaper.imageUrl} width="1" height="1" preserveAspectRatio="none" />
+            </pattern>
+          )}
+
+          {/* Wall gradients */}
+          <linearGradient id="bedroomWallLeft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#eef2ff" />
+            <stop offset="100%" stopColor="#e0e7ff" />
+          </linearGradient>
+          <linearGradient id="bedroomWallRight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f5f3ff" />
+            <stop offset="100%" stopColor="#edd8fc" />
+          </linearGradient>
+
+          <linearGradient id="kitchenWallLeft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ecfdf5" />
+            <stop offset="100%" stopColor="#d1fae5" />
+          </linearGradient>
+          <linearGradient id="kitchenWallRight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f0fdf4" />
+            <stop offset="100%" stopColor="#dcfce7" />
+          </linearGradient>
+
+          <linearGradient id="livingWallLeft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f5f5f4" />
+            <stop offset="100%" stopColor="#e7e5e4" />
+          </linearGradient>
+          <linearGradient id="livingWallRight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#fafaf9" />
+            <stop offset="100%" stopColor="#f5f5f4" />
+          </linearGradient>
+
+          <linearGradient id="bathroomWallLeft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ecfeff" />
+            <stop offset="100%" stopColor="#cffafe" />
+          </linearGradient>
+          <linearGradient id="bathroomWallRight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f0fdfa" />
+            <stop offset="100%" stopColor="#ccfbf1" />
+          </linearGradient>
+
+          {/* Floor gradients */}
           <linearGradient id="woodTop" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#fef3c7" />
             <stop offset="100%" stopColor="#fde68a" />
@@ -121,13 +152,11 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
             <stop offset="100%" stopColor="#92400e" />
           </linearGradient>
 
-          {/* Living room parquet oak */}
           <linearGradient id="parquetTop" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#b45309" stopOpacity="0.8" />
             <stop offset="100%" stopColor="#78350f" stopOpacity="0.9" />
           </linearGradient>
 
-          {/* Garden soil & grass layers */}
           <linearGradient id="grassTop" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#34d399" />
             <stop offset="100%" stopColor="#059669" />
@@ -143,7 +172,6 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
             <stop offset="100%" stopColor="#3f3f46" />
           </linearGradient>
 
-          {/* Bathroom marble tile */}
           <linearGradient id="tileTop" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#e0f7fa" />
             <stop offset="100%" stopColor="#b2ebf2" />
@@ -157,9 +185,39 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
             <stop offset="100%" stopColor="#00838f" />
           </linearGradient>
 
+          {/* Window Sky & Weather gradients */}
+          <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="1%">
+            {timeOfDay === "morning" && (
+              <>
+                <stop offset="0%" stopColor="#fde68a" />
+                <stop offset="50%" stopColor="#fed7aa" />
+                <stop offset="100%" stopColor="#fca5a5" />
+              </>
+            )}
+            {timeOfDay === "evening" && (
+              <>
+                <stop offset="0%" stopColor="#fb923c" />
+                <stop offset="60%" stopColor="#f43f5e" />
+                <stop offset="100%" stopColor="#312e81" />
+              </>
+            )}
+            {timeOfDay === "night" && (
+              <>
+                <stop offset="0%" stopColor="#1e1b4b" />
+                <stop offset="100%" stopColor="#09090b" />
+              </>
+            )}
+            {(timeOfDay === "day" || !timeOfDay) && (
+              <>
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="#bae6fd" />
+              </>
+            )}
+          </linearGradient>
+
           {/* Animated Water flow pattern */}
           <pattern id="waterFlow" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="40" height="40" fill="#7dd3fc" fillOpacity="0.8" />
+            <rect width="40" height="40" fill="#7dd3fc" fillOpacity="0.85" />
             <path d="M 0 10 Q 10 5, 20 10 T 40 10" fill="none" stroke="#e0f2fe" strokeWidth="2.5" />
             <path d="M 0 30 Q 10 25, 20 30 T 40 30" fill="none" stroke="#e0f2fe" strokeWidth="2.5" />
             <animateTransform 
@@ -172,8 +230,132 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
           </pattern>
         </defs>
 
-        {/* 3D Platform Thickness Sides */}
-        {/* Left Side Face */}
+        {/* ── 3D WALLS (Drawn inside SVG to scale with the floor block) ── */}
+        {/* LEFT WALL */}
+        <g transform="matrix(1, -0.5, 0, 1, 0, 135)">
+          <rect 
+            x="50" y="0" width="120" height="150" 
+            fill={showWallpaper && customWallpaper ? "url(#customWallpaperPattern)" : getLeftWallFill()} 
+            stroke={roomId === "garden" ? "none" : "#cbd5e1"} 
+            strokeWidth="0.5"
+            strokeOpacity="0.3"
+          />
+          {/* Subtle shading overlay for Left Wall to give 3D depth */}
+          <rect x="50" y="0" width="120" height="150" fill="black" fillOpacity="0.08" pointerEvents="none" />
+
+          {/* Left Wall Decorations (Warped naturally via matrix transform!) */}
+          {roomId === "bedroom" && (
+            /* Arched Window */
+            <>
+              <path d="M 70,65 L 70,37 A 12.5,12.5 0 0,1 95,37 L 95,65 Z" fill="url(#skyGradient)" stroke="white" strokeWidth="2" />
+              <line x1="82.5" y1="24.5" x2="82.5" y2="65" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+              <line x1="70" y1="44" x2="95" y2="44" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+              {/* Sun/Moon */}
+              {timeOfDay === "night" ? (
+                <circle cx="88" cy="34" r="3" fill="#fef08a" />
+              ) : (
+                <circle cx="78" cy="34" r="4" fill="#fef08a" />
+              )}
+            </>
+          )}
+
+          {roomId === "kitchen" && (
+            /* Round Window */
+            <>
+              <circle cx="95" cy="50" r="16" fill="url(#skyGradient)" stroke="white" strokeWidth="2" />
+              <line x1="95" y1="34" x2="95" y2="66" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+              <line x1="79" y1="50" x2="111" y2="50" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+            </>
+          )}
+
+          {roomId === "living" && (
+            /* Photo frame */
+            <g>
+              <rect x="75" y="40" width="22" height="26" fill="#fef8e7" stroke="#78350f" strokeWidth="2" />
+              <rect x="79" y="44" width="14" height="18" fill="#d1fae5" />
+              <text x="82" y="56" style={{ fontSize: "10px", userSelect: "none" }}>🖼️</text>
+            </g>
+          )}
+
+          {roomId === "bathroom" && (
+            /* Hanging towel */
+            <g>
+              <line x1="80" y1="35" x2="100" y2="35" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+              <rect x="83" y="35" width="14" height="32" rx="1.5" fill="#e0f7fa" stroke="#b2ebf2" strokeWidth="1" />
+            </g>
+          )}
+
+          {roomId === "garden" && (
+            /* Garden boundary fence left */
+            <g opacity="0.95">
+              <rect x="50" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="80" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="110" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="140" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="50" y="125" width="120" height="4" fill="white" stroke="#e2e8f0" />
+            </g>
+          )}
+        </g>
+
+        {/* RIGHT WALL */}
+        <g transform="matrix(1, 0.5, 0, 1, 0, -35)">
+          <rect 
+            x="170" y="0" width="120" height="150" 
+            fill={showWallpaper && customWallpaper ? "url(#customWallpaperPattern)" : getRightWallFill()} 
+            stroke={roomId === "garden" ? "none" : "#cbd5e1"} 
+            strokeWidth="0.5"
+            strokeOpacity="0.3"
+          />
+
+          {/* Right Wall Decorations (Warped naturally via matrix transform!) */}
+          {roomId === "bedroom" && (
+            /* Cute wall poster */
+            <g>
+              <rect x="215" y="45" width="18" height="22" fill="#ffe4e6" stroke="#fda4af" strokeWidth="1" />
+              <text x="219" y="59" style={{ fontSize: "10px", userSelect: "none" }}>🌸</text>
+            </g>
+          )}
+
+          {roomId === "kitchen" && (
+            /* Japanese cozy shelf */
+            <g>
+              <line x1="190" y1="55" x2="250" y2="55" stroke="#78350f" strokeWidth="2.5" strokeLinecap="round" />
+              <text x="195" y="50" style={{ fontSize: "9px", userSelect: "none" }}>🏺☕🪴</text>
+            </g>
+          )}
+
+          {roomId === "living" && (
+            /* Double-tier bookshelf */
+            <g>
+              <line x1="190" y1="45" x2="250" y2="45" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
+              <text x="195" y="40" style={{ fontSize: "8px", userSelect: "none" }}>📚🏺</text>
+              <line x1="190" y1="80" x2="250" y2="80" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
+              <text x="200" y="75" style={{ fontSize: "8px", userSelect: "none" }}>🧸🪴</text>
+            </g>
+          )}
+
+          {roomId === "bathroom" && (
+            /* Bathroom Arched Mirror */
+            <g>
+              <path d="M 215,65 L 215,35 A 15,15 0 0,1 245,35 L 245,65 Z" fill="#e0f7fa" fillOpacity="0.5" stroke="#b2ebf2" strokeWidth="2" />
+              <path d="M 218,35 Q 230,30, 242,35" fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.4" />
+            </g>
+          )}
+
+          {roomId === "garden" && (
+            /* Garden boundary fence right */
+            <g opacity="0.95">
+              <rect x="196" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="226" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="256" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="286" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
+              <rect x="170" y="125" width="120" height="4" fill="white" stroke="#e2e8f0" />
+            </g>
+          )}
+        </g>
+
+        {/* ── 3D FLOOR PLATFORM (Thickness & Top Face) ── */}
+        {/* Left Thickness Face */}
         <polygon 
           points="50,260 170,320 170,334 50,274" 
           fill={
@@ -183,7 +365,7 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
             "url(#woodLeft)"
           }
         />
-        {/* Right Side Face */}
+        {/* Right Thickness Face */}
         <polygon 
           points="170,320 290,260 290,272 170,332" 
           fill={
@@ -199,19 +381,18 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
           points="170,200 290,260 170,320 50,260" 
           fill={
             roomId === "bedroom" ? "url(#woodTop)" :
-            roomId === "kitchen" ? "#fef8e7" : // Japanese tatami base
+            roomId === "kitchen" ? "#fef8e7" : // Tatami base
             roomId === "living" ? "url(#parquetTop)" :
             roomId === "garden" ? "url(#grassTop)" :
             "url(#tileTop)"
           }
           stroke={roomId === "garden" ? "#047857" : "#78350f"}
-          strokeWidth="1.5"
-          strokeOpacity="0.2"
+          strokeWidth="1"
+          strokeOpacity="0.1"
         />
 
         {/* Flat patterns overlay */}
         {roomId === "bedroom" && (
-          /* Cozy Bedroom Wood Seams */
           <>
             <line x1="80" y1="245" x2="200" y2="305" stroke="#92400e" strokeWidth="0.8" strokeOpacity="0.15" />
             <line x1="110" y1="230" x2="230" y2="290" stroke="#92400e" strokeWidth="0.8" strokeOpacity="0.15" />
@@ -219,40 +400,34 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
           </>
         )}
 
-        {/* Kitchen Tatami Mats & Animated Water Stream */}
         {roomId === "kitchen" && (
           <>
-            {/* Tatami borders */}
+            {/* Tatami seams */}
             <polygon points="170,200 230,230 170,260 110,230" fill="none" stroke="#b45309" strokeWidth="1" strokeOpacity="0.1" />
             <polygon points="110,230 170,260 110,290 50,260" fill="none" stroke="#b45309" strokeWidth="1" strokeOpacity="0.1" />
             {/* Animated Stream at the front-right edge */}
             <polygon points="230,230 290,260 170,320 110,290" fill="url(#waterFlow)" />
-            {/* Stream details */}
             <text x="235" y="270" style={{ fontSize: "12px", userSelect: "none" }}>🪷</text>
             <text x="175" y="305" style={{ fontSize: "12px", userSelect: "none" }}>🍀</text>
           </>
         )}
 
-        {/* Living Room Wooden Grid */}
         {roomId === "living" && (
           <>
-            <line x1="170" y1="200" x2="170" y2="320" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.3" />
-            <line x1="110" y1="230" x2="230" y2="290" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.3" />
-            <line x1="50" y1="260" x2="290" y2="260" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.3" />
+            <line x1="170" y1="200" x2="170" y2="320" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.25" />
+            <line x1="110" y1="230" x2="230" y2="290" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.25" />
+            <line x1="50" y1="260" x2="290" y2="260" stroke="#451a03" strokeWidth="0.8" strokeOpacity="0.25" />
           </>
         )}
 
-        {/* Garden Soil Beds */}
         {roomId === "garden" && (
           <>
-            {/* Round path */}
             <ellipse cx="170" cy="260" rx="60" ry="25" fill="#78350f" fillOpacity="0.18" />
-            <text x="150" y="260" style={{ fontSize: "14px" }}>🌱</text>
-            <text x="180" y="265" style={{ fontSize: "14px" }}>🌱</text>
+            <text x="150" y="260" style={{ fontSize: "14px", userSelect: "none" }}>🌱</text>
+            <text x="180" y="265" style={{ fontSize: "14px", userSelect: "none" }}>🌱</text>
           </>
         )}
 
-        {/* Bathroom Mosaic Grid */}
         {roomId === "bathroom" && (
           <>
             {Array.from({ length: 6 }).map((_, i) => {
@@ -262,7 +437,7 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
                   key={`tile-v-${i}`} 
                   x1={xVal} y1={260 - (i - 3.5) * 20} 
                   x2={xVal + 60} y2={290 - (i - 3.5) * 20} 
-                  stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.4" 
+                  stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.35" 
                 />
               );
             })}
@@ -270,191 +445,28 @@ export function RoomBackdrop({ roomId, timeOfDay, weather, showWallpaper, custom
         )}
       </svg>
 
-      {/* LEFT WALL PLANE (Skewed 26.565deg) */}
-      <div 
-        className={`absolute w-[170px] h-[200px] origin-bottom-right transition-all duration-700 ${
-          roomId === "bedroom" ? "bg-gradient-to-b from-indigo-50/70 via-purple-50/50 to-rose-50/40 border-l border-t border-purple-200/50" :
-          roomId === "kitchen" ? "bg-gradient-to-b from-emerald-100/50 via-teal-50/40 to-green-100/30 border-l border-t border-emerald-300/40" :
-          roomId === "living" ? "bg-gradient-to-b from-emerald-955/10 via-teal-900/5 to-transparent border-l border-t border-stone-300" :
-          roomId === "garden" ? "bg-transparent border-l border-dashed border-stone-300/25" :
-          "bg-gradient-to-b from-cyan-50/80 via-blue-50/60 to-transparent border-l border-t border-cyan-200"
-        }`}
-        style={{
-          transform: "skewY(26.565deg)",
-          bottom: "190px",
-          right: "50%",
-          zIndex: 2,
-          ...(showWallpaper && customWallpaper ? {
-            backgroundImage: `url(${customWallpaper.imageUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "brightness(0.92)" // Slightly darker left wall for realistic ambient light
-          } : {})
-        }}
-      >
-        {/* Environment Animations Overlay */}
-        {roomId === "garden" && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <span className="firefly firefly-0" />
-            <span className="firefly firefly-1" />
-            <span className="firefly firefly-2" />
-          </div>
-        )}
+      {/* Floating particles overlays (Bedroom/Garden/Bathroom specific) */}
+      {roomId === "garden" && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          <span className="firefly firefly-0" />
+          <span className="firefly firefly-1" />
+          <span className="firefly firefly-2" />
+          <span className="firefly firefly-3" />
+          <span className="firefly firefly-4" />
+          <span className="firefly firefly-5" />
+        </div>
+      )}
 
-        {roomId === "bathroom" && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <span className="bubble-particle bubble-0" />
-            <span className="bubble-particle bubble-1" />
-            <span className="bubble-particle bubble-2" />
-          </div>
-        )}
-
-        {/* Bamboo textures for kitchen wall */}
-        {roomId === "kitchen" && !customWallpaper && (
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_2px,transparent_2px)] bg-[size:16px_100%]" />
-        )}
-        {/* Mosaic tiles for bathroom wall */}
-        {roomId === "bathroom" && !customWallpaper && (
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,180,216,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(0,180,216,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
-        )}
-
-        {/* Windows and Wall Hanging items */}
-        {roomId === "bedroom" && (
-          /* Arch Window */
-          <div className="absolute top-[18%] left-[20%] w-16 h-22 border-2 border-white bg-white/40 rounded-t-full shadow-sm overflow-hidden flex flex-col justify-between">
-            {renderSkyWindowContent()}
-            <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/70" />
-            <div className="absolute inset-x-0 top-1/2 h-0.5 bg-white/70" />
-          </div>
-        )}
-
-        {roomId === "kitchen" && (
-          /* Round Window in the kitchen */
-          <div className="absolute top-[20%] left-[24%] w-16 h-16 border-2 border-white bg-white/40 rounded-full shadow-sm overflow-hidden relative">
-            {renderSkyWindowContent()}
-            <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/60" />
-            <div className="absolute inset-x-0 top-1/2 h-0.5 bg-white/60" />
-          </div>
-        )}
-
-        {roomId === "living" && (
-          /* Cute photo frame */
-          <div className="absolute top-[24%] left-[25%] w-10 h-12 border-2 border-amber-800 bg-amber-50 shadow p-0.5 flex items-center justify-center">
-            <div className="w-full h-full bg-emerald-100/50 flex items-center justify-center text-[10px]">
-              🖼️
-            </div>
-          </div>
-        )}
-
-        {roomId === "garden" && (
-          /* Open picket fence along the skewed boundary */
-          <div className="absolute bottom-0 inset-x-0 h-10 flex justify-around items-end">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="w-2.5 h-8 bg-white border border-stone-250 rounded-t-sm shadow-sm" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 100%, 0% 100%, 0% 25%)" }} />
-            ))}
-            <div className="absolute bottom-1.5 inset-x-0 h-1 bg-white border border-stone-200" />
-          </div>
-        )}
-
-        {roomId === "bathroom" && (
-          /* Hanging towel */
-          <div className="absolute top-[18%] left-[24%] w-6 h-16 flex flex-col items-center">
-            <div className="w-4 h-1 bg-stone-300 rounded-full" />
-            <div className="w-3.5 h-12 bg-cyan-100 border border-cyan-200 rounded-b shadow-sm" />
-          </div>
-        )}
-      </div>
-
-      {/* RIGHT WALL PLANE (Skewed -26.565deg) */}
-      <div 
-        className={`absolute w-[170px] h-[200px] origin-bottom-left transition-all duration-700 ${
-          roomId === "bedroom" ? "bg-gradient-to-b from-indigo-50/60 via-purple-50/40 to-rose-50/30 border-r border-t border-purple-250/40" :
-          roomId === "kitchen" ? "bg-gradient-to-b from-emerald-100/40 via-teal-50/30 to-green-100/20 border-r border-t border-emerald-300/30" :
-          roomId === "living" ? "bg-gradient-to-b from-emerald-955/15 via-teal-900/10 to-transparent border-r border-t border-stone-300" :
-          roomId === "garden" ? "bg-transparent border-r border-dashed border-stone-300/25" :
-          "bg-gradient-to-b from-cyan-50/70 via-blue-50/50 to-transparent border-r border-t border-cyan-200"
-        }`}
-        style={{
-          transform: "skewY(-26.565deg)",
-          bottom: "190px",
-          left: "50%",
-          zIndex: 2,
-          ...(showWallpaper && customWallpaper ? {
-            backgroundImage: `url(${customWallpaper.imageUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          } : {})
-        }}
-      >
-        {/* Environment Animations Overlay */}
-        {roomId === "garden" && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <span className="firefly firefly-3" />
-            <span className="firefly firefly-4" />
-            <span className="firefly firefly-5" />
-          </div>
-        )}
-
-        {roomId === "bathroom" && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <span className="bubble-particle bubble-3" />
-            <span className="bubble-particle bubble-4" />
-            <span className="bubble-particle bubble-5" />
-          </div>
-        )}
-
-        {/* Bamboo textures for kitchen wall */}
-        {roomId === "kitchen" && !customWallpaper && (
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_2px,transparent_2px)] bg-[size:16px_100%]" />
-        )}
-        {/* Mosaic tiles for bathroom wall */}
-        {roomId === "bathroom" && !customWallpaper && (
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,180,216,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(0,180,216,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
-        )}
-
-        {/* Windows, Bookshelves, and Wall decorations */}
-        {roomId === "bedroom" && (
-          /* Bed wall poster */
-          <div className="absolute top-[22%] right-[25%] w-8 h-10 bg-rose-100/80 border border-rose-200 shadow-sm p-0.5 flex items-center justify-center rotate-[-1deg]">
-            <span className="text-[10px]">🌸</span>
-          </div>
-        )}
-
-        {roomId === "kitchen" && (
-          /* Cozy kitchen shelf */
-          <div className="absolute top-[28%] right-[20%] w-20 h-10 flex flex-col justify-end">
-            <div className="flex gap-2 justify-center text-xs opacity-95">🏺☕🪴</div>
-            <div className="w-full h-1 bg-amber-800 rounded-full shadow-sm" />
-          </div>
-        )}
-
-        {roomId === "living" && (
-          /* Wall shelf with books and vase */
-          <div className="absolute top-[30%] right-[15%] w-24 h-24 bg-amber-900/10 border-l border-stone-300/40 p-1 flex flex-col justify-around">
-            <div className="h-0.5 bg-stone-350 w-full" />
-            <div className="flex justify-around text-[10px]">📚🏺</div>
-            <div className="h-0.5 bg-stone-350 w-full" />
-          </div>
-        )}
-
-        {roomId === "garden" && (
-          /* Open picket fence along the right skewed boundary */
-          <div className="absolute bottom-0 inset-x-0 h-10 flex justify-around items-end">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="w-2.5 h-8 bg-white border border-stone-250 rounded-t-sm shadow-sm" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 100%, 0% 100%, 0% 25%)" }} />
-            ))}
-            <div className="absolute bottom-1.5 inset-x-0 h-1 bg-white border border-stone-200" />
-          </div>
-        )}
-
-        {roomId === "bathroom" && (
-          /* Arched Bathroom Mirror */
-          <div className="absolute top-[18%] right-[24%] w-12 h-16 border-2 border-stone-250 bg-sky-50/60 rounded-t-full shadow overflow-hidden flex items-center justify-center">
-            <div className="absolute top-1 right-1 w-8 h-1 bg-white/25 rotate-[-45deg] skew-x-12" />
-            <span className="text-[10px] filter opacity-45">🫧</span>
-          </div>
-        )}
-      </div>
+      {roomId === "bathroom" && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          <span className="bubble-particle bubble-0" />
+          <span className="bubble-particle bubble-1" />
+          <span className="bubble-particle bubble-2" />
+          <span className="bubble-particle bubble-3" />
+          <span className="bubble-particle bubble-4" />
+          <span className="bubble-particle bubble-5" />
+        </div>
+      )}
     </>
   );
 }

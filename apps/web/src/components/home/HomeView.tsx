@@ -1180,21 +1180,15 @@ export function HomeView({ data }: { data: DashboardData }) {
                 </button>
               );
             })}
-
-        {/* Unified Mobile/Desktop Premium Game HUD */}
-        
-        {/* Left Side: Compact Pet Status mini-HUD */}
         <div 
-          className={`absolute top-4 left-4 z-40 transition-all duration-300 flex flex-col gap-2 p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text max-w-[140px] pointer-events-auto hover:scale-102 transition-transform ${
-            showToolbars ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none"
-          }`}
+          className="absolute top-4 left-4 z-40 flex flex-col gap-2 p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text max-w-[140px] pointer-events-auto hover:scale-102 transition-all duration-300"
         >
           {/* Level Badge */}
           <div className="flex items-center gap-1.5">
             <div className="w-5.5 h-5.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white animate-pulse-glow">
               ⭐
             </div>
-            <span className="text-[11px] font-black text-amber-950/90 tracking-tight">Cấp {petLevel}</span>
+            <span className="text-[11px] font-black text-amber-955/90 tracking-tight">Cấp {petLevel}</span>
           </div>
           {/* Satiety Mini progress bar */}
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-900">
@@ -1214,9 +1208,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Right Side: Currency & Stats Card (Streak | Coins | Cleaning Energy) */}
         <div 
-          className={`absolute top-4 right-4 z-40 transition-all duration-300 pointer-events-auto ${
-            showToolbars ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0 pointer-events-none"
-          }`}
+          className="absolute top-4 right-4 z-40 pointer-events-auto transition-all duration-300"
         >
           <button
             type="button"
@@ -1280,9 +1272,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             playSwoosh();
             setIsMobileSidebarOpen(true);
           }}
-          className={`absolute bottom-28 left-4 w-12 h-12 md:hidden rounded-full bg-gradient-to-b from-stone-500 to-stone-600 border-b-4 border-b-stone-800 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(87,83,78,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all z-40 text-white pointer-events-auto ${
-            showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
-          }`}
+          className="absolute bottom-28 left-4 w-12 h-12 md:hidden rounded-full bg-gradient-to-b from-stone-500 to-stone-600 border-b-4 border-b-stone-800 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(87,83,78,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all duration-300 z-40 text-white pointer-events-auto"
           aria-label="Menu"
         >
           <span className="text-lg leading-none -mb-0.5">☰</span>
@@ -1296,9 +1286,7 @@ export function HomeView({ data }: { data: DashboardData }) {
             playTing();
             setIsRoomSwitcherOpen(true);
           }}
-          className={`absolute bottom-28 right-4 w-13 h-13 rounded-full bg-gradient-to-b from-amber-400 via-amber-500 to-orange-500 border-b-4 border-b-amber-700 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(217,119,6,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all z-40 text-white pointer-events-auto ${
-            showToolbars ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
-          }`}
+          className="absolute bottom-28 right-4 w-13 h-13 rounded-full bg-gradient-to-b from-amber-400 via-amber-500 to-orange-500 border-b-4 border-b-amber-700 flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(217,119,6,0.35)] hover:scale-105 active:border-b-0 active:translate-y-[4px] transition-all duration-300 z-40 text-white pointer-events-auto"
         >
           <DoorOpen className="w-5.5 h-5.5 text-white" />
           <span className="text-[8px] font-black tracking-tighter text-white -mt-0.5">{tRooms(currentRoomId)}</span>

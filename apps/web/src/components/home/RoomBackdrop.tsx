@@ -236,9 +236,9 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           <rect 
             x="50" y="0" width="120" height="150" 
             fill={showWallpaper && customWallpaper ? "url(#customWallpaperPattern)" : getLeftWallFill()} 
-            stroke={roomId === "garden" ? "none" : "#cbd5e1"} 
-            strokeWidth="0.5"
-            strokeOpacity="0.3"
+            stroke={roomId === "garden" ? "none" : "#4b3621"} 
+            strokeWidth="1"
+            strokeOpacity="0.35"
           />
           {/* Subtle shading overlay for Left Wall to give 3D depth */}
           <rect x="50" y="0" width="120" height="150" fill="black" fillOpacity="0.08" pointerEvents="none" />
@@ -247,9 +247,9 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           {roomId === "bedroom" && (
             /* Arched Window */
             <>
-              <path d="M 70,65 L 70,37 A 12.5,12.5 0 0,1 95,37 L 95,65 Z" fill="url(#skyGradient)" stroke="white" strokeWidth="2" />
-              <line x1="82.5" y1="24.5" x2="82.5" y2="65" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
-              <line x1="70" y1="44" x2="95" y2="44" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+              <path d="M 70,65 L 70,37 A 12.5,12.5 0 0,1 95,37 L 95,65 Z" fill="url(#skyGradient)" stroke="#854d0e" strokeWidth="2.5" />
+              <line x1="82.5" y1="24.5" x2="82.5" y2="65" stroke="#713f12" strokeWidth="1.2" strokeOpacity="0.7" />
+              <line x1="70" y1="44" x2="95" y2="44" stroke="#713f12" strokeWidth="1.2" strokeOpacity="0.7" />
               {/* Sun/Moon */}
               {timeOfDay === "night" ? (
                 <circle cx="88" cy="34" r="3" fill="#fef08a" />
@@ -262,9 +262,13 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           {roomId === "kitchen" && (
             /* Round Window */
             <>
-              <circle cx="95" cy="50" r="16" fill="url(#skyGradient)" stroke="white" strokeWidth="2" />
-              <line x1="95" y1="34" x2="95" y2="66" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
-              <line x1="79" y1="50" x2="111" y2="50" stroke="white" strokeWidth="1" strokeOpacity="0.7" />
+              <circle cx="95" cy="50" r="16" fill="url(#skyGradient)" stroke="#854d0e" strokeWidth="2.5" />
+              <line x1="95" y1="34" x2="95" y2="66" stroke="#713f12" strokeWidth="1.2" strokeOpacity="0.7" />
+              <line x1="79" y1="50" x2="111" y2="50" stroke="#713f12" strokeWidth="1.2" strokeOpacity="0.7" />
+              {/* Floating window celestial body */}
+              <text x="89" y="47" style={{ fontSize: "7px", userSelect: "none" }}>
+                {timeOfDay === "night" ? "🌙" : timeOfDay === "evening" ? "🌇" : timeOfDay === "morning" ? "🌅" : "☀️"}
+              </text>
             </>
           )}
 
@@ -288,11 +292,11 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           {roomId === "garden" && (
             /* Garden boundary fence left */
             <g opacity="0.95">
-              <rect x="50" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="80" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="110" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="140" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="50" y="125" width="120" height="4" fill="white" stroke="#e2e8f0" />
+              <polygon points="50,115 52,111 54,115 54,150 50,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="80,115 82,111 84,115 84,150 80,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="110,115 112,111 114,115 114,150 110,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="140,115 142,111 144,115 144,150 140,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <rect x="50" y="128" width="120" height="4" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
             </g>
           )}
         </g>
@@ -302,9 +306,9 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           <rect 
             x="170" y="0" width="120" height="150" 
             fill={showWallpaper && customWallpaper ? "url(#customWallpaperPattern)" : getRightWallFill()} 
-            stroke={roomId === "garden" ? "none" : "#cbd5e1"} 
-            strokeWidth="0.5"
-            strokeOpacity="0.3"
+            stroke={roomId === "garden" ? "none" : "#4b3621"} 
+            strokeWidth="1"
+            strokeOpacity="0.35"
           />
 
           {/* Right Wall Decorations (Warped naturally via matrix transform!) */}
@@ -317,20 +321,25 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           )}
 
           {roomId === "kitchen" && (
-            /* Japanese cozy shelf */
+            /* Japanese cozy 3D shelf */
             <g>
-              <line x1="190" y1="55" x2="250" y2="55" stroke="#78350f" strokeWidth="2.5" strokeLinecap="round" />
-              <text x="195" y="50" style={{ fontSize: "9px", userSelect: "none" }}>🏺☕🪴</text>
+              <polygon points="190,52 245,52 240,55 185,55" fill="#a16207" stroke="#451a03" strokeWidth="0.5" />
+              <polygon points="185,55 240,55 240,57 185,57" fill="#713f12" stroke="#451a03" strokeWidth="0.5" />
+              <text x="190" y="49" style={{ fontSize: "9px", userSelect: "none" }}>🏺☕🪴</text>
             </g>
           )}
 
           {roomId === "living" && (
-            /* Double-tier bookshelf */
+            /* Double-tier 3D bookshelf */
             <g>
-              <line x1="190" y1="45" x2="250" y2="45" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
-              <text x="195" y="40" style={{ fontSize: "8px", userSelect: "none" }}>📚🏺</text>
-              <line x1="190" y1="80" x2="250" y2="80" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
-              <text x="200" y="75" style={{ fontSize: "8px", userSelect: "none" }}>🧸🪴</text>
+              {/* Shelf 1 */}
+              <polygon points="190,42 245,42 240,45 185,45" fill="#a16207" stroke="#451a03" strokeWidth="0.5" />
+              <polygon points="185,45 240,45 240,47 185,47" fill="#713f12" stroke="#451a03" strokeWidth="0.5" />
+              <text x="190" y="39" style={{ fontSize: "8px", userSelect: "none" }}>📚🏺</text>
+              {/* Shelf 2 */}
+              <polygon points="190,77 245,77 240,80 185,80" fill="#a16207" stroke="#451a03" strokeWidth="0.5" />
+              <polygon points="185,80 240,80 240,82 185,82" fill="#713f12" stroke="#451a03" strokeWidth="0.5" />
+              <text x="195" y="74" style={{ fontSize: "8px", userSelect: "none" }}>🧸🪴</text>
             </g>
           )}
 
@@ -345,11 +354,11 @@ export function RoomBackdrop({ roomId, timeOfDay, showWallpaper, customWallpaper
           {roomId === "garden" && (
             /* Garden boundary fence right */
             <g opacity="0.95">
-              <rect x="196" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="226" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="256" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="286" y="115" width="4" height="35" fill="white" stroke="#e2e8f0" />
-              <rect x="170" y="125" width="120" height="4" fill="white" stroke="#e2e8f0" />
+              <polygon points="196,115 198,111 200,115 200,150 196,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="226,115 228,111 230,115 230,150 226,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="256,115 258,111 260,115 260,150 256,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <polygon points="286,115 288,111 290,115 290,150 286,150" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
+              <rect x="170" y="128" width="120" height="4" fill="white" stroke="#cbd5e1" strokeWidth="0.5" />
             </g>
           )}
         </g>

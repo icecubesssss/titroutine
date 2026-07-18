@@ -1073,7 +1073,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Floating 3D Diorama Island */}
         <div
           ref={roomSectionRef}
-          className={`relative w-full max-w-[520px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
+          className={`relative w-full max-w-[560px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
             isTransitioning ? "scale-90 opacity-0 blur-sm" : "scale-100 opacity-100 blur-0"
           }`}
         >
@@ -1421,7 +1421,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
         {/* Unified Status Header Bar — Positioned relative to the section for breathing room */}
         <div 
-          className="absolute top-4 left-4 right-4 z-30 pointer-events-auto flex items-center justify-between p-3.5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text transition-all duration-300"
+          className="absolute top-4 left-4 right-4 z-30 pointer-events-auto flex items-center justify-between px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-2xl border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.04)] text-theme-text transition-all duration-300"
         >
           {/* Left Side: Pet Info (Level & Satiety/Affection Bars) */}
           <div className="flex items-center gap-3">
@@ -1432,56 +1432,53 @@ export function HomeView({ data }: { data: DashboardData }) {
                 playSwoosh();
                 setActiveOverlay("pet_profile");
               }}
-              className="flex items-center gap-1.5 bg-amber-50/60 border border-amber-100 hover:bg-amber-100/50 hover:scale-102 active:scale-98 px-2.5 py-1 rounded-xl transition-all shadow-sm"
+              className="flex items-center gap-1 hover:opacity-85 active:scale-95 transition-all text-xs font-black text-amber-900"
               title={t("profile", { defaultValue: "Hồ sơ" })}
             >
-              <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white animate-pulse-glow">
-                ⭐
-              </div>
-              <span className="text-[11px] font-black text-amber-955/90 tracking-tight">Cấp {petLevel}</span>
+              <span>⭐ Cấp {petLevel}</span>
             </button>
 
-            {/* Progress Bars stacked compactly */}
-            <div className="flex flex-col gap-1">
+            {/* Simple Horizontal Progress Bars */}
+            <div className="flex items-center gap-3 border-l border-stone-300/40 pl-3">
               {/* Satiety Mini progress bar */}
               <div className="flex items-center gap-1 text-[10px] font-bold text-amber-900 leading-none">
-                <span className="leading-none text-xs w-4">🍲</span>
-                <div className="w-16 h-1.5 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
-                  <div className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
+                <span className="leading-none text-[11px]">🍲</span>
+                <div className="w-12 h-1.5 bg-stone-200/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-orange-400 rounded-full" style={{ width: `${effSatiety}%` }} />
                 </div>
               </div>
               {/* Affection Mini progress bar */}
               <div className="flex items-center gap-1 text-[10px] font-bold text-rose-900 leading-none">
-                <span className="leading-none text-xs w-4">❤️</span>
-                <div className="w-16 h-1.5 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
-                  <div className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
+                <span className="leading-none text-[11px]">❤️</span>
+                <div className="w-12 h-1.5 bg-stone-200/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-rose-450 rounded-full" style={{ width: `${affection}%` }} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right Side: Currency, Streak, & Cleaning (Streak trigger freeze tooltip) */}
-          <div className="flex items-center gap-1.5 relative">
+          <div className="flex items-center gap-4 relative">
             <button
               type="button"
               onClick={() => {
                 playTing();
                 setShowFreezeTooltip((prev) => !prev);
               }}
-              className="flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50/60 border border-orange-100 hover:bg-orange-100/30 px-2.5 py-1 rounded-full shadow-sm transition-all"
+              className="flex items-center gap-1 hover:opacity-85 active:scale-95 text-xs font-black text-orange-600 transition-all"
             >
               {vacationMode && (
                 <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
               )}
-              <span>🔥 {currentStreak} {t("streakDaysShort", { defaultValue: "ngày" })}</span>
+              <span>🔥 {t("streakDays", { count: currentStreak })}</span>
               {data.profile.streakFreezes > 0 && (
-                <span className="text-[8px] bg-blue-100/80 border border-blue-200 px-1 rounded-full ml-0.5">❄️ {data.profile.streakFreezes}</span>
+                <span className="text-[10px] text-blue-500 font-bold ml-0.5">❄️{data.profile.streakFreezes}</span>
               )}
             </button>
-            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50/60 border border-amber-100 px-2.5 py-1 rounded-full shadow-sm">
+            <div className="flex items-center gap-1 text-xs font-black text-amber-600">
               <span>🪙 {coins}</span>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/60 border border-emerald-100 px-2.5 py-1 rounded-full shadow-sm">
+            <div className="flex items-center gap-1 text-xs font-black text-emerald-600">
               <span>🧹 {cleaningEnergy}</span>
             </div>
 

@@ -1073,7 +1073,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Floating 3D Diorama Island */}
         <div
           ref={roomSectionRef}
-          className={`relative w-full max-w-[460px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
+          className={`relative w-full max-w-[520px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
             isTransitioning ? "scale-90 opacity-0 blur-sm" : "scale-100 opacity-100 blur-0"
           }`}
         >
@@ -1419,46 +1419,57 @@ export function HomeView({ data }: { data: DashboardData }) {
         })()}
         </div>
 
-        {/* HUD Overlay (Level & Satiety) — Positioned relative to the section for breathing room */}
+        {/* Unified Status Header Bar — Positioned relative to the section for breathing room */}
         <div 
-          className="absolute top-4 left-4 md:top-6 md:left-6 z-30 flex flex-col gap-2 p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text max-w-[140px] pointer-events-auto hover:scale-102 transition-all duration-300"
+          className="absolute top-4 left-4 right-4 z-30 pointer-events-auto flex items-center justify-between p-3.5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text transition-all duration-300"
         >
-          {/* Level Badge */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-5.5 h-5.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white animate-pulse-glow">
-              ⭐
-            </div>
-            <span className="text-[11px] font-black text-amber-955/90 tracking-tight">Cấp {petLevel}</span>
-          </div>
-          {/* Satiety Mini progress bar */}
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-900">
-            <span className="leading-none text-xs">🍲</span>
-            <div className="flex-1 w-16 h-2 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
-              <div className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
-            </div>
-          </div>
-          {/* Affection Mini progress bar */}
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-900">
-            <span className="leading-none text-xs">❤️</span>
-            <div className="flex-1 w-16 h-2 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
-              <div className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
-            </div>
-          </div>
-        </div>
+          {/* Left Side: Pet Info (Level & Satiety/Affection Bars) */}
+          <div className="flex items-center gap-3">
+            {/* Level Badge - Clicking opens Pet Profile Overlay */}
+            <button
+              type="button"
+              onClick={() => {
+                playSwoosh();
+                setActiveOverlay("pet_profile");
+              }}
+              className="flex items-center gap-1.5 bg-amber-50/60 border border-amber-100 hover:bg-amber-100/50 hover:scale-102 active:scale-98 px-2.5 py-1 rounded-xl transition-all shadow-sm"
+              title={t("profile", { defaultValue: "Hồ sơ" })}
+            >
+              <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white animate-pulse-glow">
+                ⭐
+              </div>
+              <span className="text-[11px] font-black text-amber-955/90 tracking-tight">Cấp {petLevel}</span>
+            </button>
 
-        {/* Currency & Stats Card (Streak | Coins | Cleaning Energy) — Positioned relative to the section */}
-        <div 
-          className="absolute top-4 right-4 md:top-6 md:right-6 z-30 pointer-events-auto transition-all duration-300"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              playTing();
-              setShowFreezeTooltip((prev) => !prev);
-            }}
-            className="flex flex-col gap-1.5 p-3 bg-white/70 hover:bg-white/85 active:scale-95 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_24px_rgba(0,0,0,0.06)] text-theme-text min-w-[110px] items-end text-right transition-all animate-bubble-pop"
-          >
-            <div className="flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50/50 border border-orange-100 px-2 py-0.5 rounded-full">
+            {/* Progress Bars stacked compactly */}
+            <div className="flex flex-col gap-1">
+              {/* Satiety Mini progress bar */}
+              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-900 leading-none">
+                <span className="leading-none text-xs w-4">🍲</span>
+                <div className="w-16 h-1.5 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
+                  <div className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500" style={{ width: `${effSatiety}%` }} />
+                </div>
+              </div>
+              {/* Affection Mini progress bar */}
+              <div className="flex items-center gap-1 text-[10px] font-bold text-rose-900 leading-none">
+                <span className="leading-none text-xs w-4">❤️</span>
+                <div className="w-16 h-1.5 bg-stone-200/80 rounded-full overflow-hidden border border-stone-300/30">
+                  <div className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-500" style={{ width: `${affection}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Currency, Streak, & Cleaning (Streak trigger freeze tooltip) */}
+          <div className="flex items-center gap-1.5 relative">
+            <button
+              type="button"
+              onClick={() => {
+                playTing();
+                setShowFreezeTooltip((prev) => !prev);
+              }}
+              className="flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50/60 border border-orange-100 hover:bg-orange-100/30 px-2.5 py-1 rounded-full shadow-sm transition-all"
+            >
               {vacationMode && (
                 <span className="animate-pulse mr-0.5" title={t("vacationActive")}>🏖️</span>
               )}
@@ -1466,43 +1477,43 @@ export function HomeView({ data }: { data: DashboardData }) {
               {data.profile.streakFreezes > 0 && (
                 <span className="text-[8px] bg-blue-100/80 border border-blue-200 px-1 rounded-full ml-0.5">❄️ {data.profile.streakFreezes}</span>
               )}
-            </div>
-            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50/50 border border-amber-100 px-2 py-0.5 rounded-full">
+            </button>
+            <div className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50/60 border border-amber-100 px-2.5 py-1 rounded-full shadow-sm">
               <span>🪙 {coins}</span>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/50 border border-emerald-100 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/60 border border-emerald-100 px-2.5 py-1 rounded-full shadow-sm">
               <span>🧹 {cleaningEnergy}</span>
             </div>
-          </button>
 
-          {showFreezeTooltip && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowFreezeTooltip(false)} />
-              <div className="absolute top-full right-0 mt-2.5 w-52 bg-white/95 border border-amber-900/10 p-3.5 rounded-2xl shadow-xl z-50 text-left pointer-events-auto text-theme-text animate-sheet-up">
-                <div className="text-[10px] font-black text-amber-955/40 uppercase tracking-wider mb-1">
-                  ❄️ {t("freezeTitle")}
+            {showFreezeTooltip && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFreezeTooltip(false)} />
+                <div className="absolute top-full right-0 mt-2.5 w-52 bg-white/95 border border-amber-900/10 p-3.5 rounded-2xl shadow-xl z-50 text-left pointer-events-auto text-theme-text animate-sheet-up">
+                  <div className="text-[10px] font-black text-amber-955/40 uppercase tracking-wider mb-1">
+                    ❄️ {t("freezeTitle")}
+                  </div>
+                  <p className="text-[11px] text-theme-text/80 mb-2.5 leading-relaxed">
+                    {t("freezeTooltip", { price: 50 })}
+                  </p>
+                  <button
+                    type="button"
+                    className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white text-[11px] font-extrabold py-2 rounded-xl disabled:opacity-50 disabled:from-stone-200 disabled:to-stone-300 shadow-sm transition-all"
+                    disabled={coins < 50}
+                    onClick={() => {
+                      setCoins(c => c - 50);
+                      setShowFreezeTooltip(false);
+                      startTransition(async () => {
+                         await buyFreezeAction();
+                         router.refresh();
+                      });
+                    }}
+                  >
+                    {t("buyFreeze")}
+                  </button>
                 </div>
-                <p className="text-[11px] text-theme-text/80 mb-2.5 leading-relaxed">
-                  {t("freezeTooltip", { price: 50 })}
-                </p>
-                <button
-                  type="button"
-                  className="w-full bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white text-[11px] font-extrabold py-2 rounded-xl disabled:opacity-50 disabled:from-stone-200 disabled:to-stone-300 shadow-sm transition-all"
-                  disabled={coins < 50}
-                  onClick={() => {
-                    setCoins(c => c - 50);
-                    setShowFreezeTooltip(false);
-                    startTransition(async () => {
-                       await buyFreezeAction();
-                       router.refresh();
-                    });
-                  }}
-                >
-                  {t("buyFreeze")}
-                </button>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Bottom Floating Menu Trigger (Mobile only) — Positioned relative to the section */}

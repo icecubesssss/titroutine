@@ -64,9 +64,10 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
   const containerId = React.useId().replace(/:/g, "");
   const styleClass = `virtual-pet-${containerId}`;
 
-  // We add vertical headroom at the top of the frame crop window to prevent
-  // high items (like rabbit ears) from getting clipped by overflow-hidden.
-  const verticalHeadroom = 48;
+  // We remove vertical headroom (set to 0) because rabbit sprite sheets fit
+  // completely inside their standard frame boundaries, and having a non-zero
+  // headroom offsetsposY into the row above, cutting multi-action sheets in half.
+  const verticalHeadroom = 0;
 
   // Background size = the full sheet (scaled). For a tight horizontal strip we
   // can derive it from frameWidth * totalFrames; otherwise use the real sheet.
@@ -75,8 +76,7 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
 
   // Position the visible frame: walk horizontally across frames, plus the crop offset.
   const posX = (offsetX + currentFrame * frameWidth) * scale;
-  // Shift posY up by verticalHeadroom to capture the ears/headroom area
-  const posY = (offsetY - verticalHeadroom) * scale;
+  const posY = offsetY * scale;
 
   return (
     <>

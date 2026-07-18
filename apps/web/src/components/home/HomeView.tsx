@@ -1073,7 +1073,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Floating 3D Diorama Island */}
         <div
           ref={roomSectionRef}
-          className={`relative w-full max-w-[400px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
+          className={`relative w-full max-w-[460px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
             isTransitioning ? "scale-90 opacity-0 blur-sm" : "scale-100 opacity-100 blur-0"
           }`}
         >

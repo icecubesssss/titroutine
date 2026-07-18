@@ -64,6 +64,10 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
   const containerId = React.useId().replace(/:/g, "");
   const styleClass = `virtual-pet-${containerId}`;
 
+  // We add vertical headroom at the top of the frame crop window to prevent
+  // high items (like rabbit ears) from getting clipped by overflow-hidden.
+  const verticalHeadroom = 48;
+
   // Background size = the full sheet (scaled). For a tight horizontal strip we
   // can derive it from frameWidth * totalFrames; otherwise use the real sheet.
   const bgWidth = (sheetWidth ?? frameWidth * totalFrames) * scale;
@@ -71,7 +75,8 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
 
   // Position the visible frame: walk horizontally across frames, plus the crop offset.
   const posX = (offsetX + currentFrame * frameWidth) * scale;
-  const posY = offsetY * scale;
+  // Shift posY up by verticalHeadroom to capture the ears/headroom area
+  const posY = (offsetY - verticalHeadroom) * scale;
 
   return (
     <>
@@ -83,13 +88,13 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
         }
         .${styleClass}-container {
           width: ${frameWidth * scale}px;
-          height: ${frameHeight * scale}px;
+          height: ${(frameHeight + verticalHeadroom) * scale}px;
           transform-origin: 50% 100%;
           ${idle ? `animation: ${styleClass}-idle 1.6s ease-in-out infinite;` : ""}
         }
         .${styleClass}-sprite {
           width: ${frameWidth * scale}px;
-          height: ${frameHeight * scale}px;
+          height: ${(frameHeight + verticalHeadroom) * scale}px;
           background-image: url('${spriteUrl}');
           background-size: ${bgWidth}px ${bgHeight}px;
           background-position: -${posX}px -${posY}px;

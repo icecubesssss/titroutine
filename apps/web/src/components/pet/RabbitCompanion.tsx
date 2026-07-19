@@ -60,7 +60,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: 254 * 3,
     frameWidth: 228,
     frameHeight: 254,
-    defaultScale: 0.6,
+    defaultScale: 0.35,
     roomBackground: "bg-gradient-to-b from-amber-100 via-orange-100 to-amber-200",
     actions: {
       egg_idle: { offsetY: 0, fps: 4, totalFrames: 4 },
@@ -76,7 +76,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: BABY_FRAME_H * 5,
     frameWidth: BABY_FRAME_W,
     frameHeight: BABY_FRAME_H,
-    defaultScale: 0.6,
+    defaultScale: 0.35,
     roomBackground: "bg-gradient-to-b from-blue-200 via-green-100 to-green-300",
     actions: {
       idle: { offsetY: 0, fps: 4, totalFrames: 4 },
@@ -96,7 +96,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: 224 * 5,
     frameWidth: 207,
     frameHeight: 224,
-    defaultScale: 0.65,
+    defaultScale: 0.35,
     roomBackground: "bg-gradient-to-b from-emerald-100 via-teal-50 to-emerald-200",
     actions: {
       idle: { offsetY: 0, fps: 4 },
@@ -115,7 +115,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: 224 * 5,
     frameWidth: 276,
     frameHeight: 224,
-    defaultScale: 0.7,
+    defaultScale: 0.4,
     roomBackground: "bg-gradient-to-b from-indigo-900 via-purple-900 to-indigo-950 text-white",
     actions: {
       idle: { offsetY: 0, fps: 4 },
@@ -135,7 +135,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: CHILD_FRAME_H * 5,
     frameWidth: CHILD_FRAME_W,
     frameHeight: CHILD_FRAME_H,
-    defaultScale: 0.55,
+    defaultScale: 0.32,
     roomBackground: "bg-gradient-to-b from-rose-100 via-pink-50 to-rose-200",
     actions: {
       // Phase 1 (Base Sprite)
@@ -199,7 +199,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: 224 * 5,
     frameWidth: 141,
     frameHeight: 224,
-    defaultScale: 0.72,
+    defaultScale: 0.42,
     roomBackground: "bg-gradient-to-b from-blue-100 via-indigo-50 to-blue-200",
     actions: {
       idle: { offsetY: 0, fps: 4 },
@@ -217,7 +217,7 @@ export const STAGES_CONFIG: Record<number, StageConfig> = {
     sheetHeight: 224 * 5,
     frameWidth: 229,
     frameHeight: 224,
-    defaultScale: 0.72,
+    defaultScale: 0.42,
     roomBackground: "bg-gradient-to-b from-amber-50 via-stone-100 to-amber-100",
     actions: {
       idle: { offsetY: 0, fps: 4 },

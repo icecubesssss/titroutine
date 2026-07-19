@@ -333,19 +333,17 @@ export function HomeView({ data }: { data: DashboardData }) {
     }
   }, [currentRoomId]);
 
-  // Forward isometric projection: maps x (10 to 90), y (10 to 90) to screen percentage coordinates
+  // Forward flat projection: maps x (10 to 90), y (10 to 90) to 2D room coordinates
   const getIsoCoords = (x: number, y: number) => {
-    const left = 50 + (x - y) * 0.42;
-    const top = 52 + (x + y) * 0.18;
+    const left = 10 + x * 0.8;
+    const top = 75 + y * 0.15;
     return { left, top };
   };
 
-  // Inverse isometric projection: maps screen percentage coordinates back to x, y
+  // Inverse flat projection: maps 2D room coordinates back to x, y
   const getFloorCoords = (left: number, top: number) => {
-    const L = (left - 50) / 0.42;
-    const T = (top - 52) / 0.18;
-    const x = (L + T) / 2;
-    const y = (T - L) / 2;
+    const x = (left - 10) / 0.8;
+    const y = (top - 75) / 0.15;
     return {
       x: Math.max(10, Math.min(90, x)),
       y: Math.max(10, Math.min(90, y)),
@@ -1073,7 +1071,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         {/* Floating 3D Diorama Island */}
         <div
           ref={roomSectionRef}
-          className={`relative w-full max-w-[560px] aspect-square mx-auto flex items-center justify-center float-diorama z-10 mt-8 pointer-events-auto select-none transition-all duration-300 ${
+          className={`relative w-full max-w-[420px] aspect-[3/4] mx-auto flex items-center justify-center float-diorama z-10 mt-6 pointer-events-auto select-none transition-all duration-300 ${
             isTransitioning ? "scale-90 opacity-0 blur-sm" : "scale-100 opacity-100 blur-0"
           }`}
         >

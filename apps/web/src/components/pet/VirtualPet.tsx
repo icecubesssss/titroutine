@@ -67,7 +67,9 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
   // We remove vertical headroom (set to 0) because rabbit sprite sheets fit
   // completely inside their standard frame boundaries, and having a non-zero
   // headroom offsetsposY into the row above, cutting multi-action sheets in half.
-  const verticalHeadroom = 0;
+  // Multi-action rows (offsetY > 0) suffer from previous-row foot bleed in gridded sheets.
+  // We shift the crop window down by 32px and reduce height by 32px to hide it.
+  const cropHeight = frameHeight - (offsetY > 0 ? 32 : 0);
 
   // Background size = the full sheet (scaled). For a tight horizontal strip we
   // can derive it from frameWidth * totalFrames; otherwise use the real sheet.
@@ -76,7 +78,7 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
 
   // Position the visible frame: walk horizontally across frames, plus the crop offset.
   const posX = (offsetX + currentFrame * frameWidth) * scale;
-  const posY = offsetY * scale;
+  const posY = (offsetY + (offsetY > 0 ? 32 : 0)) * scale;
 
   return (
     <>
@@ -88,13 +90,13 @@ export const VirtualPet: React.FC<VirtualPetProps> = ({
         }
         .${styleClass}-container {
           width: ${frameWidth * scale}px;
-          height: ${(frameHeight + verticalHeadroom) * scale}px;
+          height: ${cropHeight * scale}px;
           transform-origin: 50% 100%;
           ${idle ? `animation: ${styleClass}-idle 1.6s ease-in-out infinite;` : ""}
         }
         .${styleClass}-sprite {
           width: ${frameWidth * scale}px;
-          height: ${(frameHeight + verticalHeadroom) * scale}px;
+          height: ${cropHeight * scale}px;
           background-image: url('${spriteUrl}');
           background-size: ${bgWidth}px ${bgHeight}px;
           background-position: -${posX}px -${posY}px;

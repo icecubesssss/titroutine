@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Home, ListTodo, ShoppingBag, BookOpen, BarChart3, Settings, type LucideIcon } from "lucide-react";
+import { Home, ListTodo, ShoppingBag, BarChart3, Settings, type LucideIcon } from "lucide-react";
 
 /**
  * The app's single bottom navigation. Home is the pet + habits screen (always the
@@ -17,7 +17,6 @@ export function BottomNav({
   onHome,
   onTasks,
   onShop,
-  onAlbum,
   onAnalytics,
   onSettings,
 }: {
@@ -25,7 +24,6 @@ export function BottomNav({
   onHome: () => void;
   onTasks: () => void;
   onShop: () => void;
-  onAlbum: () => void;
   onAnalytics: () => void;
   onSettings: () => void;
 }) {
@@ -35,7 +33,6 @@ export function BottomNav({
     { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" },
     { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" },
     { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: onShop },
-    { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: onAlbum },
     { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: onAnalytics },
     { key: "settings", label: t("settings"), Icon: Settings, onClick: onSettings },
   ];

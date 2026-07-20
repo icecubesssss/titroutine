@@ -1,7 +1,7 @@
 "use client";
  
 import { useTranslations } from "next-intl";
-import { Home, ListTodo, ShoppingBag, BookOpen, BarChart3, Settings, Heart, Compass, Users, Palette, CircleUser, Lock } from "lucide-react";
+import { Home, ListTodo, ShoppingBag, BarChart3, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
  
 export function DesktopSidebar({
@@ -9,33 +9,15 @@ export function DesktopSidebar({
   onHome,
   onTasks,
   onShop,
-  onAlbum,
   onAnalytics,
   onSettings,
-  onProfile,
-  onAdventure,
-  onMindfulness,
-  onNeighbors,
-  onDecorToggle,
-  isDecorMode,
-  roomsAllUnlocked = false,
-  currentStage = 0,
 }: {
   activeTab?: "habits" | "tasks";
   onHome: () => void;
   onTasks: () => void;
   onShop: () => void;
-  onAlbum: () => void;
   onAnalytics: () => void;
   onSettings: () => void;
-  onProfile: () => void;
-  onAdventure: () => void;
-  onMindfulness: () => void;
-  onNeighbors: () => void;
-  onDecorToggle: () => void;
-  isDecorMode: boolean;
-  roomsAllUnlocked?: boolean;
-  currentStage?: number;
 }) {
   const t = useTranslations("Home");
  
@@ -47,19 +29,9 @@ export function DesktopSidebar({
     active?: boolean;
     locked?: boolean;
   }[] = [
-    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" && !isDecorMode },
-    { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" && !isDecorMode },
-    
-    // Core game and mindfulness features
-    { key: "profile", label: t("profile") || "Hồ sơ thỏ cưng", Icon: CircleUser, onClick: onProfile },
-    { key: "adventure", label: t("adventure") || "Thám hiểm", Icon: Compass, onClick: onAdventure, locked: currentStage < 1 },
-    { key: "mindfulness", label: t("care") || "Chánh niệm", Icon: Heart, onClick: onMindfulness },
-    { key: "neighbors", label: t("neighbor") || "Hàng xóm", Icon: Users, onClick: onNeighbors, locked: !roomsAllUnlocked },
-    { key: "decor", label: isDecorMode ? (t("decorDone") || "Xong trang trí") : (t("decor") || "Trang trí phòng"), Icon: Palette, onClick: onDecorToggle, locked: currentStage < 1, active: isDecorMode },
- 
-    // Economy and utilities
+    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" },
+    { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" },
     { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: onShop },
-    { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: onAlbum },
     { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: onAnalytics },
     { key: "settings", label: t("settings"), Icon: Settings, onClick: onSettings },
   ];
@@ -78,17 +50,14 @@ export function DesktopSidebar({
  
         {/* Navigation Items */}
         <nav className="flex flex-col gap-1">
-          {items.map(({ key, label, Icon, onClick, active, locked }) => (
+          {items.map(({ key, label, Icon, onClick, active }) => (
             <button
               key={key}
               type="button"
-              disabled={locked}
               onClick={onClick}
               className={`flex items-center justify-between w-full px-3.5 py-2 rounded-2xl transition-all font-bold text-sm ${
                 active
                   ? "bg-theme-accent text-white shadow-sm"
-                  : locked
-                  ? "text-theme-text/30 cursor-not-allowed opacity-50"
                   : "text-theme-text/65 hover:bg-theme-accent-light hover:text-theme-accent"
               }`}
             >
@@ -96,7 +65,6 @@ export function DesktopSidebar({
                 <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 2} />
                 <span className="truncate max-w-[130px]">{label}</span>
               </div>
-              {locked && <Lock className="h-3 w-3 text-theme-text/30 shrink-0" />}
             </button>
           ))}
         </nav>

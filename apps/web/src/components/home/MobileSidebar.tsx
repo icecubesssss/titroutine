@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Home, ListTodo, CircleUser, Compass, Heart, Users, Palette, ShoppingBag, BookOpen, BarChart3, Settings, Lock } from "lucide-react";
+import { Home, ListTodo, ShoppingBag, BarChart3, Settings } from "lucide-react";
 
 // Mobile slide-over navigation (md:hidden). Mirrors the desktop sidebar's route
 // set. Each entry's behaviour lives in HomeView (passed as semantic callbacks);
@@ -10,36 +10,18 @@ export function MobileSidebar({
   open,
   onClose,
   activeTab,
-  isDecorMode,
-  currentStage,
-  roomsAllUnlocked,
   onHome,
   onTasks,
-  onProfile,
-  onAdventure,
-  onMindfulness,
-  onNeighbors,
-  onToggleDecor,
   onShop,
-  onAlbum,
   onAnalytics,
   onSettings,
 }: {
   open: boolean;
   onClose: () => void;
   activeTab: "habits" | "tasks";
-  isDecorMode: boolean;
-  currentStage: number;
-  roomsAllUnlocked: boolean;
   onHome: () => void;
   onTasks: () => void;
-  onProfile: () => void;
-  onAdventure: () => void;
-  onMindfulness: () => void;
-  onNeighbors: () => void;
-  onToggleDecor: () => void;
   onShop: () => void;
-  onAlbum: () => void;
   onAnalytics: () => void;
   onSettings: () => void;
 }) {
@@ -48,19 +30,9 @@ export function MobileSidebar({
   if (!open) return null;
 
   const items = [
-    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" && !isDecorMode },
-    { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" && !isDecorMode },
-
-    // Core game and mindfulness features
-    { key: "profile", label: t("profile") || "Hồ sơ thỏ cưng", Icon: CircleUser, onClick: onProfile },
-    { key: "adventure", label: t("adventure") || "Thám hiểm", Icon: Compass, onClick: onAdventure, locked: currentStage < 1 },
-    { key: "mindfulness", label: t("care") || "Chánh niệm", Icon: Heart, onClick: onMindfulness },
-    { key: "neighbors", label: t("neighbor") || "Hàng xóm", Icon: Users, onClick: onNeighbors, locked: !roomsAllUnlocked },
-    { key: "decor", label: isDecorMode ? (t("decorDone") || "Xong trang trí") : (t("decor") || "Trang trí phòng"), Icon: Palette, onClick: onToggleDecor, locked: currentStage < 1, active: isDecorMode },
-
-    // Utilities
+    { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" },
+    { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" },
     { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: onShop },
-    { key: "album", label: t("memoryAlbum"), Icon: BookOpen, onClick: onAlbum },
     { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: onAnalytics },
     { key: "settings", label: t("settings"), Icon: Settings, onClick: onSettings },
   ];
@@ -95,17 +67,14 @@ export function MobileSidebar({
 
           {/* Navigation Items */}
           <nav className="flex flex-col gap-1">
-            {items.map(({ key, label, Icon, onClick, active, locked }) => (
+            {items.map(({ key, label, Icon, onClick, active }) => (
               <button
                 key={key}
                 type="button"
-                disabled={locked}
                 onClick={onClick}
                 className={`flex items-center justify-between w-full px-3.5 py-2.5 rounded-2xl transition-all font-bold text-sm ${
                   active
                     ? "bg-theme-accent text-white shadow-sm"
-                    : locked
-                    ? "text-theme-text/30 cursor-not-allowed opacity-50"
                     : "text-theme-text/65 hover:bg-theme-accent-light hover:text-theme-accent"
                 }`}
               >
@@ -113,7 +82,6 @@ export function MobileSidebar({
                   <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 2} />
                   <span>{label}</span>
                 </div>
-                {locked && <Lock className="h-3 w-3 text-theme-text/30 shrink-0" />}
               </button>
             ))}
           </nav>

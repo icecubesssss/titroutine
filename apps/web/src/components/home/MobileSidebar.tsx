@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Home, ListTodo, ShoppingBag, BarChart3, Settings } from "lucide-react";
+import { Home, ListTodo, ShoppingBag, BarChart3, Settings, Users } from "lucide-react";
 
 // Mobile slide-over navigation (md:hidden). Mirrors the desktop sidebar's route
 // set. Each entry's behaviour lives in HomeView (passed as semantic callbacks);
@@ -15,6 +15,7 @@ export function MobileSidebar({
   onShop,
   onAnalytics,
   onSettings,
+  onNeighbor,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +25,7 @@ export function MobileSidebar({
   onShop: () => void;
   onAnalytics: () => void;
   onSettings: () => void;
+  onNeighbor?: () => void;
 }) {
   const t = useTranslations("Home");
 
@@ -32,6 +34,7 @@ export function MobileSidebar({
   const items = [
     { key: "home", label: t("home"), Icon: Home, onClick: onHome, active: activeTab === "habits" },
     { key: "tasks", label: t("tasks"), Icon: ListTodo, onClick: onTasks, active: activeTab === "tasks" },
+    ...(onNeighbor ? [{ key: "neighbor", label: "Hàng Xóm 🏡", Icon: Users, onClick: onNeighbor }] : []),
     { key: "shop", label: t("shop"), Icon: ShoppingBag, onClick: onShop },
     { key: "stats", label: t("analytics"), Icon: BarChart3, onClick: onAnalytics },
     { key: "settings", label: t("settings"), Icon: Settings, onClick: onSettings },

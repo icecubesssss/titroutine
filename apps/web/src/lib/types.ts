@@ -26,11 +26,13 @@ export interface HabitWithLog {
   timeOfDay: TimeOfDay;
   isCompleted: boolean;
   value: number | null;
+  isPrivate?: boolean;
   weeklyLogs?: Record<string, boolean>; // map of date YYYY-MM-DD to completion status
   streak?: number;
 }
 
 export interface ProfileSummary {
+  id: string;
   coins: number;
   currentStreak: number;
   /** Streak-driven appearance stage (egg → … → woman). Unchanged by feeding. */
@@ -89,6 +91,7 @@ export interface Task {
   priority: "low" | "medium" | "high";
   assigneeType: "self" | "pet";
   focusDuration: number; // in minutes
+  isPrivate?: boolean;
   deadline: string | null;
   createdAt: string;
   updatedAt: string;
@@ -124,3 +127,26 @@ export interface DashboardData {
   moodLogs?: Record<string, { mood: string; activities: string[]; note: string | null }>;
   tasks: Task[];
 }
+
+export interface NeighborSummary {
+  id: string;
+  username: string | null;
+  petStage: number;
+  petLevel: number;
+  currentStreak: number;
+}
+
+export interface NeighborData {
+  profile: {
+    id: string;
+    username: string | null;
+    petStage: number;
+    petLevel: number;
+    currentStreak: number;
+    affection: number;
+  };
+  equippedItems: Record<string, string>;
+  publicTasks: Task[];
+  publicHabits: HabitWithLog[];
+}
+

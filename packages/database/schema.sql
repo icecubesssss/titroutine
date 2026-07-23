@@ -38,6 +38,7 @@ CREATE TABLE public.habits (
   config JSONB DEFAULT '{}'::jsonb, -- e.g., { "target_time": 1800, "target_count": 5 }
   frequency JSONB DEFAULT '{"type": "daily"}'::jsonb, -- e.g., { "type": "weekly", "days": [1, 3, 5] }
   time_of_day TEXT DEFAULT 'anytime', -- morning, afternoon, evening, anytime
+  is_private BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ
 );
@@ -170,6 +171,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   priority TEXT DEFAULT 'medium' NOT NULL, -- 'low', 'medium', 'high'
   assignee_type TEXT DEFAULT 'self' NOT NULL, -- 'self', 'pet'
   focus_duration INTEGER DEFAULT 25 NOT NULL, -- in minutes
+  is_private BOOLEAN DEFAULT FALSE,
   deadline TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

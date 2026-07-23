@@ -29,6 +29,7 @@ import { PandaGirlCompanion } from "@/components/pet/PandaGirlCompanion";
 import { usePandaMood } from "@/components/home/hooks/usePandaMood";
 import { usePandaAction } from "@/components/home/hooks/usePandaAction";
 import { MinimalCozyRoom } from "@/components/room/MinimalCozyRoom";
+import { NeighborVisitModal } from "@/components/social/NeighborVisitModal";
 
 
 export function HomeView({ data }: { data: DashboardData }) {
@@ -93,6 +94,9 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   const isShopOpen = activeOverlay === "shop";
   const setIsShopOpen = (val: boolean) => setActiveOverlay(val ? "shop" : null);
+
+  const isNeighborVisitOpen = activeOverlay === "neighbor";
+  const setIsNeighborVisitOpen = (val: boolean) => setActiveOverlay(val ? "neighbor" : null);
 
   const [celebration, setCelebration] = useState<{
     isOpen: boolean;
@@ -282,6 +286,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         onShop={() => { playSwoosh(); setIsShopOpen(true); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
         onSettings={() => setIsSettingsOpen(true)}
+        onNeighbor={() => setIsNeighborVisitOpen(true)}
       />
 
       {/* Main Workspace split panel */}
@@ -355,6 +360,13 @@ export function HomeView({ data }: { data: DashboardData }) {
                 >
                   <span>Task Board</span>
                   <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-sm">📋</span>
+                </button>
+                <button
+                  onClick={() => { setIsMenuOpen(false); setIsNeighborVisitOpen(true); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Hàng Xóm</span>
+                  <span className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-sm">🏡</span>
                 </button>
                 <button
                   onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(true); }}
@@ -539,6 +551,12 @@ export function HomeView({ data }: { data: DashboardData }) {
         coinsAwarded={celebration.coinsAwarded}
       />
 
+      <NeighborVisitModal
+        isOpen={isNeighborVisitOpen}
+        onClose={() => setIsNeighborVisitOpen(false)}
+        myFriendCode={data.profile.id}
+      />
+
       {/* Room switcher / house explorer */}
       {/* Mobile slide-over sidebar */}
       <MobileSidebar
@@ -550,6 +568,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         onShop={() => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); }}
         onSettings={() => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); }}
+        onNeighbor={() => { playSwoosh(); setIsNeighborVisitOpen(true); setIsMobileSidebarOpen(false); }}
       />
     </main>
   );

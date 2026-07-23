@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, Pencil, CheckCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe, Users, Filter } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
+import { toggleHabitPrivacyAction } from "@/app/[locale]/actions";
 
 // Bottom half of the home screen (scrolls internally). Two tabs share the pane:
 // the weekly habit list + DailyBean mood grid, or the task board. The weekly
@@ -48,6 +50,15 @@ export function HabitsPanel({
   onIncrement: (habit: HabitWithLog, amount: number) => void;
 }) {
   const t = useTranslations("Home");
+  const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
+
+  const handleTogglePrivacy = async (habit: HabitWithLog) => {
+    const current = localPrivate[habit.id] ?? habit.isPrivate ?? false;
+    const nextVal = !current;
+    setLocalPrivate((prev) => ({ ...prev, [habit.id]: nextVal }));
+    await toggleHabitPrivacyAction(habit.id, nextVal);
+    onRefresh();
+  };
 
   // Shared weekly header: week navigation + day strip. Rendered above both tabs
   // so tasks get the same week bar; the completion badge is habits-only.
@@ -235,13 +246,27 @@ export function HabitsPanel({
                           }`} />
                         </button>
                         <div className="min-w-0">
-                          <h3
-                            className={`font-bold truncate ${
-                              habit.isCompleted ? "line-through text-gray-400" : habit.type === "negative" ? "text-red-600" : "text-earth-text"
-                            }`}
-                          >
-                            {habit.title}
-                          </h3>
+                          <div className="flex items-center gap-1.5">
+                            <h3
+                              className={`font-bold truncate ${
+                                habit.isCompleted ? "line-through text-gray-400" : habit.type === "negative" ? "text-red-600" : "text-earth-text"
+                              }`}
+                            >
+                              {habit.title}
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePrivacy(habit)}
+                              className="text-stone-400 hover:text-stone-700 transition-colors p-1 rounded-md hover:bg-stone-100/60 shrink-0"
+                              title={(localPrivate[habit.id] ?? habit.isPrivate) ? "Riêng tư (Chỉ mình bạn xem)" : "Công khai (Hàng xóm xem được)"}
+                            >
+                              {(localPrivate[habit.id] ?? habit.isPrivate) ? (
+                                <Lock size={13} className="text-amber-600" />
+                              ) : (
+                                <Globe size={13} className="text-emerald-600" />
+                              )}
+                            </button>
+                          </div>
                            <p className={`text-sm font-medium ${habit.type === "negative" ? "text-red-400" : "text-gray-400"} flex items-center gap-1.5 flex-wrap`}>
                             <span>
                               {habit.type === "timer" && habit.config.target_time

@@ -8,5 +8,6 @@ export * from "./actions/shop";
 export * from "./actions/adventure";
 export * from "./actions/mindfulness";
 export * from "./actions/social";
+export * from "./actions/social_neighbors";
 export * from "./actions/memories";
 export * from "./actions/tasks";

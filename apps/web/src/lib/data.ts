@@ -309,6 +309,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
 
   return {
     profile: {
+      id: user.id,
       coins: coinsBalance,
       currentStreak,
       // Stage = highest reached. The streak sets a floor; the stored value can be

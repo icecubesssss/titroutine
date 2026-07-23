@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe, Users, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
-import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, Search, User } from "lucide-react";
+import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, User } from "lucide-react";
 import type { NeighborSummary, NeighborData } from "@/lib/types";
 import {
   getNeighborsListAction,
@@ -43,9 +43,10 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
     getNeighborsListAction()
       .then((res) => {
         if (res.neighbors) {
-          setNeighbors(res.neighbors);
-          if (res.neighbors.length > 0 && !selectedNeighborId) {
-            setSelectedNeighborId(res.neighbors[0].id);
+          const list = res.neighbors;
+          setNeighbors(list);
+          if (list.length > 0) {
+            setSelectedNeighborId((prev) => prev ?? list[0].id);
           }
         }
       })
@@ -184,7 +185,11 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
           </div>
 
           {/* Neighbor Selector Tabs */}
-          {neighbors.length > 0 && (
+          {loadingList ? (
+            <div className="text-xs text-stone-400 font-medium py-1 animate-pulse">
+              Đang tải danh sách hàng xóm...
+            </div>
+          ) : neighbors.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               {neighbors.map((n) => {
                 const isSelected = n.id === selectedNeighborId;

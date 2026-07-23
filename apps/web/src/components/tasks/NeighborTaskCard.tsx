@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Heart, Clock, User, CheckCircle } from "lucide-react";
+import { Copy, Heart, Clock, CheckCircle } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 interface NeighborTaskCardProps {

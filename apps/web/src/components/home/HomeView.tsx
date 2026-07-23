@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations, useLocale } from "next-intl";
+import { useLocale } from "next-intl";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { HabitModal } from "@/components/home/HabitModal";
@@ -32,10 +32,10 @@ import { MinimalCozyRoom } from "@/components/room/MinimalCozyRoom";
 
 
 export function HomeView({ data }: { data: DashboardData }) {
-  const t = useTranslations("Home");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
+
   const { mood } = usePandaMood(data.profile.satiety ?? 80, data.profile.affection ?? 50);
   const { currentAction } = usePandaAction();
 

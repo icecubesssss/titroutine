@@ -140,6 +140,16 @@ export async function updateTaskStatusAction(
 
   const oldStatus = task.status;
   
+  // If setting to in_progress, revert any existing in_progress task for this user back to todo
+  if (status === "in_progress") {
+    await supabase
+      .from("tasks")
+      .update({ status: "todo", updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("status", "in_progress")
+      .neq("id", taskId);
+  }
+
   // Update task status
   const { error: updateTaskErr } = await supabase
     .from("tasks")

@@ -287,35 +287,43 @@ export function HomeView({ data }: { data: DashboardData }) {
         ref={mobileScrollRef}
         className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
       >
-        {/* Top half: Pet Room (Replaced with Blank Canvas) */}
-        <section
-          className="relative flex-1 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-theme-border p-4 min-h-[50vh] md:min-h-0 h-[50vh] md:h-full bg-stone-50 transition-all"
-        >
-          {/* Header Bar */}
-          <div className="absolute top-4 left-4 right-4 z-30 pointer-events-auto flex items-center justify-between px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-2xl border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.04)] text-theme-text transition-all duration-300">
-            {/* Left Side */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-black text-amber-900">Titroutine 🐰</span>
+        {/* Top half: Cozy Pet Room (Study Bunny Style) */}
+        <section className="relative flex-1 flex flex-col items-center justify-between border-b md:border-b-0 md:border-r border-theme-border p-4 min-h-[320px] md:min-h-0 h-[45vh] md:h-full overflow-hidden transition-all bg-cover bg-center rounded-3xl shadow-inner m-2 border" style={{ backgroundImage: "url('/assets/study_bunny_room.png')" }}>
+          {/* Study Bunny HUD Header */}
+          <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-3 py-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/60 shadow-[0_4px_16px_rgba(0,0,0,0.06)] text-theme-text transition-all duration-300">
+            {/* Left Side: Stats HUD (Coins, Carrots, Happy Meter) */}
+            <div className="flex items-center gap-2.5 text-xs font-extrabold text-amber-900">
+              <span className="flex items-center gap-1 bg-amber-100/70 px-2 py-0.5 rounded-lg border border-amber-200/50">
+                🪙 {data.profile.coins}
+              </span>
+              <span className="flex items-center gap-1 bg-orange-100/70 px-2 py-0.5 rounded-lg border border-orange-200/50">
+                🥕 {data.inventory.consumables?.carrots ?? 40}
+              </span>
+              <span className="flex items-center gap-1 bg-rose-100/70 px-2 py-0.5 rounded-lg border border-rose-200/50 text-rose-700">
+                ❤️ {mood.happyMeter}%
+              </span>
             </div>
 
-            {/* Right Side */}
-            <div className="flex items-center gap-4 relative">
-              <div className="flex items-center gap-1 text-xs font-black text-orange-600">
+            {/* Right Side: Streak & Companion Tag */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-xs font-black text-orange-600 bg-orange-50/80 px-2.5 py-1 rounded-xl border border-orange-200/40">
                 <span>🔥 {t("streakDays", { count: data.profile.currentStreak })}</span>
               </div>
-              <div className="flex items-center gap-1 text-xs font-black text-amber-600">
-                <span>🪙 {data.profile.coins}</span>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50/80 px-2 py-0.5 rounded-xl border border-amber-200/40">
+                <span>🐼 Panda Girl</span>
               </div>
             </div>
           </div>
 
-          {/* Panda Room Display */}
-          <div className="flex flex-col items-center justify-center relative p-4 rounded-3xl bg-amber-50/60 border border-amber-200/50 shadow-inner w-full max-w-sm min-h-[260px]">
-            <div className="flex items-center gap-2 mb-2 px-3 py-1 bg-white/80 backdrop-blur-sm rounded-full text-xs font-bold text-amber-900 shadow-sm border border-amber-100">
-              <span>🐼 Panda Girl</span>
-              <span className="text-[10px] text-amber-600 font-normal">({timerHabit ? "Đang tập trung học..." : mood.happyMeter < 50 ? "Hơi mệt" : "Rảnh rỗi"})</span>
+          {/* Floor Space: Panda Girl Standing / Working cozy on the room floor */}
+          <div className="w-full flex-1 relative flex items-end justify-end pb-2 pr-6 z-10">
+            <div className="relative group cursor-pointer transition-transform hover:scale-105">
+              {/* Pet Speech Bubble / Status */}
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-full text-[10px] font-bold text-amber-900 shadow-md border border-amber-100 opacity-90 transition-all">
+                {timerHabit ? "✍️ Đang tập trung..." : mood.happyMeter < 50 ? "💤 Hơi mệt rùi..." : "✨ Chào bạn!"}
+              </div>
+              <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.18} />
             </div>
-            <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.28} />
           </div>
         </section>
 

@@ -21,18 +21,19 @@ const TOTAL_FRAMES = COLS * ROWS;
 
 export const PandaGirlCompanion: React.FC<PandaGirlCompanionProps> = ({
   action = "idle",
-  scale = 0.25,
+  scale = 0.18,
   className,
   flipX = false,
   fps = 6,
 }) => {
   const [currentFrame, setCurrentFrame] = useState(0);
 
-  // Switch sprite sheet based on current action
+  // Switch sprite sheet based on current action (using cleaned transparent PNGs)
   const isWorking = action === "working" || action === "study";
   const spriteUrl = isWorking
-    ? "/assets/workingwithtask.png"
-    : "/assets/pandagirlidle.png";
+    ? "/assets/workingwithtask_clean.png"
+    : "/assets/pandagirlidle_clean.png";
+
 
   useEffect(() => {
     const intervalId = setInterval(() => {

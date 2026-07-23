@@ -289,8 +289,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         ref={mobileScrollRef}
         className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
       >
-        {/* Top section: Official Study Bunny Cozy Room View */}
-        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-[60vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border">
+        {/* Top section: Official Study Bunny Full Panoramic Room View (Un-cropped 1:1 Aspect View) */}
+        <section className="relative flex-1 flex flex-col p-0 min-h-[380px] md:min-h-0 h-[52vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED]">
           <MinimalCozyRoom bgImageUrl="/assets/study_bunny_room.png">
             {/* Top Bar 1: Happy Meter Progress Bar (Emerald Green Bar) */}
             <div className="w-full bg-stone-200/50 h-2.5 relative overflow-hidden z-30">
@@ -379,8 +379,8 @@ export function HomeView({ data }: { data: DashboardData }) {
               )}
             </div>
 
-            {/* Floor Space: Panda Girl Standing / Sitting ON THE ROOM FLOOR CARPET */}
-            <div className="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
+            {/* Floor Space: Panda Girl Standing / Sitting ON THE FULL ROOM FLOOR CARPET */}
+            <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
               <div
                 className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
                 onClick={() => setIsShopOpen(true)}

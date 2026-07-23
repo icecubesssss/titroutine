@@ -14,3 +14,13 @@ CREATE POLICY "Users can view public tasks" ON public.tasks
 DROP POLICY IF EXISTS "Users can view public habits" ON public.habits;
 CREATE POLICY "Users can view public habits" ON public.habits
   FOR SELECT USING (auth.uid() = user_id OR is_private = FALSE);
+
+-- Allow authenticated users to view basic public profiles & equipped inventory of other users
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
+CREATE POLICY "Users can view all profiles" ON public.profiles
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can view all inventory" ON public.inventory;
+CREATE POLICY "Users can view all inventory" ON public.inventory
+  FOR SELECT USING (auth.role() = 'authenticated');
+

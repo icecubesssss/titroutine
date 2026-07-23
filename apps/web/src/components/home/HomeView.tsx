@@ -555,6 +555,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         isOpen={isNeighborVisitOpen}
         onClose={() => setIsNeighborVisitOpen(false)}
         myFriendCode={data.profile.id}
+        myTasks={data.tasks}
       />
 
       {/* Room switcher / house explorer */}

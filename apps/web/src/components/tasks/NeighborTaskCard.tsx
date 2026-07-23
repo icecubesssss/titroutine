@@ -7,6 +7,7 @@ import type { Task } from "@/lib/types";
 interface NeighborTaskCardProps {
   task: Task;
   ownerName: string;
+  isMine?: boolean;
   onCopyTask?: (taskId: string) => Promise<void>;
   onSendVibe?: (neighborId: string) => Promise<void>;
 }
@@ -14,6 +15,7 @@ interface NeighborTaskCardProps {
 export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
   task,
   ownerName,
+  isMine = false,
   onCopyTask,
   onSendVibe,
 }) => {
@@ -54,15 +56,27 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
       : "bg-emerald-100 text-emerald-700 border-emerald-200";
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm border border-amber-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-3">
+    <div
+      className={`border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-3 ${
+        isMine
+          ? "bg-sky-50/70 border-sky-200"
+          : "bg-white/80 backdrop-blur-sm border-amber-100"
+      }`}
+    >
       {/* Header with owner info */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-xs font-bold text-emerald-800">
-            {ownerName.substring(0, 1).toUpperCase()}
+          <div
+            className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-bold ${
+              isMine
+                ? "bg-sky-100 border-sky-300 text-sky-800"
+                : "bg-emerald-100 border-emerald-300 text-emerald-800"
+            }`}
+          >
+            {isMine ? "Tôi" : ownerName.substring(0, 1).toUpperCase()}
           </div>
-          <span className="text-xs font-semibold text-stone-600 truncate max-w-[120px]">
-            {ownerName}
+          <span className="text-xs font-semibold text-stone-700 truncate max-w-[130px]">
+            {isMine ? "Task của tôi" : ownerName}
           </span>
         </div>
         <span
@@ -92,7 +106,7 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {onSendVibe && (
+          {!isMine && onSendVibe && (
             <button
               type="button"
               onClick={handleVibe}
@@ -109,7 +123,7 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
             </button>
           )}
 
-          {onCopyTask && (
+          {!isMine && onCopyTask && (
             <button
               type="button"
               onClick={handleCopy}
@@ -123,6 +137,12 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
               {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
               <span>{copied ? "Đã chép" : "Sao chép"}</span>
             </button>
+          )}
+
+          {isMine && (
+            <span className="text-[10px] font-bold px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full border border-sky-200">
+              📌 Task của tôi
+            </span>
           )}
         </div>
       </div>

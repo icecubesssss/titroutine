@@ -12,26 +12,18 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  const { data: friendships, error: fError } = await supabase
-    .from("friendships")
-    .select("user_id, friend_id")
-    .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
-
-  if (fError) return { error: fError.message };
-  if (!friendships || friendships.length === 0) return { neighbors: [] };
-
-  const friendIds = friendships.map((f) => (f.user_id === userId ? f.friend_id : f.user_id));
-
+  // Fetch all registered user profiles in the web app except the current user
   const { data: profiles, error: pError } = await supabase
     .from("profiles")
     .select("id, username, pet_stage, pet_exp, current_streak")
-    .in("id", friendIds);
+    .neq("id", userId)
+    .order("current_streak", { ascending: false });
 
   if (pError) return { error: pError.message };
 
   const neighbors: NeighborSummary[] = (profiles || []).map((p) => ({
     id: p.id,
-    username: p.username || "Neighbor",
+    username: p.username || "Hàng xóm",
     petStage: p.pet_stage ?? 0,
     petLevel: levelFromExp(p.pet_exp ?? 0),
     currentStreak: p.current_streak ?? 0,

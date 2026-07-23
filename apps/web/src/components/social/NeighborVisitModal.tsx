@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, User } from "lucide-react";
-import type { NeighborSummary, NeighborData } from "@/lib/types";
+import type { NeighborSummary, NeighborData, Task } from "@/lib/types";
 import {
   getNeighborsListAction,
   getNeighborDataAction,
@@ -17,12 +17,14 @@ interface NeighborVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
   myFriendCode: string;
+  myTasks?: Task[];
 }
 
 export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   isOpen,
   onClose,
   myFriendCode,
+  myTasks = [],
 }) => {
   const [neighbors, setNeighbors] = useState<NeighborSummary[]>([]);
   const [selectedNeighborId, setSelectedNeighborId] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   const [addFriendSuccess, setAddFriendSuccess] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "habits">("tasks");
+  const [taskFilter, setTaskFilter] = useState<"all" | "mine" | "neighbor">("all");
   const [pending, startTransition] = useTransition();
 
   // Load neighbor list when modal opens
@@ -278,7 +281,7 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                       }`}
                     >
                       <BookOpen size={14} />
-                      <span>Task Công khai ({neighborData.publicTasks.length})</span>
+                      <span>Task ({neighborData.publicTasks.length + myTasks.length})</span>
                     </button>
                     <button
                       type="button"
@@ -295,28 +298,89 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                   </div>
                 </div>
 
-                {/* Tasks Grid */}
-                {activeTab === "tasks" && (
-                  <div>
-                    {neighborData.publicTasks.length === 0 ? (
-                      <div className="p-8 text-center bg-white/60 rounded-2xl border border-dashed border-amber-200 text-stone-400 text-xs">
-                        Hàng xóm chưa công khai task nào!
+                {/* Sub-Filter bar for Tasks tab */}
+                {activeTab === "tasks" && (() => {
+                  const hostTasks = neighborData.publicTasks;
+                  const hostName = neighborData.profile.username || "Hàng xóm";
+                  const myTasksList = myTasks;
+                  const displayedTasks =
+                    taskFilter === "mine"
+                      ? myTasksList
+                      : taskFilter === "neighbor"
+                      ? hostTasks
+                      : [...hostTasks, ...myTasksList.filter((mt) => !hostTasks.some((ht) => ht.id === mt.id))];
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Filter pill controls */}
+                      <div className="flex items-center gap-1.5 pb-1 overflow-x-auto">
+                        <button
+                          type="button"
+                          onClick={() => setTaskFilter("all")}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 ${
+                            taskFilter === "all"
+                              ? "bg-amber-600 text-white border-amber-700 shadow-sm"
+                              : "bg-white/90 text-stone-600 border-amber-200 hover:bg-white"
+                          }`}
+                        >
+                          <span>🌟 Tất cả task</span>
+                          <span className="text-[10px] opacity-80">({hostTasks.length + myTasksList.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTaskFilter("mine")}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 ${
+                            taskFilter === "mine"
+                              ? "bg-sky-600 text-white border-sky-700 shadow-sm"
+                              : "bg-white/90 text-stone-600 border-amber-200 hover:bg-white"
+                          }`}
+                        >
+                          <span>👤 Task của mình</span>
+                          <span className="text-[10px] opacity-80">({myTasksList.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTaskFilter("neighbor")}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 ${
+                            taskFilter === "neighbor"
+                              ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
+                              : "bg-white/90 text-stone-600 border-amber-200 hover:bg-white"
+                          }`}
+                        >
+                          <span>🏠 Task của {hostName}</span>
+                          <span className="text-[10px] opacity-80">({hostTasks.length})</span>
+                        </button>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {neighborData.publicTasks.map((t) => (
-                          <NeighborTaskCard
-                            key={t.id}
-                            task={t}
-                            ownerName={neighborData.profile.username || "Neighbor"}
-                            onCopyTask={handleCopyTask}
-                            onSendVibe={handleSendVibe}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+
+                      {/* Filtered Tasks Grid */}
+                      {displayedTasks.length === 0 ? (
+                        <div className="p-8 text-center bg-white/60 rounded-2xl border border-dashed border-amber-200 text-stone-400 text-xs">
+                          {taskFilter === "mine"
+                            ? "Bạn chưa có task nào!"
+                            : taskFilter === "neighbor"
+                            ? `${hostName} chưa công khai task nào!`
+                            : "Không có task nào để hiển thị!"}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {displayedTasks.map((t) => {
+                            const isMine = t.userId === myFriendCode || !hostTasks.some((ht) => ht.id === t.id && ht.userId !== myFriendCode);
+                            return (
+                              <NeighborTaskCard
+                                key={t.id}
+                                task={t}
+                                ownerName={isMine ? "Tôi" : hostName}
+                                isMine={isMine}
+                                onCopyTask={handleCopyTask}
+                                onSendVibe={handleSendVibe}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Habits List */}
                 {activeTab === "habits" && (

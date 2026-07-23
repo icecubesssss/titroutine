@@ -289,10 +289,10 @@ export function HomeView({ data }: { data: DashboardData }) {
         ref={mobileScrollRef}
         className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
       >
-        {/* Top section: Official Study Bunny 2D Flat Room View (Occupies ~65% Mobile Height) */}
-        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-[65vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border">
-          <MinimalCozyRoom>
-            {/* Top Bar 1: Happy Meter Progress Bar (Official Study Bunny Green Bar) */}
+        {/* Top section: Official Study Bunny Cozy Room View */}
+        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-[60vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border">
+          <MinimalCozyRoom bgImageUrl="/assets/study_bunny_room.png">
+            {/* Top Bar 1: Happy Meter Progress Bar (Emerald Green Bar) */}
             <div className="w-full bg-stone-200/50 h-2.5 relative overflow-hidden z-30">
               <div
                 className="bg-emerald-500 h-full transition-all duration-500 rounded-r-full shadow-xs"
@@ -300,33 +300,33 @@ export function HomeView({ data }: { data: DashboardData }) {
               />
             </div>
 
-            {/* Top Bar 2: Official Study Bunny HUD (Coins, Carrots, Pet Name, Menu Button) */}
-            <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-4 py-2 relative">
+            {/* Top Bar 2: Official Study Bunny HUD Bar (Glassmorphism card, clean & no overlapping) */}
+            <div className="mx-3 mt-2 z-30 pointer-events-auto flex items-center justify-between px-3.5 py-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/60 shadow-sm">
               {/* Left Side: Currencies Badges */}
               <div className="flex items-center gap-2 text-xs font-black text-stone-800">
                 <button
                   onClick={() => setIsShopOpen(true)}
-                  className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs hover:bg-stone-50 active:scale-95 transition-all"
+                  className="flex items-center gap-1 bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200/60 text-amber-900 shadow-xs hover:bg-amber-100 active:scale-95 transition-all"
                 >
-                  🪙 {data.profile.coins} <span className="text-[10px] text-stone-400 font-normal">+</span>
+                  🪙 {data.profile.coins} <span className="text-[10px] text-amber-600 font-normal">+</span>
                 </button>
                 <button
                   onClick={() => setIsShopOpen(true)}
-                  className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs hover:bg-stone-50 active:scale-95 transition-all"
+                  className="flex items-center gap-1 bg-orange-100/80 px-2.5 py-1 rounded-full border border-orange-200/60 text-orange-900 shadow-xs hover:bg-orange-100 active:scale-95 transition-all"
                 >
-                  🥕 {data.inventory.consumables?.carrots ?? 40} <span className="text-[10px] text-stone-400 font-normal">+</span>
+                  🥕 {data.inventory.consumables?.carrots ?? 40} <span className="text-[10px] text-orange-600 font-normal">+</span>
                 </button>
               </div>
 
               {/* Center: Pet Name */}
-              <div className="text-sm font-black text-stone-800 tracking-wide">
+              <div className="text-sm font-black text-amber-950 tracking-wide">
                 Panda Girl
               </div>
 
               {/* Right Side: Menu Button (≡) */}
               <button
                 onClick={() => { playSwoosh(); setIsMenuOpen(!isMenuOpen); }}
-                className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md border border-stone-300 shadow-xs flex items-center justify-center text-stone-700 font-bold hover:bg-stone-100 active:scale-95 transition-all"
+                className="w-9 h-9 rounded-full bg-white border border-stone-200 shadow-xs flex items-center justify-center text-stone-800 font-bold hover:bg-stone-100 active:scale-95 transition-all"
               >
                 {isMenuOpen ? "✕" : "☰"}
               </button>
@@ -334,7 +334,7 @@ export function HomeView({ data }: { data: DashboardData }) {
 
             {/* Official Study Bunny Dropdown Icon Stack (When Menu (≡) is Tapped) */}
             {isMenuOpen && (
-              <div className="absolute top-14 right-4 z-40 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-auto">
+              <div className="absolute top-16 right-4 z-40 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-auto">
                 <button
                   onClick={() => { setIsMenuOpen(false); setIsShopOpen(true); }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
@@ -379,14 +379,14 @@ export function HomeView({ data }: { data: DashboardData }) {
               )}
             </div>
 
-            {/* Floor Space: Panda Girl Standing / Sitting ON THE GREEN CARPET */}
-            <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
+            {/* Floor Space: Panda Girl Standing / Sitting ON THE ROOM FLOOR CARPET */}
+            <div className="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
               <div
                 className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
                 onClick={() => setIsShopOpen(true)}
               >
                 {/* Speech Bubble */}
-                <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-sm rounded-full text-[10px] font-bold text-stone-800 shadow-xs border border-stone-200">
+                <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
                   {timerHabit ? "✍️ Đang học tập..." : "Panda Girl"}
                 </div>
                 <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.16} />

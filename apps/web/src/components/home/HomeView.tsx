@@ -25,12 +25,18 @@ import {
   setVacationModeAction,
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
+import { PandaGirlCompanion } from "@/components/pet/PandaGirlCompanion";
+import { usePandaMood } from "@/components/home/hooks/usePandaMood";
+import { usePandaAction } from "@/components/home/hooks/usePandaAction";
+
 
 export function HomeView({ data }: { data: DashboardData }) {
   const t = useTranslations("Home");
   const locale = useLocale();
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
+  const { mood } = usePandaMood(data.profile.satiety ?? 80, data.profile.affection ?? 50);
+  const { currentAction } = usePandaAction();
 
   // Server data is the source of truth; mirror it locally for optimistic UI.
   const [habits, setHabits] = useState(data.habits);
@@ -303,13 +309,13 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
           </div>
 
-          {/* Blank Canvas Space */}
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-300 rounded-3xl bg-white/50 backdrop-blur-sm max-w-sm text-center shadow-sm">
-            <span className="text-4xl mb-3 animate-pulse">🌱</span>
-            <h3 className="text-sm font-bold text-stone-600 mb-1">Góc Học Tập Trống</h3>
-            <p className="text-[11px] text-stone-400 leading-relaxed">
-              Khung trắng đã sẵn sàng để chúng ta bắt đầu xây dựng lại giao diện tập trung tối giản từ đầu!
-            </p>
+          {/* Panda Room Display */}
+          <div className="flex flex-col items-center justify-center relative p-4 rounded-3xl bg-amber-50/60 border border-amber-200/50 shadow-inner w-full max-w-sm min-h-[260px]">
+            <div className="flex items-center gap-2 mb-2 px-3 py-1 bg-white/80 backdrop-blur-sm rounded-full text-xs font-bold text-amber-900 shadow-sm border border-amber-100">
+              <span>🐼 Panda Girl</span>
+              <span className="text-[10px] text-amber-600 font-normal">({timerHabit ? "Đang tập trung học..." : mood.happyMeter < 50 ? "Hơi mệt" : "Rảnh rỗi"})</span>
+            </div>
+            <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.28} />
           </div>
         </section>
 

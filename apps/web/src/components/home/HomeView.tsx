@@ -287,45 +287,68 @@ export function HomeView({ data }: { data: DashboardData }) {
         ref={mobileScrollRef}
         className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
       >
-        {/* Top half: Cozy Pet Room (Study Bunny Style) */}
-        <section className="relative flex-1 flex flex-col items-center justify-between border-b md:border-b-0 md:border-r border-theme-border p-3 min-h-[340px] md:min-h-0 h-[48vh] md:h-full overflow-hidden transition-all bg-amber-100/40">
-          {/* Room Display Container (Fits full 1:1 room image without cropping desk or bed) */}
-          <div className="relative w-full max-w-sm h-full max-h-[380px] aspect-square flex flex-col justify-between p-3 rounded-3xl shadow-lg border border-amber-200/60 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: "url('/assets/study_bunny_room.png')" }}>
-            {/* Study Bunny HUD Header */}
-            <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-3 py-2 bg-white/90 backdrop-blur-md rounded-2xl border border-white/70 shadow-[0_4px_16px_rgba(0,0,0,0.06)] text-theme-text transition-all duration-300">
-              {/* Left Side: Stats HUD (Coins, Carrots, Happy Meter) */}
-              <div className="flex items-center gap-2 text-[11px] sm:text-xs font-extrabold text-amber-900">
-                <span className="flex items-center gap-1 bg-amber-100/80 px-2 py-0.5 rounded-lg border border-amber-200/60 shadow-xs">
-                  🪙 {data.profile.coins}
-                </span>
-                <span className="flex items-center gap-1 bg-orange-100/80 px-2 py-0.5 rounded-lg border border-orange-200/60 shadow-xs">
-                  🥕 {data.inventory.consumables?.carrots ?? 40}
-                </span>
-                <span className="flex items-center gap-1 bg-rose-100/80 px-2 py-0.5 rounded-lg border border-rose-200/60 text-rose-700 shadow-xs">
-                  ❤️ {mood.happyMeter}%
-                </span>
-              </div>
+        {/* Top half: Full-Screen Official Study Bunny Room */}
+        <section className="relative flex-1 flex flex-col justify-between p-0 min-h-[380px] md:min-h-0 h-[52vh] md:h-full overflow-hidden transition-all bg-[#F9F5EC]">
+          {/* Top Bar 1: Happy Meter Progress Bar (Official Study Bunny Green Bar) */}
+          <div className="w-full bg-stone-200/60 h-3 relative overflow-hidden z-30">
+            <div
+              className="bg-emerald-500 h-full transition-all duration-500 rounded-r-full shadow-xs"
+              style={{ width: `${mood.happyMeter}%` }}
+            />
+          </div>
 
-              {/* Right Side: Streak & Companion Tag */}
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 text-[11px] sm:text-xs font-black text-orange-600 bg-orange-50/90 px-2.5 py-0.5 rounded-xl border border-orange-200/50">
-                  <span>🔥 {t("streakDays", { count: data.profile.currentStreak })}</span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50/90 px-2 py-0.5 rounded-xl border border-amber-200/50">
-                  <span>🐼 Panda Girl</span>
-                </div>
-              </div>
+          {/* Top Bar 2: Official Study Bunny HUD (Coins, Carrots, Pet Name, Menu Button) */}
+          <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-3 py-2">
+            {/* Left Side: Currencies Badges */}
+            <div className="flex items-center gap-2 text-xs font-black text-stone-800">
+              <span className="flex items-center gap-1 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-sm">
+                🪙 {data.profile.coins} <span className="text-[10px] text-stone-400 font-normal">+</span>
+              </span>
+              <span className="flex items-center gap-1 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-sm">
+                🥕 {data.inventory.consumables?.carrots ?? 40} <span className="text-[10px] text-stone-400 font-normal">+</span>
+              </span>
             </div>
 
-            {/* Floor Space: Panda Girl Standing / Working cozy on the room floor rug */}
-            <div className="w-full flex-1 relative flex items-end justify-end pb-1 pr-4 z-10">
-              <div className="relative group cursor-pointer transition-transform hover:scale-105">
-                {/* Pet Speech Bubble / Status */}
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-md border border-amber-200/70 opacity-95 transition-all">
-                  {timerHabit ? "✍️ Đang tập trung..." : mood.happyMeter < 50 ? "💤 Hơi mệt rùi..." : "✨ Chào bạn!"}
+            {/* Center: Pet Name */}
+            <div className="text-sm font-black text-stone-800 tracking-wide">
+              Panda Girl
+            </div>
+
+            {/* Right Side: Menu Button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-md border border-stone-300 shadow-sm flex items-center justify-center text-stone-700 font-bold hover:bg-stone-100 active:scale-95 transition-all"
+            >
+              ☰
+            </button>
+          </div>
+
+          {/* Center Room Area (Official 2D Flat Study Bunny Room Backdrop) */}
+          <div className="w-full flex-1 relative flex items-center justify-center overflow-hidden">
+            {/* Room Background Image */}
+            <div
+              className="absolute inset-0 bg-contain bg-center bg-no-repeat z-0"
+              style={{ backgroundImage: "url('/assets/empty_study_bunny_room.png')" }}
+            />
+
+            {/* Timer Active Overlay (Study Bunny Countdown Ring) */}
+            {timerHabit && (
+              <div className="absolute top-8 z-20 flex flex-col items-center animate-fade-in">
+                <div className="w-24 h-24 rounded-full border-4 border-emerald-400 bg-white/90 backdrop-blur-md flex items-center justify-center shadow-lg">
+                  <span className="text-lg font-black text-emerald-800 font-mono">
+                    {Math.floor((timerHabit.config.target_time ?? 900) / 60)}:00
+                  </span>
                 </div>
-                <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.16} />
               </div>
+            )}
+
+            {/* Character on Floor Carpet (Center of Room) */}
+            <div className="relative z-10 flex flex-col items-center mt-12 cursor-pointer group" onClick={() => setIsShopOpen(true)}>
+              {/* Pet Speech Bubble */}
+              <div className="mb-1 px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full text-[10px] font-bold text-stone-800 shadow-md border border-stone-200">
+                {timerHabit ? "✍️ Đang học tập..." : "Panda Girl"}
+              </div>
+              <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.16} />
             </div>
           </div>
         </section>

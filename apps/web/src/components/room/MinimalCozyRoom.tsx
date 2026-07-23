@@ -12,18 +12,18 @@ interface MinimalCozyRoomProps {
 export const MinimalCozyRoom: React.FC<MinimalCozyRoomProps> = ({
   children,
   className,
-  bgImageUrl = "/assets/study_bunny_room.png",
+  bgImageUrl = "/assets/user_room_vertical.png",
 }) => {
   return (
     <div
       className={clsx(
-        "relative w-full h-full min-h-[380px] flex flex-col justify-between overflow-hidden select-none bg-[#FAF5ED] transition-all duration-500",
+        "relative w-full h-full min-h-[420px] flex flex-col justify-between overflow-hidden select-none bg-[#FAF5ED] transition-all duration-500",
         className
       )}
     >
-      {/* Full Panoramic Room Image Container (bg-contain fits 100% of the artwork without cropping) */}
+      {/* User Drawn Room Image Background (Full Cover for Mobile Aspect) */}
       <div
-        className="absolute inset-0 bg-contain bg-top bg-no-repeat z-0 transition-all"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0 transition-all"
         style={{ backgroundImage: `url('${bgImageUrl}')` }}
       />
 

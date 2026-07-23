@@ -48,6 +48,7 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [vacationMode, setVacationMode] = useState(data.profile.vacationMode ?? false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   
   // Theme state: default is 'matcha' to highlight the upgraded aesthetic!
@@ -288,11 +289,11 @@ export function HomeView({ data }: { data: DashboardData }) {
         ref={mobileScrollRef}
         className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
       >
-        {/* Top half: Full-Screen Minimal Cozy Room (Official Study Bunny Style) */}
-        <section className="relative flex-1 flex flex-col p-0 min-h-[380px] md:min-h-0 h-[55vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border">
+        {/* Top section: Official Study Bunny 2D Flat Room View (Occupies ~65% Mobile Height) */}
+        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-[65vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border">
           <MinimalCozyRoom>
             {/* Top Bar 1: Happy Meter Progress Bar (Official Study Bunny Green Bar) */}
-            <div className="w-full bg-stone-200/50 h-3 relative overflow-hidden z-30">
+            <div className="w-full bg-stone-200/50 h-2.5 relative overflow-hidden z-30">
               <div
                 className="bg-emerald-500 h-full transition-all duration-500 rounded-r-full shadow-xs"
                 style={{ width: `${mood.happyMeter}%` }}
@@ -300,15 +301,21 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
 
             {/* Top Bar 2: Official Study Bunny HUD (Coins, Carrots, Pet Name, Menu Button) */}
-            <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-4 py-2">
+            <div className="w-full z-30 pointer-events-auto flex items-center justify-between px-4 py-2 relative">
               {/* Left Side: Currencies Badges */}
               <div className="flex items-center gap-2 text-xs font-black text-stone-800">
-                <span className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs">
+                <button
+                  onClick={() => setIsShopOpen(true)}
+                  className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs hover:bg-stone-50 active:scale-95 transition-all"
+                >
                   🪙 {data.profile.coins} <span className="text-[10px] text-stone-400 font-normal">+</span>
-                </span>
-                <span className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs">
+                </button>
+                <button
+                  onClick={() => setIsShopOpen(true)}
+                  className="flex items-center gap-1 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full border border-stone-300 shadow-xs hover:bg-stone-50 active:scale-95 transition-all"
+                >
                   🥕 {data.inventory.consumables?.carrots ?? 40} <span className="text-[10px] text-stone-400 font-normal">+</span>
-                </span>
+                </button>
               </div>
 
               {/* Center: Pet Name */}
@@ -316,22 +323,55 @@ export function HomeView({ data }: { data: DashboardData }) {
                 Panda Girl
               </div>
 
-              {/* Right Side: Menu Button */}
+              {/* Right Side: Menu Button (≡) */}
               <button
-                onClick={() => setIsSettingsOpen(true)}
+                onClick={() => { playSwoosh(); setIsMenuOpen(!isMenuOpen); }}
                 className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md border border-stone-300 shadow-xs flex items-center justify-center text-stone-700 font-bold hover:bg-stone-100 active:scale-95 transition-all"
               >
-                ☰
+                {isMenuOpen ? "✕" : "☰"}
               </button>
             </div>
 
-            {/* Center Area: Timer Overlay or Room Center */}
+            {/* Official Study Bunny Dropdown Icon Stack (When Menu (≡) is Tapped) */}
+            {isMenuOpen && (
+              <div className="absolute top-14 right-4 z-40 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-auto">
+                <button
+                  onClick={() => { setIsMenuOpen(false); setIsShopOpen(true); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Cửa Hàng</span>
+                  <span className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-sm">🛒</span>
+                </button>
+                <button
+                  onClick={() => { setIsMenuOpen(false); router.push(`/${locale}/analytics`); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Thống Kê</span>
+                  <span className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-sm">📊</span>
+                </button>
+                <button
+                  onClick={() => { setIsMenuOpen(false); setActiveTab("tasks"); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Task Board</span>
+                  <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-sm">📋</span>
+                </button>
+                <button
+                  onClick={() => { setIsMenuOpen(false); setIsSettingsOpen(true); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Cài Đặt</span>
+                  <span className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-sm">⚙️</span>
+                </button>
+              </div>
+            )}
+
+            {/* Center Area: Focus Timer Ring (Overlay when Timer Active) */}
             <div className="w-full flex-1 relative flex flex-col items-center justify-center">
-              {/* Focus Timer Circle Overlay (When Timer Active) */}
               {timerHabit && (
-                <div className="absolute top-6 z-20 flex flex-col items-center animate-fade-in">
+                <div className="absolute top-4 z-20 flex flex-col items-center animate-fade-in">
                   <div className="w-28 h-28 rounded-full border-4 border-emerald-400 bg-white/95 backdrop-blur-md flex items-center justify-center shadow-lg">
-                    <span className="text-xl font-black text-emerald-800 font-mono">
+                    <span className="text-2xl font-black text-emerald-800 font-mono">
                       {Math.floor((timerHabit.config.target_time ?? 900) / 60)}:00
                     </span>
                   </div>
@@ -339,8 +379,8 @@ export function HomeView({ data }: { data: DashboardData }) {
               )}
             </div>
 
-            {/* Bottom Floor Area: Panda Girl Sitting on Carpet */}
-            <div className="w-full pb-3 flex items-center justify-center z-20">
+            {/* Floor Space: Panda Girl Standing / Sitting ON THE GREEN CARPET */}
+            <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
               <div
                 className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
                 onClick={() => setIsShopOpen(true)}
@@ -349,7 +389,7 @@ export function HomeView({ data }: { data: DashboardData }) {
                 <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-sm rounded-full text-[10px] font-bold text-stone-800 shadow-xs border border-stone-200">
                   {timerHabit ? "✍️ Đang học tập..." : "Panda Girl"}
                 </div>
-                <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.17} />
+                <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.16} />
               </div>
             </div>
           </MinimalCozyRoom>

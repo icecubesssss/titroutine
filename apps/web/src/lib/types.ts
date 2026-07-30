@@ -1,5 +1,6 @@
 import type { PetMood } from "./game";
 import type { RoomId } from "./rooms";
+import type { CharacterId } from "./characters";
 
 export type FrequencyType = "daily" | "specific_days" | "x_times_a_week";
 
@@ -80,7 +81,18 @@ export interface ProfileSummary {
   cleanedSpots: Record<string, boolean>;
   /** Vacation mode: freezes satiety decay, streak gaps and neglect penalties. */
   vacationMode: boolean;
+  // ── Companion character ─────────────────────────────────────────────────
+  /** Which sprite set renders the companion (see lib/characters.ts). */
+  characterId: CharacterId;
+  /** Resolved display name: the user's custom name, else the character default. */
+  characterName: string;
+  /** True when the user has set a custom name (so the form can show/clear it). */
+  hasCustomCharacterName: boolean;
+  /** Who may drop by. */
+  visitPrivacy: VisitPrivacy;
 }
+
+export type VisitPrivacy = "friends" | "nobody";
 
 export interface Task {
   id: string;
@@ -134,6 +146,9 @@ export interface NeighborSummary {
   petStage: number;
   petLevel: number;
   currentStreak: number;
+  /** Their chosen character, so their companion renders correctly in our room. */
+  characterId: CharacterId;
+  characterName: string;
 }
 
 export interface NeighborData {
@@ -144,6 +159,8 @@ export interface NeighborData {
     petLevel: number;
     currentStreak: number;
     affection: number;
+    characterId: CharacterId;
+    characterName: string;
   };
   equippedItems: Record<string, string>;
   publicTasks: Task[];

@@ -200,4 +200,163 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_neglect_date DATE;
 -- { "<roomId>": { "x": 12.5, "y": 80 } } — % of room viewport; missing = legacy corner
 ALTER TABLE public.inventory ADD COLUMN IF NOT EXISTS decor_positions JSONB DEFAULT '{}'::jsonb;
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 10: Neighbours — cross-user read access
+-- ────────────────────────────────────────────────────────────────────────────
+-- (`tasks.is_private` / `habits.is_private` are declared inline above.)
+-- Basic profile + equipped inventory of other users is readable so a neighbour's
+-- room and companion can be rendered. Task/habit visibility is narrowed to
+-- friends-only in migration 11 below.
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
+CREATE POLICY "Users can view all profiles" ON public.profiles
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can view all inventory" ON public.inventory;
+CREATE POLICY "Users can view all inventory" ON public.inventory
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 11: Characters, Neighbour Visits & Co-op Interactions
+-- ────────────────────────────────────────────────────────────────────────────
+-- See migrations/11_phase3_visits_and_coop.sql for the annotated version.
+
+-- Swappable companion character (must match a key in lib/characters.ts).
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS character_id TEXT DEFAULT 'pandagirl';
+-- User-chosen companion name. NULL = fall back to the character's default name.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS character_name TEXT;
+-- Who may drop by: 'friends' (default) or 'nobody'.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS visit_privacy TEXT DEFAULT 'friends';
+
+-- The rendered room is ALWAYS the host's room:
+--   "I go to X"       → visitor_id = me, host_id = X   (I see X's room)
+--   "I invite X over" → visitor_id = X,  host_id = me  (I see my room + X)
+CREATE TABLE IF NOT EXISTS public.visit_sessions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  visitor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  host_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  initiated_by UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  status TEXT DEFAULT 'active' NOT NULL, -- 'active' | 'ended'
+  started_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  ended_at TIMESTAMPTZ,
+  seen_by_host BOOLEAN DEFAULT FALSE NOT NULL,
+  CONSTRAINT visit_sessions_no_self CHECK (visitor_id <> host_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS visit_sessions_one_active_per_visitor
+  ON public.visit_sessions (visitor_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS visit_sessions_host_active_idx
+  ON public.visit_sessions (host_id, status);
+CREATE INDEX IF NOT EXISTS visit_sessions_host_recent_idx
+  ON public.visit_sessions (host_id, started_at DESC);
+ALTER TABLE public.visit_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Participants can view visits" ON public.visit_sessions;
+CREATE POLICY "Participants can view visits" ON public.visit_sessions
+  FOR SELECT USING (auth.uid() = visitor_id OR auth.uid() = host_id);
+
+DROP POLICY IF EXISTS "Participants can start visits" ON public.visit_sessions;
+CREATE POLICY "Participants can start visits" ON public.visit_sessions
+  FOR INSERT WITH CHECK (
+    auth.uid() = initiated_by
+    AND (auth.uid() = visitor_id OR auth.uid() = host_id)
+    AND EXISTS (
+      SELECT 1 FROM public.friendships f
+      WHERE f.user_id = auth.uid()
+        AND f.friend_id = CASE WHEN auth.uid() = visitor_id THEN host_id ELSE visitor_id END
+    )
+  );
+
+DROP POLICY IF EXISTS "Participants can update visits" ON public.visit_sessions;
+CREATE POLICY "Participants can update visits" ON public.visit_sessions
+  FOR UPDATE USING (auth.uid() = visitor_id OR auth.uid() = host_id);
+
+-- Free-play co-op: the actor is rewarded immediately, the target claims theirs
+-- later (same claim pattern as social_vibes — avoids SECURITY DEFINER writes).
+CREATE TABLE IF NOT EXISTS public.coop_interactions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  session_id UUID REFERENCES public.visit_sessions(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  target_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  kind TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  claimed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS coop_interactions_target_unclaimed_idx
+  ON public.coop_interactions (target_id, claimed_at);
+CREATE INDEX IF NOT EXISTS coop_interactions_actor_day_idx
+  ON public.coop_interactions (actor_id, kind, created_at DESC);
+ALTER TABLE public.coop_interactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Participants can view coop interactions" ON public.coop_interactions;
+CREATE POLICY "Participants can view coop interactions" ON public.coop_interactions
+  FOR SELECT USING (auth.uid() = actor_id OR auth.uid() = target_id);
+
+DROP POLICY IF EXISTS "Actors can send coop interactions" ON public.coop_interactions;
+CREATE POLICY "Actors can send coop interactions" ON public.coop_interactions
+  FOR INSERT WITH CHECK (auth.uid() = actor_id AND actor_id <> target_id);
+
+DROP POLICY IF EXISTS "Targets can claim coop interactions" ON public.coop_interactions;
+CREATE POLICY "Targets can claim coop interactions" ON public.coop_interactions
+  FOR UPDATE USING (auth.uid() = target_id);
+
+-- Everyone is a neighbour by default (small private deployment): new profiles are
+-- mutually befriended with every existing profile.
+CREATE OR REPLACE FUNCTION public.auto_befriend_everyone()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.friendships (user_id, friend_id)
+  SELECT NEW.id, p.id FROM public.profiles p WHERE p.id <> NEW.id
+  ON CONFLICT (user_id, friend_id) DO NOTHING;
+
+  INSERT INTO public.friendships (user_id, friend_id)
+  SELECT p.id, NEW.id FROM public.profiles p WHERE p.id <> NEW.id
+  ON CONFLICT (user_id, friend_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_profile_created_auto_befriend ON public.profiles;
+CREATE TRIGGER on_profile_created_auto_befriend
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.auto_befriend_everyone();
+
+INSERT INTO public.friendships (user_id, friend_id)
+SELECT a.id, b.id
+FROM public.profiles a
+CROSS JOIN public.profiles b
+WHERE a.id <> b.id
+ON CONFLICT (user_id, friend_id) DO NOTHING;
+
+-- Narrow migration 10's blanket access: public tasks/habits are visible to
+-- friends only.
+DROP POLICY IF EXISTS "Users can view public tasks" ON public.tasks;
+CREATE POLICY "Users can view public tasks" ON public.tasks
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR (
+      is_private = FALSE
+      AND EXISTS (
+        SELECT 1 FROM public.friendships f
+        WHERE f.user_id = auth.uid() AND f.friend_id = tasks.user_id
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can view public habits" ON public.habits;
+CREATE POLICY "Users can view public habits" ON public.habits
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR (
+      is_private = FALSE
+      AND EXISTS (
+        SELECT 1 FROM public.friendships f
+        WHERE f.user_id = auth.uid() AND f.friend_id = habits.user_id
+      )
+    )
+  );
+
 

@@ -3,20 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { getUserId, type ActionResult } from "./_shared";
 import { levelFromExp } from "@/lib/game";
+import { characterDisplayName, getCharacter } from "@/lib/characters";
 import type { NeighborSummary, NeighborData, Task, HabitWithLog } from "@/lib/types";
 
 /**
- * Fetch list of friends / neighbors for the current user.
+ * Fetch the current user's neighbours — i.e. their friends. Friendships are
+ * created automatically for every user (see migration 11), so in practice this is
+ * "everyone else", but it stays scoped to the friendship graph so opening the app
+ * up later doesn't silently expose strangers to each other.
  */
 export async function getNeighborsListAction(): Promise<{ error?: string; neighbors?: NeighborSummary[] }> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  // Fetch all registered user profiles in the web app except the current user
+  const { data: friendships, error: fError } = await supabase
+    .from("friendships")
+    .select("friend_id")
+    .eq("user_id", userId);
+
+  if (fError) return { error: fError.message };
+
+  const friendIds = (friendships || []).map((f) => f.friend_id).filter((id) => id !== userId);
+  if (friendIds.length === 0) return { neighbors: [] };
+
   const { data: profiles, error: pError } = await supabase
     .from("profiles")
-    .select("id, username, pet_stage, pet_exp, current_streak")
-    .neq("id", userId)
+    .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
+    .in("id", friendIds)
     .order("current_streak", { ascending: false });
 
   if (pError) return { error: pError.message };
@@ -27,6 +40,8 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
     petStage: p.pet_stage ?? 0,
     petLevel: levelFromExp(p.pet_exp ?? 0),
     currentStreak: p.current_streak ?? 0,
+    characterId: getCharacter(p.character_id).id,
+    characterName: characterDisplayName(p.character_id, p.character_name),
   }));
 
   return { neighbors };
@@ -42,7 +57,7 @@ export async function getNeighborDataAction(neighborId: string): Promise<{ error
   // Profile summary
   const { data: profile, error: pError } = await supabase
     .from("profiles")
-    .select("id, username, pet_stage, pet_exp, current_streak, affection_level")
+    .select("id, username, pet_stage, pet_exp, current_streak, affection_level, character_id, character_name")
     .eq("id", neighborId)
     .maybeSingle();
 
@@ -106,6 +121,8 @@ export async function getNeighborDataAction(neighborId: string): Promise<{ error
       petLevel: levelFromExp(profile.pet_exp ?? 0),
       currentStreak: profile.current_streak ?? 0,
       affection: profile.affection_level ?? 0,
+      characterId: getCharacter(profile.character_id).id,
+      characterName: characterDisplayName(profile.character_id, profile.character_name),
     },
     equippedItems: (inventory?.equipped_items as Record<string, string>) || {},
     publicTasks,

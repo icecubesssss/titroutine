@@ -14,6 +14,7 @@ import {
 } from "./game";
 import { unlockedRooms, allRoomsUnlocked } from "./rooms";
 import { eligibleMemoryKeys } from "./memories";
+import { characterDisplayName, getCharacter } from "./characters";
 import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
 
 interface HabitRow {
@@ -84,7 +85,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, last_active_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id, focus_tokens, cleaning_energy, cleaned_spots, vacation_mode, last_neglect_date"
+      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, last_active_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id, focus_tokens, cleaning_energy, cleaned_spots, vacation_mode, last_neglect_date, character_id, character_name, visit_privacy"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -343,6 +344,10 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       cleaningEnergy: profile?.cleaning_energy ?? 0,
       cleanedSpots: (profile?.cleaned_spots as Record<string, boolean>) ?? {},
       vacationMode,
+      characterId: getCharacter(profile?.character_id).id,
+      characterName: characterDisplayName(profile?.character_id, profile?.character_name),
+      hasCustomCharacterName: Boolean(profile?.character_name?.trim()),
+      visitPrivacy: profile?.visit_privacy === "nobody" ? "nobody" : "friends",
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},

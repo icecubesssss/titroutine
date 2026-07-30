@@ -7,6 +7,15 @@ import { useLocale, useTranslations } from "next-intl";
 import { Howl } from "howler";
 import { DuoButton } from "../ui/DuoButton";
 import { signOut } from "@/app/[locale]/login/actions";
+import { renameCharacterAction, setCharacterAction } from "@/app/[locale]/actions";
+import { CharacterCompanion } from "../pet/CharacterCompanion";
+import {
+  CHARACTERS,
+  CHARACTER_IDS,
+  CHARACTER_NAME_MAX_LENGTH,
+  DEFAULT_CHARACTER_ID,
+  type CharacterId,
+} from "@/lib/characters";
 
 interface ReportData {
   streak: number;
@@ -33,6 +42,12 @@ interface SettingsModalProps {
   setDevSatietyOverride?: (satiety: number | null) => void;
   vacationMode?: boolean;
   onVacationChange?: (enabled: boolean) => void;
+  /** Companion character currently in use. */
+  characterId?: CharacterId;
+  /** Resolved companion name (custom name, or the character's default). */
+  characterName?: string;
+  /** True when `characterName` is a user-set override rather than the default. */
+  hasCustomCharacterName?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -52,6 +67,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setDevSatietyOverride,
   vacationMode = false,
   onVacationChange,
+  characterId = DEFAULT_CHARACTER_ID,
+  characterName,
+  hasCustomCharacterName = false,
 }) => {
   const t = useTranslations("Settings");
   const locale = useLocale();
@@ -64,9 +82,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSigningOut, startSignOut] = useTransition();
   const musicRef = useRef<Howl | null>(null);
 
+  // Only a user-set name goes in the input; the default name shows as placeholder
+  // so clearing the field resets to the character's own name.
+  const savedName = hasCustomCharacterName ? characterName ?? "" : "";
+  const [nameDraft, setNameDraft] = useState(savedName);
+  const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [isSavingCharacter, setIsSavingCharacter] = useState(false);
+
   useEffect(() => {
     setReportEmail(email ?? "");
   }, [email]);
+
+  // Re-sync when the server sends a fresh value (after save, or another device).
+  // The status is left alone so the "saved" confirmation survives the refresh.
+  useEffect(() => {
+    setNameDraft(savedName);
+  }, [savedName]);
+
+  const handleSelectCharacter = async (id: CharacterId) => {
+    if (id === characterId || isSavingCharacter) return;
+    setIsSavingCharacter(true);
+    const res = await setCharacterAction(id);
+    setIsSavingCharacter(false);
+    if (!res?.error) router.refresh();
+  };
+
+  const handleRename = async () => {
+    setNameStatus("saving");
+    const res = await renameCharacterAction(nameDraft);
+    if (res?.error) {
+      setNameStatus("error");
+      return;
+    }
+    setNameStatus("saved");
+    router.refresh();
+  };
 
   useEffect(() => {
     // Lazily create the Howl so a missing/broken asset never throws on mount.
@@ -133,6 +183,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="p-6 space-y-8">
+          {/* Companion character — pick the sprite set + name it */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              🐾 {t("characterSection")}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-2">
+              {CHARACTER_IDS.map((id) => {
+                const character = CHARACTERS[id];
+                const isActive = id === characterId;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={!character.available || isSavingCharacter}
+                    onClick={() => handleSelectCharacter(id)}
+                    className={`relative p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isActive
+                        ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                        : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
+                    }`}
+                  >
+                    <span className="text-2xl">{character.emoji}</span>
+                    <span className="text-xs">{character.defaultName}</span>
+                    {!character.available && (
+                      <span className="text-[10px] font-medium text-gray-400">
+                        {t("characterComingSoon")}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3 p-4 border-2 border-theme-card-border rounded-2xl">
+              <div className="shrink-0 w-16 h-20 flex items-end justify-center">
+                <CharacterCompanion characterId={characterId} action="idle" scale={0.1} />
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="text-xs font-bold text-gray-400 block">
+                  {t("characterNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={nameDraft}
+                  maxLength={CHARACTER_NAME_MAX_LENGTH}
+                  onChange={(e) => {
+                    setNameDraft(e.target.value);
+                    setNameStatus("idle");
+                  }}
+                  placeholder={CHARACTERS[characterId].defaultName}
+                  aria-label={t("characterNameLabel")}
+                  className="w-full p-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-fire-orange focus:outline-none text-sm font-bold"
+                />
+                <DuoButton
+                  variant="primary"
+                  size="sm"
+                  disabled={nameStatus === "saving" || nameDraft.trim() === savedName.trim()}
+                  onClick={handleRename}
+                >
+                  {nameStatus === "saving" ? t("characterNameSaving") : t("characterNameSave")}
+                </DuoButton>
+                {nameStatus === "saved" && (
+                  <p className="text-xs font-medium text-green-600">{t("characterNameSaved")}</p>
+                )}
+                {nameStatus === "error" && (
+                  <p className="text-xs font-medium text-red-600">{t("characterNameError")}</p>
+                )}
+                <p className="text-[11px] text-gray-400">{t("characterNameHint")}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Language */}
           <div className="space-y-4">
             <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">

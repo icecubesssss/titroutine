@@ -11,7 +11,7 @@ import {
   addFriendAction,
 } from "@/app/[locale]/actions";
 import { NeighborTaskCard } from "@/components/tasks/NeighborTaskCard";
-import { PandaGirlCompanion } from "@/components/pet/PandaGirlCompanion";
+import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
 
 interface NeighborVisitModalProps {
   isOpen: boolean;
@@ -251,11 +251,17 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                   </div>
                 </div>
 
-                {/* Panda Girl Companion Sprite View */}
+                {/* The neighbour's own companion (their character, their name) */}
                 <div className="relative z-10 flex flex-col items-center">
                   <div className="w-28 h-28 flex items-center justify-center bg-white/40 rounded-full border border-amber-200 backdrop-blur-xs p-2">
-                    <PandaGirlCompanion action="idle" />
+                    <CharacterCompanion
+                      characterId={neighborData.profile.characterId}
+                      action="idle"
+                    />
                   </div>
+                  <span className="mt-1 text-[11px] font-bold text-stone-600">
+                    {neighborData.profile.characterName}
+                  </span>
                   <button
                     type="button"
                     onClick={() => handleSendVibe(neighborData.profile.id)}

@@ -25,7 +25,7 @@ import {
   setVacationModeAction,
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
-import { PandaGirlCompanion } from "@/components/pet/PandaGirlCompanion";
+import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
 import { usePandaMood } from "@/components/home/hooks/usePandaMood";
 import { usePandaAction } from "@/components/home/hooks/usePandaAction";
 import { MinimalCozyRoom } from "@/components/room/MinimalCozyRoom";
@@ -323,9 +323,9 @@ export function HomeView({ data }: { data: DashboardData }) {
                 </button>
               </div>
 
-              {/* Center: Pet Name */}
+              {/* Center: Companion Name (user-renameable, see Settings) */}
               <div className="text-sm font-black text-amber-950 tracking-wide">
-                Panda Girl
+                {data.profile.characterName}
               </div>
 
               {/* Right Side: Menu Button (≡) */}
@@ -399,9 +399,12 @@ export function HomeView({ data }: { data: DashboardData }) {
               >
                 {/* Speech Bubble */}
                 <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
-                  {timerHabit ? "✍️ Đang học tập..." : "Panda Girl"}
+                  {timerHabit ? "✍️ Đang học tập..." : data.profile.characterName}
                 </div>
-                <PandaGirlCompanion action={timerHabit ? "working" : currentAction} scale={0.16} />
+                <CharacterCompanion
+                  characterId={data.profile.characterId}
+                  action={timerHabit || currentAction === "working" ? "working" : "idle"}
+                />
               </div>
             </div>
           </MinimalCozyRoom>
@@ -501,6 +504,9 @@ export function HomeView({ data }: { data: DashboardData }) {
         onThemeChange={handleThemeChange}
         vacationMode={vacationMode}
         onVacationChange={handleVacationToggle}
+        characterId={data.profile.characterId}
+        characterName={data.profile.characterName}
+        hasCustomCharacterName={data.profile.hasCustomCharacterName}
       />
       
       <ShopModal

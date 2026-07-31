@@ -361,7 +361,12 @@
     "reportSent": "Sent! Check your inbox.",
     "reportError": "Failed to send, try again later.",
     "account": "Account",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "visitsSection": "Visits",
+    "visitsTitle": "Allow visits",
+    "visitsOnSub": "Friends can come over and hang out.",
+    "visitsOffSub": "Visits are off — nobody can drop by.",
+    "visitsToggle": "Toggle visits"
   },
   "Rooms": {
     "bedroom": "Bedroom",
@@ -441,5 +446,36 @@
     "gDesc5": "Become aware of 1 taste in your mouth (a sweet hint of tea, or the freshness of a sip of water...).",
     "gStep": "STEP {step} / 5",
     "gIntroTitle": "5-4-3-2-1 Grounding helps you re-anchor yourself to the present moment by connecting with your senses to soothe panic."
+  },
+  "Visits": {
+    "bannerHosting": "{name} is over at your place",
+    "bannerVisiting": "You're over at {name}'s",
+    "end": "End visit",
+    "coopOpen": "Together",
+    "coopClose": "Close",
+    "coopTitle": "Do something together",
+    "coopLocked": "Needs {amount}% bond",
+    "coopLimit": "No turns left today",
+    "claimTitle": "{name} sent {count} moments",
+    "claimBody": "Collect them to grow your bond!",
+    "claim": "Collect",
+    "claimed": "+{amount}% bond 💕",
+    "dismiss": "Dismiss",
+    "kinds": {
+      "greet": "Greet",
+      "study_together": "Study",
+      "play_together": "Play",
+      "hold_hands": "Hold hands",
+      "hug": "Hug",
+      "kiss": "Kiss",
+      "sleep_together": "Sleep"
+    },
+    "errors": {
+      "locked": "Your bond isn't strong enough for this yet.",
+      "daily_limit": "That's all for today — come back tomorrow!",
+      "no_active_visit": "Nobody is here right now.",
+      "visits_closed": "This neighbour has visits turned off.",
+      "generic": "Something went wrong, please try again."
+    }
   }
 }

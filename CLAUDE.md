@@ -29,6 +29,14 @@ cd apps/web && npm run build      # build + typecheck (the real verification)
   broken streak keeps the stage already reached. Both the server (`pet_stage`
   column) and the UI go through `ratchetStage`. Do NOT reintroduce an EXP-based
   stage. `total_exp`/`coins` are economy only.
+- **Visits render the host's room, always.** `visit_sessions` stores
+  `visitor_id`/`host_id`; "I go over" makes me the visitor, "I invite you over"
+  makes me the host. `getDashboard` resolves the row into `activeVisit` with a
+  `partner` field, so the UI never has to work out which side it is on.
+- **Co-op rewards are never written to another user's profile.** `sendCoopAction`
+  pays the actor immediately and leaves an unclaimed `coop_interactions` row; the
+  target collects it with `claimCoopsAction` next time they open the app (same
+  pattern as `social_vibes`).
 
 ---
 
@@ -41,7 +49,7 @@ cd apps/web && npm run build      # build + typecheck (the real verification)
 | DB migrations | `packages/database/migrations/*.sql` | varies |
 | Server data fetch (`getDashboard`) | `apps/web/src/lib/data.ts` | ~250 |
 | All server mutations (barrel) | `apps/web/src/app/[locale]/actions.ts` | ~11 |
-| Server mutations by domain | `apps/web/src/app/[locale]/actions/{profile,habits,pet,shop,adventure,mindfulness,social,memories,tasks}.ts` + `_shared.ts` | 30–335 ea |
+| Server mutations by domain | `apps/web/src/app/[locale]/actions/{profile,character,habits,pet,shop,adventure,mindfulness,social,social_neighbors,visits,memories,tasks}.ts` + `_shared.ts` | 30–335 ea |
 | Auth actions (signIn/signUp/signOut) | `apps/web/src/app/[locale]/login/actions.ts` | ~70 |
 | TypeScript types (`DashboardData`, `Task`, `ProfileSummary`, etc.) | `apps/web/src/lib/types.ts` | ~116 |
 | Pure game rules (streak, stage, coins, feeding, levels) | `apps/web/src/lib/game.ts` | ~206 |
@@ -113,6 +121,8 @@ pet-room top half inline, delegating the rest to child components + hooks below.
 | Component | File | Purpose |
 |---|---|---|
 | VibeInboxModal | `components/social/VibeInboxModal.tsx` | Social vibes inbox |
+| NeighborVisitModal | `components/social/NeighborVisitModal.tsx` | Neighbour browser + "go over" / "invite over" |
+| VisitLayer | `components/social/VisitLayer.tsx` | In-room visit banner, co-op dock, co-op reward claim |
 | TreeTownModal | `components/social/TreeTownModal.tsx` | Town/community view |
 
 #### Adventure
@@ -160,6 +170,9 @@ pet-room top half inline, delegating the rest to child components + hooks below.
 | memories.ts | `lib/memories.ts` | `eligibleMemoryKeys` |
 | neighbors.ts | `lib/neighbors.ts` | Neighbor system logic |
 | game_interactions.ts | `lib/game_interactions.ts` | Pet interaction kinds & effects |
+| characters.ts | `lib/characters.ts` | Companion registry: `CHARACTERS`, `resolveSheet`, `hasSheet`, `characterDisplayName` |
+| coop.ts | `lib/coop.ts` | Co-op kinds, rewards, daily caps, affection gates (`coopBlockReason`) |
+| coop_server.ts | `lib/coop_server.ts` | `countCoopsSentToday` — server-only, shared by loader + actions |
 | adventure_stories.ts | `lib/adventure_stories.ts` | Adventure story data |
 | analytics.ts | `lib/analytics.ts` | Analytics data processing |
 
@@ -208,7 +221,9 @@ the import path `@/app/[locale]/actions` is unchanged. Shared helpers
 All actions return `{ error?: string }`. **Which file:** `profile.ts`
 (timezone/vacation/checkin/freeze), `habits.ts`, `pet.ts` (feed/interact/clean),
 `shop.ts` (buy/equip/decor/consumable/focus-item), `adventure.ts`,
-`mindfulness.ts` (mood/breathing), `social.ts`, `memories.ts`, `tasks.ts`.
+`mindfulness.ts` (mood/breathing), `social.ts`, `social_neighbors.ts`,
+`character.ts` (swap/rename companion, visit privacy),
+`visits.ts` (visit sessions + co-op), `memories.ts`, `tasks.ts`.
 The `Line` column below is historical (from the old single file) — grep the
 action name inside its domain file.
 
@@ -237,6 +252,14 @@ action name inside its domain file.
 | `claimVibeAction` | 1161 | Claim received vibe |
 | `getAiDiariesAction` | 1198 | Get AI-generated diaries |
 | `claimKeepsakeAction` | 1212 | Claim memory keepsake |
+| `setCharacterAction` | — | Swap companion character (refuses unavailable ones) |
+| `renameCharacterAction` | — | Rename companion (empty = back to default name) |
+| `setVisitPrivacyAction` | — | `friends` / `nobody` — who may drop by |
+| `startVisitAction` | — | Open a visit: `go_over` or `invite_over` |
+| `endVisitAction` | — | Close the visit the user is in, from either side |
+| `markVisitSeenAction` | — | Clear the host's "someone came over" badge |
+| `sendCoopAction` | — | Do a co-op action; actor is paid now, target on claim |
+| `claimCoopsAction` | — | Collect co-op rewards received while away |
 | `createTaskAction` | 1243 | Create new task |
 | `deleteTaskAction` | 1272 | Delete task |
 | `updateTaskDetailsAction` | 1288 | Update task title/notes/priority/etc |

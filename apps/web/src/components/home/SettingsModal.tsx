@@ -7,7 +7,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { Howl } from "howler";
 import { DuoButton } from "../ui/DuoButton";
 import { signOut } from "@/app/[locale]/login/actions";
-import { renameCharacterAction, setCharacterAction } from "@/app/[locale]/actions";
+import {
+  renameCharacterAction,
+  setCharacterAction,
+  setVisitPrivacyAction,
+} from "@/app/[locale]/actions";
+import type { VisitPrivacy } from "@/lib/types";
 import { CharacterCompanion } from "../pet/CharacterCompanion";
 import {
   CHARACTERS,
@@ -48,6 +53,8 @@ interface SettingsModalProps {
   characterName?: string;
   /** True when `characterName` is a user-set override rather than the default. */
   hasCustomCharacterName?: boolean;
+  /** Who may drop by: 'friends' or 'nobody'. */
+  visitPrivacy?: VisitPrivacy;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -70,6 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   characterId = DEFAULT_CHARACTER_ID,
   characterName,
   hasCustomCharacterName = false,
+  visitPrivacy = "friends",
 }) => {
   const t = useTranslations("Settings");
   const locale = useLocale();
@@ -88,6 +96,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [nameDraft, setNameDraft] = useState(savedName);
   const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isSavingCharacter, setIsSavingCharacter] = useState(false);
+  // Optimistic mirror so the switch flips instantly, then re-syncs from the server.
+  const [visitsOpen, setVisitsOpen] = useState(visitPrivacy !== "nobody");
 
   useEffect(() => {
     setReportEmail(email ?? "");
@@ -98,6 +108,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     setNameDraft(savedName);
   }, [savedName]);
+
+  useEffect(() => {
+    setVisitsOpen(visitPrivacy !== "nobody");
+  }, [visitPrivacy]);
+
+  const handleVisitPrivacyToggle = async () => {
+    const next = !visitsOpen;
+    setVisitsOpen(next);
+    const res = await setVisitPrivacyAction(next ? "friends" : "nobody");
+    if (res?.error) {
+      setVisitsOpen(!next); // roll back — the server kept the old value
+      return;
+    }
+    router.refresh();
+  };
 
   const handleSelectCharacter = async (id: CharacterId) => {
     if (id === characterId || isSavingCharacter) return;
@@ -253,6 +278,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
                 <p className="text-[11px] text-gray-400">{t("characterNameHint")}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Neighbour visits — who may bring their companion into this room */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              🚪 {t("visitsSection")}
+            </h3>
+            <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-xl text-2xl leading-none ${
+                    visitsOpen ? "bg-amber-100" : "bg-gray-100 grayscale"
+                  }`}
+                >
+                  🏡
+                </div>
+                <div>
+                  <div className="font-bold text-earth-text">{t("visitsTitle")}</div>
+                  <div className="text-xs text-gray-400 max-w-[180px]">
+                    {visitsOpen ? t("visitsOnSub") : t("visitsOffSub")}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                aria-label={t("visitsToggle")}
+                title={t("visitsToggle")}
+                onClick={handleVisitPrivacyToggle}
+                className={`relative w-14 h-8 rounded-full transition-colors duration-300 shrink-0 ${
+                  visitsOpen ? "bg-amber-500" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                    visitsOpen ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
             </div>
           </div>
 

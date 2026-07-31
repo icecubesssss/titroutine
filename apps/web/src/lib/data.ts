@@ -15,7 +15,18 @@ import {
 import { unlockedRooms, allRoomsUnlocked } from "./rooms";
 import { eligibleMemoryKeys } from "./memories";
 import { characterDisplayName, getCharacter } from "./characters";
-import type { DashboardData, HabitConfig, HabitType, HabitWithLog, HabitFrequency, TimeOfDay } from "./types";
+import { isCoopKind } from "./coop";
+import { countCoopsSentToday } from "./coop_server";
+import type {
+  ActiveVisit,
+  DashboardData,
+  HabitConfig,
+  HabitType,
+  HabitWithLog,
+  HabitFrequency,
+  TimeOfDay,
+  VisitParticipant,
+} from "./types";
 
 interface HabitRow {
   id: string;
@@ -156,7 +167,10 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     { data: vibeRows },
     { data: beanRows },
     { data: taskRows },
-    { data: allCompletedLogs }
+    { data: allCompletedLogs },
+    { data: visitRow },
+    { data: coopRows },
+    coopUsedToday
   ] = await Promise.all([
     supabase
       .from("habits")
@@ -200,8 +214,62 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .select("habit_id, date")
       .eq("user_id", user.id)
       .eq("is_completed", true)
-      .order("date", { ascending: false })
+      .order("date", { ascending: false }),
+    // The visit in progress on either side — the room shown is always the host's.
+    // Limited to one: a stray second active row (two people inviting at the same
+    // instant) should show the newest visit, not blow up the whole dashboard.
+    supabase
+      .from("visit_sessions")
+      .select("id, visitor_id, host_id, initiated_by, started_at")
+      .eq("status", "active")
+      .or(`visitor_id.eq.${user.id},host_id.eq.${user.id}`)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Co-op rewards sent to us that are still waiting to be collected.
+    supabase
+      .from("coop_interactions")
+      .select("id, kind, created_at, profiles!coop_interactions_actor_id_fkey(username, character_id, character_name)")
+      .eq("target_id", user.id)
+      .is("claimed_at", null)
+      .order("created_at", { ascending: false }),
+    countCoopsSentToday(supabase, user.id, timezone)
   ]);
+
+  // Both sides of the visit, fetched in one go. Kept as a separate round trip
+  // rather than a triple self-join hint on visit_sessions (visitor/host/initiator
+  // all point at profiles), which is far easier to get wrong.
+  let activeVisit: ActiveVisit | null = null;
+  if (visitRow) {
+    const { data: participantRows } = await supabase
+      .from("profiles")
+      .select("id, username, character_id, character_name")
+      .in("id", [visitRow.visitor_id, visitRow.host_id]);
+
+    const toParticipant = (id: string): VisitParticipant => {
+      const row = (participantRows ?? []).find((p) => p.id === id);
+      return {
+        id,
+        username: row?.username ?? null,
+        characterId: getCharacter(row?.character_id).id,
+        characterName: characterDisplayName(row?.character_id, row?.character_name),
+      };
+    };
+
+    const host = toParticipant(visitRow.host_id);
+    const visitor = toParticipant(visitRow.visitor_id);
+    const isHost = visitRow.host_id === user.id;
+
+    activeVisit = {
+      id: visitRow.id,
+      host,
+      visitor,
+      isHost,
+      initiatedByMe: visitRow.initiated_by === user.id,
+      startedAt: visitRow.started_at,
+      partner: isHost ? visitor : host,
+    };
+  }
 
   // Grant a starter kit ONLY to genuinely new users (never fed before).
   // Users who consumed all items must buy more from the Shop.
@@ -385,5 +453,22 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       createdAt: t.created_at,
       updatedAt: t.updated_at,
     })),
+    activeVisit,
+    pendingCoops: (coopRows ?? []).flatMap((c) => {
+      if (!isCoopKind(c.kind)) return [];
+      const actor = (c as unknown as {
+        profiles: { username: string | null; character_id: string | null; character_name: string | null } | null;
+      }).profiles;
+      return [
+        {
+          id: c.id,
+          kind: c.kind,
+          actorUsername: actor?.username ?? null,
+          actorCharacterName: characterDisplayName(actor?.character_id, actor?.character_name),
+          createdAt: c.created_at,
+        },
+      ];
+    }),
+    coopUsedToday,
   };
 }

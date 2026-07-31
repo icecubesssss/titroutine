@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
-import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, User } from "lucide-react";
+import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, User, DoorOpen } from "lucide-react";
 import type { NeighborSummary, NeighborData, Task } from "@/lib/types";
 import {
   getNeighborsListAction,
@@ -9,6 +9,7 @@ import {
   copyNeighborTaskAction,
   sendVibeAction,
   addFriendAction,
+  startVisitAction,
 } from "@/app/[locale]/actions";
 import { NeighborTaskCard } from "@/components/tasks/NeighborTaskCard";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
@@ -18,6 +19,8 @@ interface NeighborVisitModalProps {
   onClose: () => void;
   myFriendCode: string;
   myTasks?: Task[];
+  /** Fired once a visit session opens, so the room can re-render with both companions. */
+  onVisitStarted?: () => void;
 }
 
 export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
@@ -25,6 +28,7 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   onClose,
   myFriendCode,
   myTasks = [],
+  onVisitStarted,
 }) => {
   const [neighbors, setNeighbors] = useState<NeighborSummary[]>([]);
   const [selectedNeighborId, setSelectedNeighborId] = useState<string | null>(null);
@@ -37,6 +41,7 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "habits">("tasks");
   const [taskFilter, setTaskFilter] = useState<"all" | "mine" | "neighbor">("all");
+  const [visitError, setVisitError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Load neighbor list when modal opens
@@ -108,6 +113,27 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
 
   const handleSendVibe = async (neighborId: string) => {
     await sendVibeAction(neighborId, "cheer");
+  };
+
+  // Opening a visit closes the modal so the user lands straight in the room where
+  // both companions are now standing.
+  const handleStartVisit = (neighborId: string, mode: "go_over" | "invite_over") => {
+    setVisitError(null);
+    startTransition(async () => {
+      const res = await startVisitAction(neighborId, mode);
+      if (res?.error) {
+        setVisitError(
+          res.error === "visits_closed"
+            ? "Hàng xóm này đang tắt tính năng ghé thăm."
+            : res.error === "neighbor_busy"
+            ? "Hàng xóm đang ở nhà người khác rồi."
+            : "Không thể mở chuyến ghé thăm."
+        );
+        return;
+      }
+      onVisitStarted?.();
+      onClose();
+    });
   };
 
   return (
@@ -270,6 +296,33 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                     <Sparkles size={13} />
                     <span>Cổ vũ ✨</span>
                   </button>
+
+                  {/* Open a visit session: my companion goes there, or theirs comes here */}
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleStartVisit(neighborData.profile.id, "go_over")}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-[11px] shadow-sm transition-transform hover:scale-105 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <DoorOpen size={12} />
+                      <span>Sang chơi</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleStartVisit(neighborData.profile.id, "invite_over")}
+                      className="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-700 border border-amber-300 font-bold rounded-xl text-[11px] shadow-sm transition-transform hover:scale-105 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Home size={12} />
+                      <span>Mời qua</span>
+                    </button>
+                  </div>
+                  {visitError && (
+                    <span className="mt-1 text-[10px] font-semibold text-red-600 text-center max-w-[150px]">
+                      {visitError}
+                    </span>
+                  )}
                 </div>
               </div>
 

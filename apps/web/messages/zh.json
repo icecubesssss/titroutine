@@ -321,7 +321,12 @@
     "reportSent": "已发送！请查收邮箱。",
     "reportError": "发送失败，请稍后再试。",
     "account": "账户",
-    "signOut": "退出登录"
+    "signOut": "退出登录",
+    "visitsSection": "拜访",
+    "visitsTitle": "允许拜访",
+    "visitsOnSub": "好友可以过来一起玩。",
+    "visitsOffSub": "已关闭拜访，没有人可以过来。",
+    "visitsToggle": "开关拜访"
   },
   "Rooms": {
     "bedroom": "卧室",
@@ -401,5 +406,36 @@
     "gDesc5": "感受口腔里的一种味道（茶水的微甜、刚刚喝下的一口清水的清凉……）。",
     "gStep": "步骤 {step} / 5",
     "gIntroTitle": "5-4-3-2-1 降落法通过重新连接感官，帮助您快速平复惊慌并回到当下。"
+  },
+  "Visits": {
+    "bannerHosting": "{name} 正在你家做客",
+    "bannerVisiting": "你正在 {name} 家做客",
+    "end": "结束拜访",
+    "coopOpen": "一起玩",
+    "coopClose": "关闭",
+    "coopTitle": "一起做点什么",
+    "coopLocked": "需要 {amount}% 亲密度",
+    "coopLimit": "今天次数已用完",
+    "claimTitle": "{name} 送来了 {count} 个瞬间",
+    "claimBody": "领取以提升亲密度！",
+    "claim": "领取",
+    "claimed": "+{amount}% 亲密度 💕",
+    "dismiss": "忽略",
+    "kinds": {
+      "greet": "打招呼",
+      "study_together": "一起学习",
+      "play_together": "一起玩",
+      "hold_hands": "牵手",
+      "hug": "拥抱",
+      "kiss": "亲吻",
+      "sleep_together": "一起睡"
+    },
+    "errors": {
+      "locked": "亲密度还不够哦。",
+      "daily_limit": "今天的次数用完了，明天再来吧！",
+      "no_active_visit": "现在没有人在这里。",
+      "visits_closed": "这位邻居关闭了拜访功能。",
+      "generic": "出错了，请再试一次。"
+    }
   }
 }

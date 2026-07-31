@@ -3,10 +3,15 @@
 // dropping sheets into `public/assets/characters/<id>/` and adding one entry to
 // CHARACTERS; no component needs to change, and the user can swap with one tap.
 //
-// Sheet convention (same as the original Panda Girl idle sheet):
-//   frame 563.2 × 768 · 5 cols × 2 rows = 10 frames · sheet 2816 × 1536 · transparent PNG
-// Duo sheets (two characters drawn together) use the same grid; set `duo: true`
-// so the renderer knows not to also draw a partner sprite next to it.
+// Sheet convention: transparent PNG, frame height 768, laid out left-to-right
+// then top-to-bottom. Frame WIDTH varies by art batch, so every sheet declares
+// its own grid rather than assuming one:
+//   Panda Girl idle/working  563.2 × 768 · 5 × 2 · sheet 2816 × 1536
+//   Tiger Boy idle           550.4 × 768 · 5 × 2 · sheet 2752 × 1536
+//   wave (both characters)     550 × 768 · 2 × 1 · sheet 1100 × 768
+// Duo sheets (two characters drawn in one image) set `duo: true` so the renderer
+// knows not to also draw a partner sprite next to it. None exist yet — co-op
+// falls back to both companions playing a solo action in sync (see lib/coop.ts).
 
 /** Registry keys. Persisted in `profiles.character_id`. */
 export type CharacterId = "pandagirl" | "tigerboy";
@@ -67,13 +72,21 @@ export interface CharacterConfig {
   actions: Partial<Record<CharacterAction, SpriteSheetConfig>>;
 }
 
-/** Standard sheet geometry — one place to change if the export size ever moves. */
-const SHEET_W = 2816;
+/**
+ * Standard sheet geometry — one place to change if the export size ever moves.
+ * Frame height is 768 everywhere; only the width varies between art batches, so
+ * each sheet below passes its own `frameWidth`/`cols` when it differs.
+ */
 const SHEET_H = 1536;
 const COLS = 5;
 const ROWS = 2;
-const FRAME_W = SHEET_W / COLS; // 563.2
 const FRAME_H = SHEET_H / ROWS; // 768
+/** Panda Girl's original batch: 2816 wide over 5 columns. */
+const FRAME_W = 2816 / COLS; // 563.2
+/** Tiger Boy's batch came out 2752 wide over the same 5 columns. */
+const TIGER_FRAME_W = 2752 / COLS; // 550.4
+/** The wave sheets were cut to a flat 550 per frame, 2 frames on one row. */
+const WAVE_FRAME_W = 550;
 
 /** Build a standard-geometry sheet config from a character folder + file name. */
 function sheet(
@@ -92,6 +105,17 @@ function sheet(
   };
 }
 
+/** A two-frame wave loop (arm raised → arm down), cut from the greeting art. */
+function waveSheet(characterId: CharacterId): SpriteSheetConfig {
+  return sheet(characterId, "wave.png", {
+    frameWidth: WAVE_FRAME_W,
+    cols: 2,
+    rows: 1,
+    totalFrames: 2,
+    fps: 3,
+  });
+}
+
 export const CHARACTERS: Record<CharacterId, CharacterConfig> = {
   pandagirl: {
     id: "pandagirl",
@@ -104,14 +128,11 @@ export const CHARACTERS: Record<CharacterId, CharacterConfig> = {
     actions: {
       idle: sheet("pandagirl", "idle.png"),
       working: sheet("pandagirl", "working.png"),
+      wave: waveSheet("pandagirl"),
       // Sheets still to be drawn (see the asset list). Uncomment as they land:
       // walk: sheet("pandagirl", "walk_side.png"),
       // sit: sheet("pandagirl", "sit_floor.png"),
-      // wave: sheet("pandagirl", "wave.png"),
-      // duo_greet: sheet("pandagirl", "duo_greet.png", { duo: true }),
-      // duo_study: sheet("pandagirl", "duo_study.png", { duo: true }),
       // duo_sleep: sheet("pandagirl", "duo_sleep.png", { duo: true, fps: 4 }),
-      // duo_play: sheet("pandagirl", "duo_play.png", { duo: true }),
       // duo_hug: sheet("pandagirl", "duo_hug.png", { duo: true }),
       // duo_kiss: sheet("pandagirl", "duo_kiss.png", { duo: true }),
       // duo_hold_hands: sheet("pandagirl", "duo_hold_hands.png", { duo: true }),
@@ -123,11 +144,14 @@ export const CHARACTERS: Record<CharacterId, CharacterConfig> = {
     emoji: "🐯",
     defaultScale: 0.16,
     duoScale: 0.26,
-    // Flip to true once /assets/characters/tigerboy/idle.png exists, and add the
-    // action entries below — that is the whole integration.
-    available: false,
+    available: true,
     fallbackAction: "idle",
-    actions: {},
+    actions: {
+      idle: sheet("tigerboy", "idle.png", { frameWidth: TIGER_FRAME_W }),
+      wave: waveSheet("tigerboy"),
+      // No `working` sheet yet — resolveSheet falls back to idle, so Tiger Boy
+      // simply stands still during a focus timer instead of typing.
+    },
   },
 };
 
@@ -140,6 +164,15 @@ export function isCharacterId(value: unknown): value is CharacterId {
 /** Never throws — unknown/legacy values fall back to the default character. */
 export function getCharacter(id: string | null | undefined): CharacterConfig {
   return isCharacterId(id) ? CHARACTERS[id] : CHARACTERS[DEFAULT_CHARACTER_ID];
+}
+
+/**
+ * Whether this character actually has a sheet drawn for the action — i.e. whether
+ * `resolveSheet` would return the real thing rather than the idle fallback. Lets
+ * callers skip an animation instead of playing a silent no-op.
+ */
+export function hasSheet(id: string | null | undefined, action: CharacterAction): boolean {
+  return Boolean(getCharacter(id).actions[action]);
 }
 
 /**

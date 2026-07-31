@@ -361,7 +361,12 @@
     "reportSent": "Đã gửi! Kiểm tra hộp thư nhé.",
     "reportError": "Gửi thất bại, thử lại sau.",
     "account": "Tài khoản",
-    "signOut": "Đăng xuất"
+    "signOut": "Đăng xuất",
+    "visitsSection": "Ghé thăm",
+    "visitsTitle": "Cho phép ghé thăm",
+    "visitsOnSub": "Bạn bè có thể sang chơi cùng bạn.",
+    "visitsOffSub": "Bạn đang tắt ghé thăm, không ai sang được.",
+    "visitsToggle": "Bật/tắt ghé thăm"
   },
   "Rooms": {
     "bedroom": "Phòng riêng",
@@ -441,5 +446,36 @@
     "gDesc5": "Nhận thức 1 hương vị trong khoang miệng bạn (vị trà ngọt nhẹ, vị mát của ngụm nước vừa uống...).",
     "gStep": "BƯỚC {step} / 5",
     "gIntroTitle": "Phép neo mặt đất (5-4-3-2-1 Grounding) giúp bạn nhanh chóng thoát khỏi cảm giác hoảng loạn bằng cách kết nối lại với giác quan."
+  },
+  "Visits": {
+    "bannerHosting": "{name} đang ở nhà bạn",
+    "bannerVisiting": "Bạn đang ở nhà {name}",
+    "end": "Kết thúc ghé thăm",
+    "coopOpen": "Cùng nhau",
+    "coopClose": "Đóng",
+    "coopTitle": "Làm gì cùng nhau",
+    "coopLocked": "Cần {amount}% thân thiết",
+    "coopLimit": "Hết lượt hôm nay",
+    "claimTitle": "{name} đã gửi {count} khoảnh khắc",
+    "claimBody": "Nhận để tăng độ thân thiết nhé!",
+    "claim": "Nhận",
+    "claimed": "+{amount}% thân thiết 💕",
+    "dismiss": "Bỏ qua",
+    "kinds": {
+      "greet": "Chào hỏi",
+      "study_together": "Học cùng",
+      "play_together": "Chơi cùng",
+      "hold_hands": "Nắm tay",
+      "hug": "Ôm",
+      "kiss": "Hôn",
+      "sleep_together": "Ngủ cùng"
+    },
+    "errors": {
+      "locked": "Chưa đủ thân thiết để làm điều này.",
+      "daily_limit": "Hôm nay hết lượt rồi, mai quay lại nhé!",
+      "no_active_visit": "Không có ai ở đây cả.",
+      "visits_closed": "Hàng xóm này đang tắt ghé thăm.",
+      "generic": "Có lỗi xảy ra, thử lại nhé."
+    }
   }
 }

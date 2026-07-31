@@ -1,6 +1,7 @@
 import type { PetMood } from "./game";
 import type { RoomId } from "./rooms";
 import type { CharacterId } from "./characters";
+import type { CoopKind } from "./coop";
 
 export type FrequencyType = "daily" | "specific_days" | "x_times_a_week";
 
@@ -94,6 +95,43 @@ export interface ProfileSummary {
 
 export type VisitPrivacy = "friends" | "nobody";
 
+// ── Neighbour visits & co-op (migration 11) ───────────────────────────────────
+
+/** One side of a visit, with everything needed to draw their companion. */
+export interface VisitParticipant {
+  id: string;
+  username: string | null;
+  characterId: CharacterId;
+  characterName: string;
+}
+
+/**
+ * The visit the current user is currently part of, on either side. The room being
+ * rendered is ALWAYS the host's room, so `isHost` decides whether the user is
+ * looking at their own place with a guest in it, or at someone else's.
+ */
+export interface ActiveVisit {
+  id: string;
+  host: VisitParticipant;
+  visitor: VisitParticipant;
+  /** True when the current user is the host. */
+  isHost: boolean;
+  /** True when the current user opened the session ("I went over" / "I invited"). */
+  initiatedByMe: boolean;
+  startedAt: string;
+  /** The other person — whichever side the current user is not. */
+  partner: VisitParticipant;
+}
+
+/** A co-op interaction someone sent us whose reward is still waiting. */
+export interface PendingCoop {
+  id: string;
+  kind: CoopKind;
+  actorUsername: string | null;
+  actorCharacterName: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   userId: string;
@@ -138,6 +176,12 @@ export interface DashboardData {
   pendingVibes: SocialVibe[];
   moodLogs?: Record<string, { mood: string; activities: string[]; note: string | null }>;
   tasks: Task[];
+  /** The visit in progress on either side, or null when nobody is over. */
+  activeVisit: ActiveVisit | null;
+  /** Co-op rewards sent to us while we were away, waiting to be claimed. */
+  pendingCoops: PendingCoop[];
+  /** How many times we already sent each co-op kind today (drives the daily cap). */
+  coopUsedToday: Partial<Record<CoopKind, number>>;
 }
 
 export interface NeighborSummary {

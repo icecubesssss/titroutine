@@ -26,11 +26,17 @@ import {
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
+import { hasSheet } from "@/lib/characters";
 import { usePandaMood } from "@/components/home/hooks/usePandaMood";
 import { usePandaAction } from "@/components/home/hooks/usePandaAction";
 import { MinimalCozyRoom } from "@/components/room/MinimalCozyRoom";
 import { NeighborVisitModal } from "@/components/social/NeighborVisitModal";
+import { VisitLayer } from "@/components/social/VisitLayer";
+import { COOP_KINDS, type CoopKind } from "@/lib/coop";
 
+
+/** How long a co-op duo animation plays before both companions go back to idle. */
+const COOP_ANIMATION_MS = 4000;
 
 export function HomeView({ data }: { data: DashboardData }) {
   const locale = useLocale();
@@ -50,6 +56,41 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Co-op animation currently playing in the room. Set when a co-op action is
+  // sent, cleared on a timer so the companions return to their idle loop.
+  const [activeCoop, setActiveCoop] = useState<CoopKind | null>(null);
+  const visit = data.activeVisit;
+  // Duo sheets are still being drawn. Until one exists, playing it would just
+  // swap in the idle fallback and make the partner vanish — so keep both sprites
+  // and let the emoji in the speech bubbles carry the moment instead.
+  const coopConfig = activeCoop ? COOP_KINDS[activeCoop] : null;
+  const coopDuoReady = coopConfig
+    ? hasSheet(data.profile.characterId, coopConfig.action)
+    : false;
+
+  /**
+   * Without a duo sheet, both companions play the co-op's solo action in sync
+   * (greeting = both wave). Resolved per character, since one may have the sheet
+   * while the other doesn't — whoever is missing it just keeps idling.
+   */
+  const coopSoloFor = (characterId: string) =>
+    !coopDuoReady && coopConfig?.soloAction && hasSheet(characterId, coopConfig.soloAction)
+      ? coopConfig.soloAction
+      : null;
+  const myCoopAction = coopSoloFor(data.profile.characterId);
+  const partnerCoopAction = visit ? coopSoloFor(visit.partner.characterId) : null;
+
+  useEffect(() => {
+    if (!activeCoop) return;
+    const timeoutId = setTimeout(() => setActiveCoop(null), COOP_ANIMATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [activeCoop]);
+
+  // A visit that ended elsewhere shouldn't leave a duo animation frozen mid-room.
+  useEffect(() => {
+    if (!visit) setActiveCoop(null);
+  }, [visit]);
 
   
   // Theme state: default is 'matcha' to highlight the upgraded aesthetic!
@@ -392,21 +433,69 @@ export function HomeView({ data }: { data: DashboardData }) {
             </div>
 
             {/* Floor Space: Panda Girl Standing / Sitting ON THE FULL ROOM FLOOR CARPET */}
-            <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-auto">
-              <div
-                className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
-                onClick={() => setIsShopOpen(true)}
-              >
-                {/* Speech Bubble */}
-                <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
-                  {timerHabit ? "✍️ Đang học tập..." : data.profile.characterName}
+            <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 z-20 flex items-end justify-center gap-1 pointer-events-auto">
+              {activeCoop && coopDuoReady ? (
+                /* Co-op in progress: one duo sheet draws BOTH companions together. */
+                <div className="relative flex flex-col items-center">
+                  <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
+                    {COOP_KINDS[activeCoop].emoji} {data.profile.characterName}
+                  </div>
+                  <CharacterCompanion
+                    characterId={data.profile.characterId}
+                    action={COOP_KINDS[activeCoop].action}
+                  />
                 </div>
-                <CharacterCompanion
-                  characterId={data.profile.characterId}
-                  action={timerHabit || currentAction === "working" ? "working" : "idle"}
-                />
-              </div>
+              ) : (
+                <>
+                  <div
+                    className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
+                    onClick={() => setIsShopOpen(true)}
+                  >
+                    {/* Speech Bubble — shows the co-op emoji while one is playing. */}
+                    <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
+                      {activeCoop
+                        ? `${COOP_KINDS[activeCoop].emoji} ${data.profile.characterName}`
+                        : timerHabit
+                        ? "✍️ Đang học tập..."
+                        : data.profile.characterName}
+                    </div>
+                    <CharacterCompanion
+                      characterId={data.profile.characterId}
+                      action={
+                        myCoopAction ??
+                        (timerHabit || currentAction === "working" ? "working" : "idle")
+                      }
+                    />
+                  </div>
+
+                  {/* The other side of an active visit, standing in the same room. */}
+                  {visit && (
+                    <div className="relative flex flex-col items-center animate-in fade-in slide-in-from-right-4 duration-500">
+                      <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-sky-900 shadow-xs border border-sky-200/80">
+                        {activeCoop
+                          ? `${COOP_KINDS[activeCoop].emoji} ${visit.partner.characterName}`
+                          : visit.partner.characterName}
+                      </div>
+                      <CharacterCompanion
+                        characterId={visit.partner.characterId}
+                        action={partnerCoopAction ?? "idle"}
+                        flipX
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+
+            {/* Visit banner + co-op dock + unclaimed co-op rewards */}
+            <VisitLayer
+              visit={visit}
+              pendingCoops={data.pendingCoops}
+              coopUsedToday={data.coopUsedToday}
+              affection={data.profile.affection}
+              onCoopPlayed={setActiveCoop}
+              onRefresh={() => router.refresh()}
+            />
           </MinimalCozyRoom>
         </section>
 
@@ -507,6 +596,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         characterId={data.profile.characterId}
         characterName={data.profile.characterName}
         hasCustomCharacterName={data.profile.hasCustomCharacterName}
+        visitPrivacy={data.profile.visitPrivacy}
       />
       
       <ShopModal
@@ -562,6 +652,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         onClose={() => setIsNeighborVisitOpen(false)}
         myFriendCode={data.profile.id}
         myTasks={data.tasks}
+        onVisitStarted={() => router.refresh()}
       />
 
       {/* Room switcher / house explorer */}

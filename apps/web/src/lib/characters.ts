@@ -148,9 +148,8 @@ export const CHARACTERS: Record<CharacterId, CharacterConfig> = {
     fallbackAction: "idle",
     actions: {
       idle: sheet("tigerboy", "idle.png", { frameWidth: TIGER_FRAME_W }),
+      working: sheet("tigerboy", "working.png"),
       wave: waveSheet("tigerboy"),
-      // No `working` sheet yet — resolveSheet falls back to idle, so Tiger Boy
-      // simply stands still during a focus timer instead of typing.
     },
   },
 };

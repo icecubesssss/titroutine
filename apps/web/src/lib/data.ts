@@ -269,6 +269,48 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       startedAt: visitRow.started_at,
       partner: isHost ? visitor : host,
     };
+  } else {
+    // Check if an NPC visit session is active via cookie
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      const npcCookieRaw = cookieStore.get("npc_visit")?.value;
+      if (npcCookieRaw) {
+        const npcVisit = JSON.parse(npcCookieRaw);
+        const npcId = npcVisit.neighborId;
+        const mode = npcVisit.mode;
+
+        const npcProfiles: Record<string, VisitParticipant> = {
+          mochi: { id: "mochi", username: "Mochi 🍡", characterId: "pandagirl", characterName: "Mochi 🍡" },
+          biscuit: { id: "biscuit", username: "Biscuit 🍪", characterId: "tigerboy", characterName: "Biscuit 🍪" },
+          luna: { id: "luna", username: "Luna 🌙", characterId: "pandagirl", characterName: "Luna 🌙" },
+        };
+
+        const npcParticipant = npcProfiles[npcId] || npcProfiles.mochi;
+        const myParticipant: VisitParticipant = {
+          id: user.id,
+          username: profile?.username ?? "Tôi",
+          characterId: getCharacter(profile?.character_id).id,
+          characterName: characterDisplayName(profile?.character_id, profile?.character_name),
+        };
+
+        const isHost = mode === "invite_over";
+        const host = isHost ? myParticipant : npcParticipant;
+        const visitor = isHost ? npcParticipant : myParticipant;
+
+        activeVisit = {
+          id: `npc_${npcId}`,
+          host,
+          visitor,
+          isHost,
+          initiatedByMe: true,
+          startedAt: npcVisit.startedAt || new Date().toISOString(),
+          partner: npcParticipant,
+        };
+      }
+    } catch {
+      // Ignore cookie read errors
+    }
   }
 
   // Grant a starter kit ONLY to genuinely new users (never fed before).

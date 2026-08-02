@@ -38,9 +38,21 @@ export async function startVisitAction(
   if (!neighborId || neighborId === userId) return { error: "invalid_neighbor" };
   if (mode !== "go_over" && mode !== "invite_over") return { error: "invalid_mode" };
 
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+
   if (neighborId === "mochi" || neighborId === "biscuit" || neighborId === "luna") {
+    await endActiveSessionsFor(supabase, userId);
+    cookieStore.set(
+      "npc_visit",
+      JSON.stringify({ neighborId, mode, startedAt: new Date().toISOString() }),
+      { path: "/" }
+    );
+    revalidatePath("/", "layout");
     return {};
   }
+
+  cookieStore.delete("npc_visit");
 
   const { data: neighbor } = await supabase
     .from("profiles")
@@ -79,6 +91,14 @@ export async function startVisitAction(
 export async function endVisitAction(): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
+
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    cookieStore.delete("npc_visit");
+  } catch {
+    // Ignore cookie errors
+  }
 
   await endActiveSessionsFor(supabase, userId);
 
@@ -121,8 +141,16 @@ export async function sendCoopAction(kind: string): Promise<ActionResult> {
     .limit(1)
     .maybeSingle();
 
-  if (!session) return { error: "no_active_visit" };
-  const targetId = session.visitor_id === userId ? session.host_id : session.visitor_id;
+  let isNpcVisit = false;
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    isNpcVisit = Boolean(cookieStore.get("npc_visit")?.value);
+  } catch {
+    // Ignore cookie errors
+  }
+
+  if (!session && !isNpcVisit) return { error: "no_active_visit" };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -137,13 +165,16 @@ export async function sendCoopAction(kind: string): Promise<ActionResult> {
   const blocked = coopBlockReason(kind, affection, usedToday);
   if (blocked) return { error: blocked };
 
-  const { error: insertError } = await supabase.from("coop_interactions").insert({
-    session_id: session.id,
-    actor_id: userId,
-    target_id: targetId,
-    kind,
-  });
-  if (insertError) return { error: insertError.message };
+  if (session) {
+    const targetId = session.visitor_id === userId ? session.host_id : session.visitor_id;
+    const { error: insertError } = await supabase.from("coop_interactions").insert({
+      session_id: session.id,
+      actor_id: userId,
+      target_id: targetId,
+      kind,
+    });
+    if (insertError) return { error: insertError.message };
+  }
 
   const { error: profileError } = await supabase
     .from("profiles")

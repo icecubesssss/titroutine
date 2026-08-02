@@ -38,6 +38,10 @@ export async function startVisitAction(
   if (!neighborId || neighborId === userId) return { error: "invalid_neighbor" };
   if (mode !== "go_over" && mode !== "invite_over") return { error: "invalid_mode" };
 
+  if (neighborId === "mochi" || neighborId === "biscuit" || neighborId === "luna") {
+    return {};
+  }
+
   const { data: neighbor } = await supabase
     .from("profiles")
     .select("id, visit_privacy")

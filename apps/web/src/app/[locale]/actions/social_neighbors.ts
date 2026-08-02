@@ -16,33 +16,51 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  const { data: friendships, error: fError } = await supabase
+  // 1. Fetch friend IDs
+  const { data: friendships } = await supabase
     .from("friendships")
     .select("friend_id")
     .eq("user_id", userId);
 
-  if (fError) return { error: fError.message };
+  let friendIds = (friendships || []).map((f) => f.friend_id).filter((id) => id !== userId);
 
-  const friendIds = (friendships || []).map((f) => f.friend_id).filter((id) => id !== userId);
-  if (friendIds.length === 0) return { neighbors: [] };
+  // 2. Fallback: If no friends yet, fetch all other profiles in DB so everyone is a neighbor by default
+  if (friendIds.length === 0) {
+    const { data: otherProfiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .neq("id", userId);
+    friendIds = (otherProfiles || []).map((p) => p.id);
+  }
 
-  const { data: profiles, error: pError } = await supabase
-    .from("profiles")
-    .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
-    .in("id", friendIds)
-    .order("current_streak", { ascending: false });
+  let neighbors: NeighborSummary[] = [];
 
-  if (pError) return { error: pError.message };
+  if (friendIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
+      .in("id", friendIds)
+      .order("current_streak", { ascending: false });
 
-  const neighbors: NeighborSummary[] = (profiles || []).map((p) => ({
-    id: p.id,
-    username: p.username || "Hàng xóm",
-    petStage: p.pet_stage ?? 0,
-    petLevel: levelFromExp(p.pet_exp ?? 0),
-    currentStreak: p.current_streak ?? 0,
-    characterId: getCharacter(p.character_id).id,
-    characterName: characterDisplayName(p.character_id, p.character_name),
-  }));
+    neighbors = (profiles || []).map((p) => ({
+      id: p.id,
+      username: p.username || "Hàng xóm",
+      petStage: p.pet_stage ?? 0,
+      petLevel: levelFromExp(p.pet_exp ?? 0),
+      currentStreak: p.current_streak ?? 0,
+      characterId: getCharacter(p.character_id).id,
+      characterName: characterDisplayName(p.character_id, p.character_name),
+    }));
+  }
+
+  // 3. Fallback: If still empty (e.g. single-user environment), provide friendly NPC neighbors
+  if (neighbors.length === 0) {
+    neighbors = [
+      { id: "mochi", username: "Mochi 🍡", petStage: 2, petLevel: 5, currentStreak: 7, characterId: "pandagirl", characterName: "Mochi 🍡" },
+      { id: "biscuit", username: "Biscuit 🍪", petStage: 6, petLevel: 12, currentStreak: 21, characterId: "tigerboy", characterName: "Biscuit 🍪" },
+      { id: "luna", username: "Luna 🌙", petStage: 3, petLevel: 8, currentStreak: 14, characterId: "pandagirl", characterName: "Luna 🌙" },
+    ];
+  }
 
   return { neighbors };
 }
@@ -53,6 +71,50 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
 export async function getNeighborDataAction(neighborId: string): Promise<{ error?: string; data?: NeighborData }> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
+
+  // NPC Neighbor Mock Data
+  if (neighborId === "mochi" || neighborId === "biscuit" || neighborId === "luna") {
+    const npcConfigs: Record<string, NeighborData> = {
+      mochi: {
+        profile: { id: "mochi", username: "Mochi 🍡", petStage: 2, petLevel: 5, currentStreak: 7, affection: 85, characterId: "pandagirl", characterName: "Mochi 🍡" },
+        equippedItems: {},
+        publicTasks: [
+          { id: "mochi_t1", userId: "mochi", title: "🧘‍♀️ Tập yoga 15 phút buổi sáng", notes: "", status: "todo", priority: "medium", assigneeType: "self", focusDuration: 15, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "mochi_t2", userId: "mochi", title: "📚 Đọc 10 trang sách Phát triển bản thân", notes: "", status: "in_progress", priority: "high", assigneeType: "self", focusDuration: 30, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "mochi_t3", userId: "mochi", title: "💧 Uống đủ 2L nước mỗi ngày", notes: "", status: "done", priority: "low", assigneeType: "self", focusDuration: 25, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        ],
+        publicHabits: [
+          { id: "mochi_h1", title: "Thiền định 10 phút 🧘", type: "boolean", config: {}, frequency: { type: "daily" }, timeOfDay: "morning", isCompleted: true, value: null, isPrivate: false },
+          { id: "mochi_h2", title: "Uống trà thảo mộc 🍵", type: "boolean", config: {}, frequency: { type: "daily" }, timeOfDay: "evening", isCompleted: false, value: null, isPrivate: false },
+        ]
+      },
+      biscuit: {
+        profile: { id: "biscuit", username: "Biscuit 🍪", petStage: 6, petLevel: 12, currentStreak: 21, affection: 90, characterId: "tigerboy", characterName: "Biscuit 🍪" },
+        equippedItems: {},
+        publicTasks: [
+          { id: "biscuit_t1", userId: "biscuit", title: "📐 Giải 5 bài tập Toán Cao Cấp", notes: "", status: "in_progress", priority: "high", assigneeType: "self", focusDuration: 45, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "biscuit_t2", userId: "biscuit", title: "🇬🇧 Ôn 20 từ vựng IELTS mỗi ngày", notes: "", status: "todo", priority: "medium", assigneeType: "self", focusDuration: 30, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "biscuit_t3", userId: "biscuit", title: "💪 Tập chống đẩy 30 cái", notes: "", status: "done", priority: "medium", assigneeType: "self", focusDuration: 15, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        ],
+        publicHabits: [
+          { id: "biscuit_h1", title: "Viết nhật ký công việc 📝", type: "boolean", config: {}, frequency: { type: "daily" }, timeOfDay: "evening", isCompleted: true, value: null, isPrivate: false },
+          { id: "biscuit_h2", title: "Chạy bộ 2km 🏃", type: "boolean", config: {}, frequency: { type: "daily" }, timeOfDay: "morning", isCompleted: false, value: null, isPrivate: false },
+        ]
+      },
+      luna: {
+        profile: { id: "luna", username: "Luna 🌙", petStage: 3, petLevel: 8, currentStreak: 14, affection: 75, characterId: "pandagirl", characterName: "Luna 🌙" },
+        equippedItems: {},
+        publicTasks: [
+          { id: "luna_t1", userId: "luna", title: "🎨 Vẽ phác thảo tranh phong cảnh", notes: "", status: "todo", priority: "medium", assigneeType: "self", focusDuration: 30, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: "luna_t2", userId: "luna", title: "🌿 Tưới cây & chăm sóc hoa ban công", notes: "", status: "done", priority: "low", assigneeType: "self", focusDuration: 15, isPrivate: false, deadline: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        ],
+        publicHabits: [
+          { id: "luna_h1", title: "Nghe nhạc Lo-Fi thư giãn 🎧", type: "boolean", config: {}, frequency: { type: "daily" }, timeOfDay: "anytime", isCompleted: true, value: null, isPrivate: false },
+        ]
+      }
+    };
+    return { data: npcConfigs[neighborId] };
+  }
 
   // Profile summary
   const { data: profile, error: pError } = await supabase

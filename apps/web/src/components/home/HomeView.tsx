@@ -452,20 +452,28 @@ export function HomeView({ data }: { data: DashboardData }) {
                     onClick={() => setIsShopOpen(true)}
                   >
                     {/* Speech Bubble — shows the co-op emoji while one is playing. */}
-                    <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
-                      {activeCoop
-                        ? `${COOP_KINDS[activeCoop].emoji} ${data.profile.characterName}`
-                        : timerHabit
-                        ? "✍️ Đang học tập..."
-                        : data.profile.characterName}
-                    </div>
-                    <CharacterCompanion
-                      characterId={data.profile.characterId}
-                      action={
-                        myCoopAction ??
-                        (timerHabit || currentAction === "working" ? "working" : "idle")
-                      }
-                    />
+                    {(() => {
+                      const hasInProgressTask = (data.tasks || []).some((t) => t.status === "in_progress");
+                      const isWorking = timerHabit || hasInProgressTask || currentAction === "working";
+                      return (
+                        <>
+                          <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
+                            {activeCoop
+                              ? `${COOP_KINDS[activeCoop].emoji} ${data.profile.characterName}`
+                              : isWorking
+                              ? "✍️ Đang làm việc..."
+                              : data.profile.characterName}
+                          </div>
+                          <CharacterCompanion
+                            characterId={data.profile.characterId}
+                            action={
+                              myCoopAction ??
+                              (isWorking ? "working" : "idle")
+                            }
+                          />
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* The other side of an active visit, standing in the same room. */}

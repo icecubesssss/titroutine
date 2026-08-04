@@ -57,6 +57,78 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Drag-to-walk: the companion can be dragged anywhere within the room floor
+  // (Study Bunny style). Pure client UI state — resets on reload, never persisted.
+  const floorBoundsRef = useRef<HTMLDivElement>(null);
+  const companionDragElRef = useRef<HTMLDivElement>(null);
+  const [companionOffset, setCompanionOffset] = useState({ x: 0, y: 0 });
+  const [companionFacingLeft, setCompanionFacingLeft] = useState(false);
+  const companionDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startOffset: { x: number; y: number };
+    minDx: number;
+    maxDx: number;
+    minDy: number;
+    maxDy: number;
+  } | null>(null);
+  // Survives past pointerup (unlike the ref above, which is cleared there) so the
+  // click handler that fires right after can tell a drag from a tap.
+  const companionWasDragged = useRef(false);
+
+  const handleCompanionPointerDown = (e: React.PointerEvent) => {
+    const el = companionDragElRef.current;
+    const bounds = floorBoundsRef.current;
+    if (!el || !bounds) return;
+    const elRect = el.getBoundingClientRect();
+    const boundsRect = bounds.getBoundingClientRect();
+    el.setPointerCapture(e.pointerId);
+    companionWasDragged.current = false;
+    companionDrag.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffset: companionOffset,
+      minDx: boundsRect.left - elRect.left,
+      maxDx: boundsRect.right - elRect.right,
+      minDy: boundsRect.top - elRect.top,
+      maxDy: boundsRect.bottom - elRect.bottom,
+    };
+  };
+
+  const handleCompanionPointerMove = (e: React.PointerEvent) => {
+    const drag = companionDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const rawDx = e.clientX - drag.startX;
+    const rawDy = e.clientY - drag.startY;
+    if (Math.abs(rawDx) > 4 || Math.abs(rawDy) > 4) companionWasDragged.current = true;
+    if (Math.abs(rawDx) > 2) setCompanionFacingLeft(rawDx < 0);
+    const dx = Math.min(Math.max(rawDx, drag.minDx), drag.maxDx);
+    const dy = Math.min(Math.max(rawDy, drag.minDy), drag.maxDy);
+    setCompanionOffset({ x: drag.startOffset.x + dx, y: drag.startOffset.y + dy });
+  };
+
+  const handleCompanionPointerUp = (e: React.PointerEvent) => {
+    const drag = companionDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    companionDrag.current = null;
+  };
+
+  const handleCompanionClick = () => {
+    // A real drag shouldn't also count as a tap-to-open-shop.
+    if (companionWasDragged.current) {
+      companionWasDragged.current = false;
+      return;
+    }
+    setIsShopOpen(true);
+  };
+
+  // Mobile only: the habits/tasks panel is a full-screen overlay over the room,
+  // opened from the room's ☰ menu or the bottom nav. Desktop always shows both
+  // side-by-side and ignores this flag entirely.
+  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
+
   // Co-op animation currently playing in the room. Set when a co-op action is
   // sent, cleared on a timer so the companions return to their idle loop.
   const [activeCoop, setActiveCoop] = useState<CoopKind | null>(null);
@@ -330,12 +402,11 @@ export function HomeView({ data }: { data: DashboardData }) {
         onNeighbor={() => setIsNeighborVisitOpen(true)}
       />
 
-      {/* Main Workspace split panel */}
-      <div
-        ref={mobileScrollRef}
-        className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-y-auto md:overflow-hidden relative"
-      >
-        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-[60vh] md:h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED]">
+      {/* Main Workspace split panel. On mobile the room owns the whole screen —
+          the habits/tasks panel below becomes a full-screen overlay (see
+          isMobilePanelOpen) instead of being stacked underneath it. */}
+      <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden relative">
+        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED]">
           <MinimalCozyRoom bgImageUrl="/assets/user_room_vertical.png">
 
             {/* Top Bar 1: Happy Meter Progress Bar (Emerald Green Bar) */}
@@ -396,7 +467,14 @@ export function HomeView({ data }: { data: DashboardData }) {
                   <span className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-sm">📊</span>
                 </button>
                 <button
-                  onClick={() => { setIsMenuOpen(false); setActiveTab("tasks"); }}
+                  onClick={() => { setIsMenuOpen(false); setActiveTab("habits"); setIsMobilePanelOpen(true); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                >
+                  <span>Thói Quen</span>
+                  <span className="w-7 h-7 rounded-full bg-lime-100 flex items-center justify-center text-sm">🌱</span>
+                </button>
+                <button
+                  onClick={() => { setIsMenuOpen(false); setActiveTab("tasks"); setIsMobilePanelOpen(true); }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
                 >
                   <span>Task Board</span>
@@ -432,6 +510,10 @@ export function HomeView({ data }: { data: DashboardData }) {
               )}
             </div>
 
+            {/* Invisible walkable region the companion can be dragged within — spans
+                most of the floor, clear of the top HUD and the very bottom edge. */}
+            <div ref={floorBoundsRef} className="absolute inset-x-3 top-[26%] bottom-[8%] z-0 pointer-events-none" />
+
             {/* Floor Space: Panda Girl Standing / Sitting ON THE FULL ROOM FLOOR CARPET */}
             <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 z-20 flex items-end justify-center gap-1 pointer-events-auto">
               {activeCoop && coopDuoReady ? (
@@ -447,33 +529,50 @@ export function HomeView({ data }: { data: DashboardData }) {
                 </div>
               ) : (
                 <>
+                  {/* Drag-to-walk: this outer div owns the pointer gesture + offset
+                      transform; the inner one keeps its own hover/tap styling so the
+                      two transforms never fight each other. */}
                   <div
-                    className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
-                    onClick={() => setIsShopOpen(true)}
+                    ref={companionDragElRef}
+                    onPointerDown={handleCompanionPointerDown}
+                    onPointerMove={handleCompanionPointerMove}
+                    onPointerUp={handleCompanionPointerUp}
+                    onPointerCancel={handleCompanionPointerUp}
+                    style={{
+                      transform: `translate(${companionOffset.x}px, ${companionOffset.y}px)`,
+                      touchAction: "none",
+                    }}
+                    className="cursor-grab active:cursor-grabbing"
                   >
-                    {/* Speech Bubble — shows the co-op emoji while one is playing. */}
-                    {(() => {
-                      const hasInProgressTask = (data.tasks || []).some((t) => t.status === "in_progress");
-                      const isWorking = timerHabit || hasInProgressTask || currentAction === "working";
-                      return (
-                        <>
-                          <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
-                            {activeCoop
-                              ? `${COOP_KINDS[activeCoop].emoji} ${data.profile.characterName}`
-                              : isWorking
-                              ? "✍️ Đang làm việc..."
-                              : data.profile.characterName}
-                          </div>
-                          <CharacterCompanion
-                            characterId={data.profile.characterId}
-                            action={
-                              myCoopAction ??
-                              (isWorking ? "working" : "idle")
-                            }
-                          />
-                        </>
-                      );
-                    })()}
+                    <div
+                      className="relative flex flex-col items-center cursor-pointer group transition-transform hover:scale-105"
+                      onClick={handleCompanionClick}
+                    >
+                      {/* Speech Bubble — shows the co-op emoji while one is playing. */}
+                      {(() => {
+                        const hasInProgressTask = (data.tasks || []).some((t) => t.status === "in_progress");
+                        const isWorking = timerHabit || hasInProgressTask || currentAction === "working";
+                        return (
+                          <>
+                            <div className="mb-1 px-3 py-0.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-bold text-amber-900 shadow-xs border border-amber-200/80">
+                              {activeCoop
+                                ? `${COOP_KINDS[activeCoop].emoji} ${data.profile.characterName}`
+                                : isWorking
+                                ? "✍️ Đang làm việc..."
+                                : data.profile.characterName}
+                            </div>
+                            <CharacterCompanion
+                              characterId={data.profile.characterId}
+                              action={
+                                myCoopAction ??
+                                (isWorking ? "working" : "idle")
+                              }
+                              flipX={companionFacingLeft}
+                            />
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   {/* The other side of an active visit, standing in the same room. */}
@@ -508,43 +607,60 @@ export function HomeView({ data }: { data: DashboardData }) {
         </section>
 
 
-      {/* Bottom half: Habits / Tasks panel (scrolls internally) */}
-      <HabitsPanel
-        scrollRef={habitsRef}
-        data={data}
-        habits={habits}
-        activeTab={activeTab}
-        isNavigating={isNavigating}
-        completedCount={completedCount}
-        totalCount={totalCount}
-        pendingIds={pendingIds}
-        onSelectDate={(dateStr) => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
-        onToday={() => startNavigation(() => router.push(`/${locale}`))}
-        onRefresh={() => router.refresh()}
-        onEditHabit={setEditingHabit}
-        onToggle={commitToggle}
-        onDoIt={handleDoIt}
-        onIncrement={handleIncrementCounter}
-      />
+      {/* Bottom half: Habits / Tasks panel. Desktop keeps it side-by-side with the
+          room (md:static, always visible); mobile turns it into a full-screen
+          overlay so the room gets the whole screen until this is opened. */}
+      <div
+        ref={mobileScrollRef}
+        className={`${isMobilePanelOpen ? "flex" : "hidden"} md:flex fixed md:static inset-0 md:inset-auto z-40 md:z-auto flex-col overflow-y-auto md:overflow-visible md:flex-1 md:min-w-0 md:h-full bg-earth-bg md:bg-transparent`}
+      >
+        <button
+          type="button"
+          onClick={() => setIsMobilePanelOpen(false)}
+          className="md:hidden sticky top-0 z-10 flex items-center gap-1.5 px-4 py-3 bg-earth-bg/95 backdrop-blur-md text-xs font-bold text-theme-text/70 active:scale-95 transition-transform"
+        >
+          <span aria-hidden>←</span>
+          <span>Về phòng</span>
+        </button>
+        <HabitsPanel
+          scrollRef={habitsRef}
+          data={data}
+          habits={habits}
+          activeTab={activeTab}
+          isNavigating={isNavigating}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          pendingIds={pendingIds}
+          onSelectDate={(dateStr) => startNavigation(() => router.push(`/${locale}?date=${dateStr}`))}
+          onToday={() => startNavigation(() => router.push(`/${locale}`))}
+          onRefresh={() => router.refresh()}
+          onEditHabit={setEditingHabit}
+          onToggle={commitToggle}
+          onDoIt={handleDoIt}
+          onIncrement={handleIncrementCounter}
+        />
+      </div>
       </div> {/* Close Main Workspace split panel */}
 
       {/* Single bottom navigation — keeps the header clean (streak + coins only). */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ${
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
         showToolbars ? "translate-y-0" : "translate-y-full"
       }`}>
         <BottomNav
           activeTab={activeTab}
-          onHome={() => { playSwoosh(); setActiveTab("habits"); }}
-          onTasks={() => { playSwoosh(); setActiveTab("tasks"); }}
+          onHome={() => { playSwoosh(); setIsMobilePanelOpen(false); }}
+          onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsMobilePanelOpen(true); }}
           onShop={() => { playSwoosh(); setIsShopOpen(true); }}
           onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
           onSettings={() => setIsSettingsOpen(true)}
         />
       </div>
 
-      {/* Add-habit FAB, floating just above the bottom nav. */}
+      {/* Add-habit FAB, floating just above the bottom nav. Mobile: only while the
+          panel is open (no point floating over the empty room). Desktop: always,
+          same as before. */}
       {activeTab === "habits" && (
-        <div className={`absolute bottom-24 md:bottom-6 right-6 z-30 transition-all duration-300 ${
+        <div className={`${isMobilePanelOpen ? "block" : "hidden"} md:block absolute bottom-24 md:bottom-6 right-6 z-30 transition-all duration-300 ${
           showToolbars ? "translate-y-0 scale-100 opacity-100" : "translate-y-16 scale-0 opacity-0 pointer-events-none"
         }`}>
           <DuoButton
@@ -669,8 +785,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         open={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         activeTab={activeTab}
-        onHome={() => { playSwoosh(); setActiveTab("habits"); setIsMobileSidebarOpen(false); }}
-        onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsMobileSidebarOpen(false); }}
+        onHome={() => { playSwoosh(); setIsMobilePanelOpen(false); setIsMobileSidebarOpen(false); }}
+        onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsMobilePanelOpen(true); setIsMobileSidebarOpen(false); }}
         onShop={() => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); }}
         onSettings={() => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); }}

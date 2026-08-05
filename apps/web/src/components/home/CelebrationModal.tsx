@@ -3,17 +3,20 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { useTranslations } from "next-intl";
-import { Flame, Star, Gift, Sparkles } from "lucide-react";
+import { Flame, Star, Gift, Sparkles, Award } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 
 interface CelebrationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: "streak" | "checkin" | "habit" | "evolution";
+  type: "streak" | "checkin" | "habit" | "evolution" | "badge";
   streakCount?: number;
   coinsAwarded?: number;
   /** Display name of the new stage, for the "evolution" celebration. */
   evolutionStageName?: string;
+  /** The badge's emoji + milestone day count, for the "badge" celebration. */
+  badgeEmoji?: string;
+  badgeDays?: number;
 }
 
 export const CelebrationModal: React.FC<CelebrationModalProps> = ({
@@ -23,6 +26,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
   streakCount = 0,
   coinsAwarded = 0,
   evolutionStageName,
+  badgeEmoji,
+  badgeDays,
 }) => {
   const t = useTranslations("Celebration");
   const [showContent, setShowContent] = useState(false);
@@ -74,6 +79,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
           type === 'streak' ? 'bg-gradient-to-b from-orange-400 to-red-500' :
           type === 'checkin' ? 'bg-gradient-to-b from-blue-400 to-indigo-500' :
           type === 'evolution' ? 'bg-gradient-to-b from-fuchsia-500 to-purple-600' :
+          type === 'badge' ? 'bg-gradient-to-b from-amber-400 to-orange-500' :
           'bg-gradient-to-b from-green-400 to-emerald-500'
         }`}>
           <div className="relative mb-4">
@@ -85,6 +91,11 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
               {type === "checkin" && <Gift className="w-12 h-12 text-blue-500 animate-bounce" />}
               {type === "habit" && <Star className="w-12 h-12 text-green-500" />}
               {type === "evolution" && <Sparkles className="w-12 h-12 text-fuchsia-500 animate-pulse" />}
+              {type === "badge" && (
+                badgeEmoji
+                  ? <span className="text-5xl leading-none">{badgeEmoji}</span>
+                  : <Award className="w-12 h-12 text-amber-500 animate-pulse" />
+              )}
             </div>
           </div>
 
@@ -93,6 +104,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
             {type === "checkin" && t("checkinTitle")}
             {type === "habit" && t("habitTitle")}
             {type === "evolution" && t("evolutionTitle")}
+            {type === "badge" && t("badgeTitle")}
           </h2>
         </div>
 
@@ -122,6 +134,12 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                 <p className="text-sm font-medium text-gray-400 pt-1">
                   {t("evolutionSub")}
                 </p>
+              </>
+            )}
+            {type === "badge" && (
+              <>
+                <p className="text-xl font-bold text-gray-700">{t("badgeBody", { days: badgeDays ?? 0 })}</p>
+                <p className="text-sm font-medium text-gray-400 pt-1">{t("badgeSub")}</p>
               </>
             )}
           </div>

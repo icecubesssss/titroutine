@@ -137,12 +137,19 @@ export async function toggleHabitAction(input: {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status, cleaning_energy")
-    .eq("id", userId)
-    .maybeSingle();
+  // Profile and habit type are independent reads — was previously two separate
+  // sequential round-trips (plus a third for the log below) on the app's most
+  // frequently invoked action.
+  const [{ data: profile, error: profileError }, { data: habitData }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status, cleaning_energy")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase.from("habits").select("type").eq("id", input.habitId).single(),
+  ]);
   if (profileError) return { error: profileError.message };
+  const isNegative = habitData?.type === "negative";
 
   const timezone = profile?.timezone || "UTC";
   const today = todayInTimezone(timezone);
@@ -157,14 +164,6 @@ export async function toggleHabitAction(input: {
     .maybeSingle();
 
   const willComplete = !existing?.is_completed;
-
-  // Fetch habit type to determine if it's a negative habit
-  const { data: habitData } = await supabase
-    .from("habits")
-    .select("type")
-    .eq("id", input.habitId)
-    .single();
-  const isNegative = habitData?.type === "negative";
 
   // Upsert today's log (UNIQUE(habit_id, date) makes this idempotent).
   const { error: logError } = await supabase.from("habit_logs").upsert(

@@ -23,16 +23,20 @@ import {
   claimDailyCheckinAction,
   incrementCounterHabitAction,
   setVacationModeAction,
+  moveBadgeAction,
+  setBadgeVisibilityAction,
+  acknowledgeBadgeMilestoneAction,
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
 import { hasSheet } from "@/lib/characters";
-import { usePandaMood } from "@/components/home/hooks/usePandaMood";
 import { usePandaAction } from "@/components/home/hooks/usePandaAction";
 import { MinimalCozyRoom } from "@/components/room/MinimalCozyRoom";
 import { NeighborVisitModal } from "@/components/social/NeighborVisitModal";
 import { VisitLayer } from "@/components/social/VisitLayer";
 import { COOP_KINDS, type CoopKind } from "@/lib/coop";
+import { getBadge, eligibleBadgeKeys, nextUncelebratedBadge } from "@/lib/badges";
+import { RoomBadge } from "@/components/home/RoomBadge";
 
 
 /** How long a co-op duo animation plays before both companions go back to idle. */
@@ -43,7 +47,9 @@ export function HomeView({ data }: { data: DashboardData }) {
   const router = useRouter();
   const { playTing, playSwoosh } = useSound();
 
-  const { mood } = usePandaMood(data.profile.satiety ?? 80, data.profile.affection ?? 50);
+  // Live from server data every render — was previously a local hook seeded once
+  // at mount and never updated, so the bar froze at its initial value forever.
+  const happyMeter = Math.round(((data.profile.satiety ?? 80) + (data.profile.affection ?? 50)) / 2);
   const { currentAction } = usePandaAction();
 
   // Server data is the source of truth; mirror it locally for optimistic UI.
@@ -53,6 +59,26 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [consumables, setConsumables] = useState(data.inventory.consumables ?? {});
   const [unlockedItems, setUnlockedItems] = useState(data.inventory.unlockedItems ?? []);
   const [vacationMode, setVacationMode] = useState(data.profile.vacationMode ?? false);
+  const [badges, setBadges] = useState(data.badges);
+  const roomCanvasRef = useRef<HTMLDivElement>(null);
+
+  const handleBadgeMove = (key: string, x: number, y: number) => {
+    setBadges((prev) => prev.map((b) => (b.key === key ? { ...b, x, y } : b)));
+    startTransition(async () => {
+      await moveBadgeAction(key, x, y);
+    });
+  };
+
+  const handleBadgeHide = (key: string) => {
+    setBadges((prev) => prev.map((b) => (b.key === key ? { ...b, visible: false } : b)));
+    startTransition(async () => {
+      await setBadgeVisibilityAction(key, false);
+    });
+  };
+
+  const hasUnpurchasedBadge = eligibleBadgeKeys(data.profile.currentStreak).some(
+    (key) => !badges.some((b) => b.key === key)
+  );
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -213,10 +239,12 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   const [celebration, setCelebration] = useState<{
     isOpen: boolean;
-    type: "streak" | "checkin" | "habit";
+    type: "streak" | "checkin" | "habit" | "badge";
     streakCount?: number;
     coinsAwarded?: number;
     habitTitle?: string;
+    badgeEmoji?: string;
+    badgeDays?: number;
   }>({ isOpen: false, type: "streak" });
 
 
@@ -235,6 +263,19 @@ export function HomeView({ data }: { data: DashboardData }) {
       });
     }
   }, [data.profile.lastCheckinDate, data.today]);
+
+  // Auto-trigger the "you unlocked a badge!" popup once per newly-reached milestone.
+  useEffect(() => {
+    const badge = nextUncelebratedBadge(data.profile.currentStreak, data.profile.badgeMilestoneSeen);
+    if (badge) {
+      setCelebration({
+        isOpen: true,
+        type: "badge",
+        badgeEmoji: badge.emoji,
+        badgeDays: badge.requiredStreak,
+      });
+    }
+  }, [data.profile.currentStreak, data.profile.badgeMilestoneSeen]);
 
   // Capture the user's real timezone once so streaks roll over on their local day.
   useCaptureTimezone(data.profile.timezone, () => router.refresh());
@@ -331,11 +372,17 @@ export function HomeView({ data }: { data: DashboardData }) {
 
   const handleCloseCelebration = () => {
     const isCheckin = celebration.type === "checkin";
+    const isBadge = celebration.type === "badge";
     setCelebration((prev) => ({ ...prev, isOpen: false }));
     if (isCheckin) {
       setCoins((c) => c + 15);
       startTransition(async () => {
         await claimDailyCheckinAction();
+        router.refresh();
+      });
+    } else if (isBadge) {
+      startTransition(async () => {
+        await acknowledgeBadgeMilestoneAction();
         router.refresh();
       });
     }
@@ -413,19 +460,44 @@ export function HomeView({ data }: { data: DashboardData }) {
             <div className="w-full bg-stone-200/50 h-2.5 relative overflow-hidden z-30">
               <div
                 className="bg-emerald-500 h-full transition-all duration-500 rounded-r-full shadow-xs"
-                style={{ width: `${mood.happyMeter}%` }}
+                style={{ width: `${happyMeter}%` }}
               />
             </div>
 
+            {/* Invisible bounds badges can be dragged within — nearly the whole room. */}
+            <div ref={roomCanvasRef} className="absolute inset-x-2 top-[8%] bottom-[4%] z-0 pointer-events-none" />
+
+            {/* Purchased streak badges hanging in the room. */}
+            {badges
+              .filter((b) => b.visible)
+              .map((b) => {
+                const cfg = getBadge(b.key);
+                if (!cfg) return null;
+                return (
+                  <RoomBadge
+                    key={b.key}
+                    badge={b}
+                    emoji={cfg.emoji}
+                    title={`${cfg.requiredStreak} ngày streak — bấm để ẩn`}
+                    boundsRef={roomCanvasRef}
+                    onMove={(x, y) => handleBadgeMove(b.key, x, y)}
+                    onHide={() => handleBadgeHide(b.key)}
+                  />
+                );
+              })}
+
             {/* Top Bar 2: Official Study Bunny HUD Bar (Glassmorphism card, clean & no overlapping) */}
             <div className="mx-3 mt-2 z-30 pointer-events-auto flex items-center justify-between px-3.5 py-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/60 shadow-sm">
-              {/* Left Side: Currencies Badges */}
+              {/* Left Side: Currencies + Streak */}
               <div className="flex items-center gap-2 text-xs font-black text-stone-800">
                 <button
                   onClick={() => setIsShopOpen(true)}
-                  className="flex items-center gap-1 bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200/60 text-amber-900 shadow-xs hover:bg-amber-100 active:scale-95 transition-all"
+                  className="relative flex items-center gap-1 bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200/60 text-amber-900 shadow-xs hover:bg-amber-100 active:scale-95 transition-all"
                 >
                   🪙 {data.profile.coins} <span className="text-[10px] text-amber-600 font-normal">+</span>
+                  {hasUnpurchasedBadge && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white animate-pulse" />
+                  )}
                 </button>
                 <button
                   onClick={() => setIsShopOpen(true)}
@@ -433,6 +505,9 @@ export function HomeView({ data }: { data: DashboardData }) {
                 >
                   🥕 {data.inventory.consumables?.carrots ?? 40} <span className="text-[10px] text-orange-600 font-normal">+</span>
                 </button>
+                <span className="flex items-center gap-1 bg-red-100/80 px-2.5 py-1 rounded-full border border-red-200/60 text-red-900 shadow-xs">
+                  🔥 {data.profile.currentStreak}
+                </span>
               </div>
 
               {/* Center: Companion Name (user-renameable, see Settings) */}
@@ -454,10 +529,15 @@ export function HomeView({ data }: { data: DashboardData }) {
               <div className="absolute top-16 right-4 z-40 flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-auto">
                 <button
                   onClick={() => { setIsMenuOpen(false); setIsShopOpen(true); }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
+                  className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
                 >
                   <span>Cửa Hàng</span>
-                  <span className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-sm">🛒</span>
+                  <span className="relative w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-sm">
+                    🛒
+                    {hasUnpurchasedBadge && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white animate-pulse" />
+                    )}
+                  </span>
                 </button>
                 <button
                   onClick={() => { setIsMenuOpen(false); router.push(`/${locale}/analytics`); }}
@@ -731,6 +811,16 @@ export function HomeView({ data }: { data: DashboardData }) {
         unlockedItems={unlockedItems}
         equippedItems={data.inventory.equippedItems}
         consumables={consumables}
+        currentStreak={data.profile.currentStreak}
+        ownedBadgeKeys={badges.map((b) => b.key)}
+        onBuyBadgeOptimistic={(badgeKey, price) => {
+          setCoins((c) => Math.max(0, c - price));
+          setBadges((prev) => [...prev, { key: badgeKey, visible: true, x: 50, y: 40 }]);
+        }}
+        onBuyBadgeRollback={(badgeKey, price) => {
+          setCoins((c) => c + price);
+          setBadges((prev) => prev.filter((b) => b.key !== badgeKey));
+        }}
         onBuyItemOptimistic={(itemId, price) => {
           setCoins((c) => Math.max(0, c - price));
           setUnlockedItems((prev) => [...prev, itemId]);
@@ -769,6 +859,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         type={celebration.type}
         streakCount={data.profile.currentStreak}
         coinsAwarded={celebration.coinsAwarded}
+        badgeEmoji={celebration.badgeEmoji}
+        badgeDays={celebration.badgeDays}
       />
 
       <NeighborVisitModal

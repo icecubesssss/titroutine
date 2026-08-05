@@ -96,7 +96,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, last_active_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id, focus_tokens, cleaning_energy, cleaned_spots, vacation_mode, last_neglect_date, character_id, character_name, visit_privacy"
+      "username, timezone, coins, current_streak, total_exp, pet_stage, last_checkin_date, streak_freezes, pet_exp, satiety, last_fed_date, last_active_date, affection_level, last_neighbor_gift_date, personality_curiosity, personality_compassion, personality_resilience, personality_energy, pet_likes, pet_dislikes, adventure_energy, adventure_status, adventure_start_at, adventure_story_id, focus_tokens, cleaning_energy, cleaned_spots, vacation_mode, last_neglect_date, character_id, character_name, visit_privacy, badge_milestone_seen"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -170,6 +170,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     { data: allCompletedLogs },
     { data: visitRow },
     { data: coopRows },
+    { data: badgeRows },
     coopUsedToday
   ] = await Promise.all([
     supabase
@@ -209,11 +210,15 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .select("id, user_id, title, notes, status, priority, assignee_type, focus_duration, deadline, created_at, updated_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
+    // calculateStreak() only ever looks back 365 days, so there's no point
+    // fetching completed logs further back than that — was previously
+    // unbounded and grew forever as a user's history accumulated.
     supabase
       .from("habit_logs")
       .select("habit_id, date")
       .eq("user_id", user.id)
       .eq("is_completed", true)
+      .gte("date", format(addDays(parseISO(today), -366), "yyyy-MM-dd"))
       .order("date", { ascending: false }),
     // The visit in progress on either side — the room shown is always the host's.
     // Limited to one: a stray second active row (two people inviting at the same
@@ -233,6 +238,11 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .eq("target_id", user.id)
       .is("claimed_at", null)
       .order("created_at", { ascending: false }),
+    // Streak-milestone badges the user has bought (see lib/badges.ts).
+    supabase
+      .from("badges")
+      .select("badge_key, visible, pos_x, pos_y")
+      .eq("user_id", user.id),
     countCoopsSentToday(supabase, user.id, timezone)
   ]);
 
@@ -458,6 +468,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       characterName: characterDisplayName(profile?.character_id, profile?.character_name),
       hasCustomCharacterName: Boolean(profile?.character_name?.trim()),
       visitPrivacy: profile?.visit_privacy === "nobody" ? "nobody" : "friends",
+      badgeMilestoneSeen: profile?.badge_milestone_seen ?? 0,
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},
@@ -512,5 +523,8 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       ];
     }),
     coopUsedToday,
+    badges: ((badgeRows ?? []) as { badge_key: string; visible: boolean; pos_x: number; pos_y: number }[]).map(
+      (b) => ({ key: b.badge_key, visible: b.visible, x: b.pos_x, y: b.pos_y })
+    ),
   };
 }

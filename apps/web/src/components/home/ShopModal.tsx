@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useEffect } from "react";
-import { X, ShoppingBag, CheckCircle, Package } from "lucide-react";
+import { X, ShoppingBag, CheckCircle, Package, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import confetti from "canvas-confetti";
 import { SHOP_ITEMS } from "@/lib/items";
-import { buyItemAction, buyConsumableAction, buyFocusItemAction } from "@/app/[locale]/actions";
+import { BADGES } from "@/lib/badges";
+import { buyItemAction, buyConsumableAction, buyFocusItemAction, buyBadgeAction } from "@/app/[locale]/actions";
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -17,6 +18,10 @@ interface ShopModalProps {
   unlockedItems: string[];
   equippedItems: Record<string, string>;
   consumables?: Record<string, number>; // new prop containing count
+  /** Current streak, gates which badges can be bought. */
+  currentStreak?: number;
+  /** Badge keys already purchased (see lib/badges.ts). */
+  ownedBadgeKeys?: string[];
   onEquipped?: (slot: string, itemId: string | null) => void;
   // new optimistic callbacks
   onBuyItemOptimistic?: (itemId: string, price: number) => void;
@@ -25,6 +30,8 @@ interface ShopModalProps {
   onBuyConsumableRollback?: (itemId: string, price: number) => void;
   onBuyFocusItemOptimistic?: (itemId: string, price: number, affectionGain: number) => void;
   onBuyFocusItemRollback?: (itemId: string, price: number, affectionGain: number) => void;
+  onBuyBadgeOptimistic?: (badgeKey: string, price: number) => void;
+  onBuyBadgeRollback?: (badgeKey: string, price: number) => void;
   onEquipItem?: (slot: string, itemId: string | null) => Promise<string | null>;
 }
 
@@ -50,6 +57,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   unlockedItems,
   equippedItems,
   consumables = { carrot: 0, cake: 0, feast: 0, toy_ball: 0, toy_bear: 0 },
+  currentStreak = 0,
+  ownedBadgeKeys = [],
   onEquipped,
   onBuyItemOptimistic,
   onBuyItemRollback,
@@ -57,6 +66,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   onBuyConsumableRollback,
   onBuyFocusItemOptimistic,
   onBuyFocusItemRollback,
+  onBuyBadgeOptimistic,
+  onBuyBadgeRollback,
   onEquipItem,
 }) => {
   const t = useTranslations("Shop");
@@ -218,6 +229,35 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     });
   };
 
+  // Xử lý mua huy hiệu mốc streak
+  const handleBuyBadge = (badgeKey: string, price: number) => {
+    if (pendingId) return;
+    setError(null);
+    if (coins < price) {
+      setError(t("notEnough"));
+      return;
+    }
+    setPendingId(badgeKey);
+    onBuyBadgeOptimistic?.(badgeKey, price);
+    startTransition(async () => {
+      try {
+        const res = await buyBadgeAction(badgeKey);
+        if (res?.error) {
+          onBuyBadgeRollback?.(badgeKey, price);
+          setError(res.error === "not_enough_coins" ? t("notEnough") : t("buyFailed"));
+        } else {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.7 } });
+        }
+      } catch {
+        onBuyBadgeRollback?.(badgeKey, price);
+        setError(t("buyFailed"));
+      } finally {
+        setPendingId(null);
+        router.refresh();
+      }
+    });
+  };
+
   const handleEquip = async (slot: string, itemId: string) => {
     setError(null);
     if (onEquipItem) {
@@ -369,6 +409,76 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
           {activeTab === "shop" && (
             <div className="space-y-6">
+              {/* Huy hiệu mốc streak — mở khoá theo currentStreak, treo được trong phòng sau khi mua */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+                  🎖️ {t("badgesTitle")}
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {BADGES.map((badge) => {
+                    const isOwned = ownedBadgeKeys.includes(badge.key);
+                    const isEligible = currentStreak >= badge.requiredStreak;
+                    const canAfford = coins >= badge.price;
+                    return (
+                      <div
+                        key={badge.key}
+                        className={`bg-white rounded-2xl border-2 p-3 flex flex-col justify-between shadow-sm transition-colors ${
+                          isOwned
+                            ? "border-emerald-300"
+                            : isEligible
+                            ? "border-orange-400 ring-2 ring-orange-200"
+                            : "border-[#ebdcc5] opacity-70"
+                        }`}
+                      >
+                        <div className="flex gap-2.5 items-start">
+                          <span className="text-3xl select-none pt-0.5 w-12 h-12 flex items-center justify-center">
+                            {badge.emoji}
+                          </span>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-[#5c4033] text-[11px] leading-tight">
+                              {t(`badge_${badge.key}_name`)}
+                            </h4>
+                            <p className="text-[9px] text-[#8b7355] mt-0.5 leading-tight">
+                              {isEligible ? t(`badge_${badge.key}_desc`) : t("badgeLocked", { days: badge.requiredStreak })}
+                            </p>
+                            {isEligible && !isOwned && (
+                              <span className="inline-block mt-1 text-[8px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">
+                                ✨ {t("badgeNewHint")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          {isOwned ? (
+                            <div className="w-full text-center py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-bold flex items-center justify-center gap-0.5">
+                              <CheckCircle size={10} /> Đã có
+                            </div>
+                          ) : isEligible ? (
+                            <button
+                              type="button"
+                              onClick={() => handleBuyBadge(badge.key, badge.price)}
+                              disabled={!canAfford || pendingId === badge.key}
+                              className={`w-full py-1.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-0.5 transition-colors ${
+                                canAfford
+                                  ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                                  : "bg-stone-100 text-stone-400 cursor-not-allowed"
+                              }`}
+                            >
+                              <Image src="/assets/ui/icon_coin.png" alt="" width={12} height={12} className="h-3 w-3 object-contain" />
+                              {badge.price}
+                            </button>
+                          ) : (
+                            <div className="w-full text-center py-1 bg-stone-100 text-stone-400 rounded-lg text-[9px] font-bold flex items-center justify-center gap-1">
+                              <Lock size={10} /> {badge.requiredStreak} {t("days")}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Bánh kẹo & Đồ chơi */}
               <div>
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">

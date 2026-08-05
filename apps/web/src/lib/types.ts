@@ -91,6 +91,8 @@ export interface ProfileSummary {
   hasCustomCharacterName: boolean;
   /** Who may drop by. */
   visitPrivacy: VisitPrivacy;
+  /** Highest streak milestone the badge-unlock celebration has already shown for. */
+  badgeMilestoneSeen: number;
 }
 
 export type VisitPrivacy = "friends" | "nobody";
@@ -155,6 +157,14 @@ export interface InventorySummary {
   decorPositions: Record<string, { x: number; y: number }>;
 }
 
+/** A purchased streak-milestone badge hanging in the room (see lib/badges.ts). */
+export interface OwnedBadge {
+  key: string;
+  visible: boolean;
+  x: number;
+  y: number;
+}
+
 export interface SocialVibe {
   id: string;
   senderId: string;
@@ -182,6 +192,8 @@ export interface DashboardData {
   pendingCoops: PendingCoop[];
   /** How many times we already sent each co-op kind today (drives the daily cap). */
   coopUsedToday: Partial<Record<CoopKind, number>>;
+  /** Streak-milestone badges the user has purchased. */
+  badges: OwnedBadge[];
 }
 
 export interface NeighborSummary {

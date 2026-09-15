@@ -384,4 +384,31 @@ CREATE POLICY "Users can update own badges" ON public.badges FOR UPDATE USING (a
 -- been shown for, so it fires once per milestone instead of every page load.
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS badge_milestone_seen INTEGER DEFAULT 0 NOT NULL;
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- MIGRATION 13: Open Neighborhood (Tự động kết nối mọi cư dân)
+-- ────────────────────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
+CREATE POLICY "Users can view all profiles" ON public.profiles
+  FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Users can view public tasks" ON public.tasks;
+CREATE POLICY "Users can view public tasks" ON public.tasks
+  FOR SELECT USING (auth.uid() = user_id OR is_private = FALSE);
+
+DROP POLICY IF EXISTS "Users can view public habits" ON public.habits;
+CREATE POLICY "Users can view public habits" ON public.habits
+  FOR SELECT USING (auth.uid() = user_id OR is_private = FALSE);
+
+DROP POLICY IF EXISTS "Participants can start visits" ON public.visit_sessions;
+CREATE POLICY "Participants can start visits" ON public.visit_sessions
+  FOR INSERT WITH CHECK (
+    auth.uid() = initiated_by
+    AND (auth.uid() = visitor_id OR auth.uid() = host_id)
+  );
+
+INSERT INTO public.friendships (user_id, friend_id)
+SELECT a.id, b.id
+FROM public.profiles a
+CROSS JOIN public.profiles b
+WHERE a.id <> b.id
+ON CONFLICT (user_id, friend_id) DO NOTHING;

@@ -16,33 +16,17 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  // 1. Fetch friend IDs
-  const { data: friendships } = await supabase
-    .from("friendships")
-    .select("friend_id")
-    .eq("user_id", userId);
-
-  let friendIds = (friendships || []).map((f) => f.friend_id).filter((id) => id !== userId);
-
-  // 2. Fallback: If no friends yet, fetch all other profiles in DB so everyone is a neighbor by default
-  if (friendIds.length === 0) {
-    const { data: otherProfiles } = await supabase
-      .from("profiles")
-      .select("id")
-      .neq("id", userId);
-    friendIds = (otherProfiles || []).map((p) => p.id);
-  }
+  // Fetch all other registered user profiles directly as neighbors
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
+    .neq("id", userId)
+    .order("current_streak", { ascending: false });
 
   let neighbors: NeighborSummary[] = [];
 
-  if (friendIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
-      .in("id", friendIds)
-      .order("current_streak", { ascending: false });
-
-    neighbors = (profiles || []).map((p) => ({
+  if (!error && profiles && profiles.length > 0) {
+    neighbors = profiles.map((p) => ({
       id: p.id,
       username: p.username || "Hàng xóm",
       petStage: p.pet_stage ?? 0,
@@ -53,7 +37,7 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
     }));
   }
 
-  // 3. Fallback: If still empty (e.g. single-user environment), provide friendly NPC neighbors
+  // Fallback: If still empty (e.g. single-user environment), provide friendly NPC neighbors
   if (neighbors.length === 0) {
     neighbors = [
       { id: "mochi", username: "Mochi 🍡", petStage: 2, petLevel: 5, currentStreak: 7, characterId: "pandagirl", characterName: "Mochi 🍡" },

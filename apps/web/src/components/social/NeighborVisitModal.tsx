@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
-import { X, UserPlus, Home, Sparkles, Check, Copy, Flame, Heart, BookOpen, User, DoorOpen } from "lucide-react";
+import { X, Home, Sparkles, Flame, Heart, BookOpen, User, DoorOpen, Users } from "lucide-react";
 import type { NeighborSummary, NeighborData, Task } from "@/lib/types";
 import {
   getNeighborsListAction,
   getNeighborDataAction,
   copyNeighborTaskAction,
   sendVibeAction,
-  addFriendAction,
   startVisitAction,
 } from "@/app/[locale]/actions";
 import { NeighborTaskCard } from "@/components/tasks/NeighborTaskCard";
@@ -17,7 +16,7 @@ import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
 interface NeighborVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  myFriendCode: string;
+  myFriendCode?: string;
   myTasks?: Task[];
   /** Fired once a visit session opens, so the room can re-render with both companions. */
   onVisitStarted?: () => void;
@@ -26,7 +25,7 @@ interface NeighborVisitModalProps {
 export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   isOpen,
   onClose,
-  myFriendCode,
+  myFriendCode = "",
   myTasks = [],
   onVisitStarted,
 }) => {
@@ -35,10 +34,6 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   const [neighborData, setNeighborData] = useState<NeighborData | null>(null);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-  const [friendCodeInput, setFriendCodeInput] = useState("");
-  const [addFriendError, setAddFriendError] = useState<string | null>(null);
-  const [addFriendSuccess, setAddFriendSuccess] = useState<string | null>(null);
-  const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "habits">("tasks");
   const [taskFilter, setTaskFilter] = useState<"all" | "mine" | "neighbor">("all");
   const [visitError, setVisitError] = useState<string | null>(null);
@@ -78,34 +73,6 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   }, [selectedNeighborId]);
 
   if (!isOpen) return null;
-
-  const handleAddFriend = () => {
-    const code = friendCodeInput.trim();
-    if (!code) return;
-    setAddFriendError(null);
-    setAddFriendSuccess(null);
-    startTransition(async () => {
-      const res = await addFriendAction(code);
-      if (res.error) {
-        setAddFriendError(res.error === "friend_not_found" ? "Mã bạn không tồn tại!" : "Không thể kết bạn.");
-      } else {
-        setAddFriendSuccess("Đã thêm bạn thành công!");
-        setFriendCodeInput("");
-        // Refresh neighbor list
-        const updated = await getNeighborsListAction();
-        if (updated.neighbors) {
-          setNeighbors(updated.neighbors);
-          setSelectedNeighborId(code);
-        }
-      }
-    });
-  };
-
-  const handleCopyMyCode = () => {
-    navigator.clipboard.writeText(myFriendCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
 
   const handleCopyTask = async (taskId: string) => {
     await copyNeighborTaskAction(taskId);
@@ -169,48 +136,25 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
 
         {/* Modal Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {/* Top Bar: My Code & Add Friend */}
-          <div className="bg-white/90 border border-amber-200/70 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-stone-600">
-              <span className="font-semibold text-stone-700">Mã bạn của tôi:</span>
-              <code className="bg-amber-100/70 text-amber-900 px-2 py-1 rounded-lg font-mono text-[11px] font-bold">
-                {myFriendCode.substring(0, 8)}...
-              </code>
-              <button
-                type="button"
-                onClick={handleCopyMyCode}
-                className="p-1 hover:bg-amber-100 rounded-lg text-amber-800 transition-colors"
-                title="Sao chép mã"
-              >
-                {copiedCode ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              </button>
+          {/* Top Bar: Cozy Neighborhood Status */}
+          <div className="bg-gradient-to-r from-amber-100/80 via-white/90 to-orange-100/80 border border-amber-200/70 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-200/60 flex items-center justify-center text-amber-800">
+                <Users size={16} />
+              </div>
+              <div className="text-xs">
+                <div className="font-bold text-stone-800 flex items-center gap-1.5">
+                  <span>Khu Phố Titroutine</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  Tự động kết nối mọi cư dân • Cùng nhau giữ thói quen & học tập
+                </p>
+              </div>
             </div>
-
-            <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-              <input
-                type="text"
-                placeholder="Nhập ID/Mã bạn bè..."
-                value={friendCodeInput}
-                onChange={(e) => setFriendCodeInput(e.target.value)}
-                className="flex-1 text-xs bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <button
-                type="button"
-                onClick={handleAddFriend}
-                disabled={pending || !friendCodeInput.trim()}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
-              >
-                <UserPlus size={14} />
-                <span>Kết bạn</span>
-              </button>
-            </div>
-
-            {addFriendError && (
-              <span className="w-full text-xs font-semibold text-red-600">{addFriendError}</span>
-            )}
-            {addFriendSuccess && (
-              <span className="w-full text-xs font-semibold text-emerald-600">{addFriendSuccess}</span>
-            )}
+            <span className="text-xs bg-amber-500 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs whitespace-nowrap">
+              {neighbors.length} cư dân
+            </span>
           </div>
 
           {/* Neighbor Selector Tabs */}
@@ -478,9 +422,9 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
           ) : (
             <div className="p-12 text-center bg-white/60 rounded-3xl border border-dashed border-amber-300 text-stone-500 space-y-2">
               <User size={32} className="mx-auto text-amber-400" />
-              <p className="font-bold text-sm text-stone-700">Chưa có danh sách hàng xóm</p>
+              <p className="font-bold text-sm text-stone-700">Chưa có hàng xóm nào khác</p>
               <p className="text-xs text-stone-500">
-                Hãy nhập mã bạn bè ở trên để kết bạn và ghé thăm nhà bạn bè nhé!
+                Khi có cư dân mới gia nhập Titroutine, họ sẽ tự động xuất hiện tại đây!
               </p>
             </div>
           )}

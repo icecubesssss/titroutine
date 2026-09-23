@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Titroutine Focus Guard</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <span class="logo">🐰</span>
+      <h1>Focus Guard</h1>
+    </header>
+
+    <section id="status" class="card status">
+      <p class="status-line">Đang kiểm tra…</p>
+    </section>
+
+    <section class="card">
+      <h2>Trang bị chặn khi đang làm task</h2>
+      <ul id="sites" class="sites"></ul>
+      <form id="add-site" class="row">
+        <input id="site-input" type="text" placeholder="vd: facebook.com" autocomplete="off" />
+        <button type="submit">Thêm</button>
+      </form>
+      <p id="site-error" class="error" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Địa chỉ app Titroutine</h2>
+      <form id="app-form" class="row">
+        <input id="app-url" type="url" placeholder="http://localhost:3000" autocomplete="off" />
+        <button type="submit">Lưu</button>
+      </form>
+    </section>
+
+    <footer class="row">
+      <button id="refresh" class="secondary" type="button">↻ Làm mới</button>
+      <button id="open-app" class="secondary" type="button">Mở Titroutine</button>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

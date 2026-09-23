@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tập trung nào! 🐰</title>
+    <style>
+      :root {
+        --bg: #fdfbf7;
+        --card: #ffffff;
+        --border: #fde68a;
+        --text: #44403c;
+        --muted: #a8a29e;
+        --accent: #d97706;
+        --accent-dark: #b45309;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: radial-gradient(circle at top, #fef3c7, var(--bg) 60%);
+        color: var(--text);
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .card {
+        width: 100%;
+        max-width: 440px;
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: 24px;
+        padding: 32px 24px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(180, 83, 9, 0.08);
+      }
+      .bunny {
+        font-size: 64px;
+        line-height: 1;
+        animation: hop 1.6s ease-in-out infinite;
+      }
+      @keyframes hop {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+      }
+      h1 {
+        margin: 12px 0 4px;
+        font-size: 24px;
+        color: var(--accent-dark);
+      }
+      .task {
+        margin: 16px 0;
+        padding: 12px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 14px;
+        font-weight: 600;
+        color: #166534;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .site {
+        word-break: break-all;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      a.btn {
+        display: block;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid var(--accent-dark);
+        background: var(--accent);
+        color: #fff;
+      }
+      a.btn:hover {
+        background: var(--accent-dark);
+      }
+      a.btn.secondary {
+        background: #fff;
+        color: var(--accent-dark);
+        border-color: var(--border);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="bunny">🐰</div>
+      <h1 id="title">Tập trung nào!</h1>
+      <p class="muted">Trang này đang bị chặn trong lúc bạn làm task.</p>
+      <div id="task" class="task" hidden></div>
+      <p id="site" class="muted site" hidden></p>
+      <div class="actions">
+        <a id="back" class="btn" href="#" hidden>Quay lại trang vừa rồi</a>
+        <a id="open-app" class="btn secondary" href="#" target="_blank" rel="noopener">Mở Titroutine</a>
+      </div>
+    </main>
+    <script type="module" src="blocked.js"></script>
+  </body>
+</html>

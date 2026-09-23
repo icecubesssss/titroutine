@@ -55,6 +55,13 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
       ? "bg-amber-100 text-amber-700 border-amber-200"
       : "bg-emerald-100 text-emerald-700 border-emerald-200";
 
+  const statusBadge =
+    task.status === "in_progress"
+      ? { label: "🌱 Đang làm", className: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      : task.status === "done"
+      ? { label: "✨ Đã xong", className: "bg-violet-50 text-violet-700 border-violet-200" }
+      : { label: "📝 Cần làm", className: "bg-orange-50 text-orange-700 border-orange-200" };
+
   return (
     <div
       className={`border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-3 ${
@@ -79,16 +86,27 @@ export const NeighborTaskCard: React.FC<NeighborTaskCardProps> = ({
             {isMine ? "Task của tôi" : ownerName}
           </span>
         </div>
-        <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${priorityColor}`}
-        >
-          {task.priority.toUpperCase()}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${statusBadge.className}`}
+          >
+            {statusBadge.label}
+          </span>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${priorityColor}`}
+          >
+            {task.priority.toUpperCase()}
+          </span>
+        </div>
       </div>
 
       {/* Task Content */}
       <div>
-        <h4 className="font-semibold text-stone-800 text-sm line-clamp-2">
+        <h4
+          className={`font-semibold text-sm line-clamp-2 ${
+            task.status === "done" ? "text-stone-400 line-through" : "text-stone-800"
+          }`}
+        >
           {task.title}
         </h4>
         {task.notes && (

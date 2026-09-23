@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Titroutine Focus Guard",
+  "description": "Chặn các trang gây xao nhãng khi bạn có task Đang làm trên Titroutine.",
+  "version": "1.0.0",
+  "permissions": ["storage", "alarms", "declarativeNetRequest", "tabs"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*", "http://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Titroutine Focus Guard",
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

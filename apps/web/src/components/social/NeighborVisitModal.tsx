@@ -36,6 +36,7 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
   const [loadingData, setLoadingData] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "habits">("tasks");
   const [taskFilter, setTaskFilter] = useState<"all" | "mine" | "neighbor">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | Task["status"]>("all");
   const [visitError, setVisitError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -306,12 +307,20 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                   const hostTasks = neighborData.publicTasks;
                   const hostName = neighborData.profile.username || "Hàng xóm";
                   const myTasksList = myTasks;
-                  const displayedTasks =
+                  const ownerTasks =
                     taskFilter === "mine"
                       ? myTasksList
                       : taskFilter === "neighbor"
                       ? hostTasks
                       : [...hostTasks, ...myTasksList.filter((mt) => !hostTasks.some((ht) => ht.id === mt.id))];
+                  const displayedTasks =
+                    statusFilter === "all" ? ownerTasks : ownerTasks.filter((t) => t.status === statusFilter);
+                  const statusOptions: { key: "all" | Task["status"]; label: string; active: string }[] = [
+                    { key: "all", label: "📋 Mọi trạng thái", active: "bg-stone-600 text-white border-stone-700" },
+                    { key: "todo", label: "📝 Cần làm", active: "bg-orange-500 text-white border-orange-600" },
+                    { key: "in_progress", label: "🌱 Đang làm", active: "bg-emerald-600 text-white border-emerald-700" },
+                    { key: "done", label: "✨ Đã xong", active: "bg-violet-500 text-white border-violet-600" },
+                  ];
 
                   return (
                     <div className="space-y-3">
@@ -355,10 +364,37 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                         </button>
                       </div>
 
+                      {/* Status filter pills — counts follow the owner filter above */}
+                      <div className="flex items-center gap-1.5 pb-1 overflow-x-auto">
+                        {statusOptions.map((opt) => {
+                          const count =
+                            opt.key === "all"
+                              ? ownerTasks.length
+                              : ownerTasks.filter((t) => t.status === opt.key).length;
+                          return (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => setStatusFilter(opt.key)}
+                              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 whitespace-nowrap ${
+                                statusFilter === opt.key
+                                  ? `${opt.active} shadow-sm`
+                                  : "bg-white/90 text-stone-600 border-amber-200 hover:bg-white"
+                              }`}
+                            >
+                              <span>{opt.label}</span>
+                              <span className="text-[10px] opacity-80">({count})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       {/* Filtered Tasks Grid */}
                       {displayedTasks.length === 0 ? (
                         <div className="p-8 text-center bg-white/60 rounded-2xl border border-dashed border-amber-200 text-stone-400 text-xs">
-                          {taskFilter === "mine"
+                          {statusFilter !== "all" && ownerTasks.length > 0
+                            ? "Không có task nào ở trạng thái này!"
+                            : taskFilter === "mine"
                             ? "Bạn chưa có task nào!"
                             : taskFilter === "neighbor"
                             ? `${hostName} chưa công khai task nào!`

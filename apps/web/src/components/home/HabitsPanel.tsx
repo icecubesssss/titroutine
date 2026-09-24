@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
@@ -32,6 +32,8 @@ export function HabitsPanel({
   onToggle,
   onDoIt,
   onIncrement,
+  isTaskBoardMaximized,
+  onToggleTaskBoardMaximized,
 }: {
   scrollRef: RefObject<HTMLElement>;
   data: DashboardData;
@@ -48,6 +50,9 @@ export function HabitsPanel({
   onToggle: (habit: HabitWithLog) => void;
   onDoIt: (habit: HabitWithLog) => void;
   onIncrement: (habit: HabitWithLog, amount: number) => void;
+  /** Desktop only: task board takes the whole workspace, hiding the pet room. */
+  isTaskBoardMaximized: boolean;
+  onToggleTaskBoardMaximized: () => void;
 }) {
   const t = useTranslations("Home");
   const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
@@ -101,6 +106,17 @@ export function HabitsPanel({
             <span className="text-sm font-bold text-theme-text bg-theme-card-bg px-3 py-1.5 rounded-full shadow-sm border border-theme-card-border">
               {t("completed", { completed: completedCount, total: totalCount })}
             </span>
+          )}
+          {activeTab === "tasks" && (
+            <button
+              type="button"
+              onClick={onToggleTaskBoardMaximized}
+              aria-label={isTaskBoardMaximized ? t("restoreBoard") : t("maximizeBoard")}
+              title={isTaskBoardMaximized ? t("restoreBoard") : t("maximizeBoard")}
+              className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-theme-card-bg border border-theme-card-border shadow-sm text-theme-text/60 hover:text-theme-accent hover:bg-theme-accent-light transition-colors"
+            >
+              {isTaskBoardMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
           )}
         </div>
       </div>

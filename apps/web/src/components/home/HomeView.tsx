@@ -203,6 +203,25 @@ export function HomeView({ data }: { data: DashboardData }) {
     setTheme(newTheme);
     window.localStorage.setItem("titroutine:theme", newTheme);
   };
+
+  // Desktop: the task board can be maximized over the pet room. Remembered per
+  // browser, so switching to Habits and back (or reloading) keeps the choice.
+  const [isTaskBoardMaximized, setIsTaskBoardMaximized] = useState(false);
+  useEffect(() => {
+    try {
+      setIsTaskBoardMaximized(window.localStorage.getItem("titroutine:taskBoardMaximized") === "1");
+    } catch {}
+  }, []);
+  const toggleTaskBoardMaximized = () => {
+    setIsTaskBoardMaximized((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("titroutine:taskBoardMaximized", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  };
+  const hideRoomForTasks = activeTab === "tasks" && isTaskBoardMaximized;
   // Synchronous guard so a rapid double-tap can't double-award coins/EXP.
   const inFlight = useRef<Set<string>>(new Set());
   // The internally-scrolling habits pane (the shell itself never scrolls).
@@ -453,7 +472,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           the habits/tasks panel below becomes a full-screen overlay (see
           isMobilePanelOpen) instead of being stacked underneath it. */}
       <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden relative">
-        <section className="relative flex-1 flex flex-col p-0 min-h-[420px] md:min-h-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED]">
+        <section className={`relative flex-1 flex-col p-0 min-h-[420px] md:min-h-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED] ${hideRoomForTasks ? "flex md:hidden" : "flex"}`}>
           <MinimalCozyRoom bgImageUrl="/assets/user_room_vertical.png">
 
             {/* Top Bar 1: Happy Meter Progress Bar (Emerald Green Bar) */}
@@ -718,6 +737,8 @@ export function HomeView({ data }: { data: DashboardData }) {
           onToggle={commitToggle}
           onDoIt={handleDoIt}
           onIncrement={handleIncrementCounter}
+          isTaskBoardMaximized={isTaskBoardMaximized}
+          onToggleTaskBoardMaximized={toggleTaskBoardMaximized}
         />
       </div>
       </div> {/* Close Main Workspace split panel */}

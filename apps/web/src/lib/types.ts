@@ -27,9 +27,12 @@ export interface HabitWithLog {
   frequency: HabitFrequency;
   timeOfDay: TimeOfDay;
   isCompleted: boolean;
+  /** Explicitly marked as failed for the selected day (never also completed). */
+  isFailed?: boolean;
   value: number | null;
   isPrivate?: boolean;
   weeklyLogs?: Record<string, boolean>; // map of date YYYY-MM-DD to completion status
+  weeklyFailed?: Record<string, boolean>; // map of date YYYY-MM-DD to failed status
   streak?: number;
 }
 

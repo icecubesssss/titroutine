@@ -20,6 +20,7 @@ import { useCaptureTimezone } from "@/components/home/hooks/useCaptureTimezone";
 import { useSound } from "@/hooks/useSound";
 import {
   toggleHabitAction,
+  failHabitAction,
   claimDailyCheckinAction,
   incrementCounterHabitAction,
   setVacationModeAction,
@@ -41,6 +42,12 @@ import { RoomBadge } from "@/components/home/RoomBadge";
 
 /** How long a co-op duo animation plays before both companions go back to idle. */
 const COOP_ANIMATION_MS = 4000;
+// Per-tab "maximized over the pet room" flag. The tasks key predates the habits
+// one, so it keeps its original name.
+const MAXIMIZED_STORAGE_KEYS = {
+  habits: "titroutine:habitsMaximized",
+  tasks: "titroutine:taskBoardMaximized",
+} as const;
 
 export function HomeView({ data }: { data: DashboardData }) {
   const locale = useLocale();
@@ -204,24 +211,32 @@ export function HomeView({ data }: { data: DashboardData }) {
     window.localStorage.setItem("titroutine:theme", newTheme);
   };
 
-  // Desktop: the task board can be maximized over the pet room. Remembered per
-  // browser, so switching to Habits and back (or reloading) keeps the choice.
-  const [isTaskBoardMaximized, setIsTaskBoardMaximized] = useState(false);
+  // Desktop: each tab (habits / task board) can be maximized over the pet room,
+  // independently. Remembered per browser, so switching tabs and back (or
+  // reloading) keeps each tab's choice.
+  const [maximizedTabs, setMaximizedTabs] = useState<Record<"habits" | "tasks", boolean>>({
+    habits: false,
+    tasks: false,
+  });
   useEffect(() => {
     try {
-      setIsTaskBoardMaximized(window.localStorage.getItem("titroutine:taskBoardMaximized") === "1");
+      setMaximizedTabs({
+        habits: window.localStorage.getItem(MAXIMIZED_STORAGE_KEYS.habits) === "1",
+        tasks: window.localStorage.getItem(MAXIMIZED_STORAGE_KEYS.tasks) === "1",
+      });
     } catch {}
   }, []);
-  const toggleTaskBoardMaximized = () => {
-    setIsTaskBoardMaximized((prev) => {
-      const next = !prev;
+  const togglePanelMaximized = () => {
+    const tab = activeTab;
+    setMaximizedTabs((prev) => {
+      const next = !prev[tab];
       try {
-        window.localStorage.setItem("titroutine:taskBoardMaximized", next ? "1" : "0");
+        window.localStorage.setItem(MAXIMIZED_STORAGE_KEYS[tab], next ? "1" : "0");
       } catch {}
-      return next;
+      return { ...prev, [tab]: next };
     });
   };
-  const hideRoomForTasks = activeTab === "tasks" && isTaskBoardMaximized;
+  const isPanelMaximized = maximizedTabs[activeTab];
   // Synchronous guard so a rapid double-tap can't double-award coins/EXP.
   const inFlight = useRef<Set<string>>(new Set());
   // The internally-scrolling habits pane (the shell itself never scrolls).
@@ -340,6 +355,35 @@ export function HomeView({ data }: { data: DashboardData }) {
     startTransition(async () => {
       try {
         await toggleHabitAction({ habitId: habit.id, value, date: data.currentDate });
+        router.refresh();
+      } finally {
+        inFlight.current.delete(habit.id);
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(habit.id);
+          return next;
+        });
+      }
+    });
+  };
+
+  // Mark/unmark the habit as failed for the viewed day. No economy effect, so
+  // the optimistic update is just the flag; rolled back if the server refuses.
+  const commitFail = (habit: HabitWithLog) => {
+    if (inFlight.current.has(habit.id)) return;
+    inFlight.current.add(habit.id);
+    setPendingIds((prev) => new Set(prev).add(habit.id));
+
+    const willFail = !habit.isFailed;
+    setHabits((prev) => prev.map((h) => (h.id === habit.id ? { ...h, isFailed: willFail } : h)));
+    playSwoosh();
+
+    startTransition(async () => {
+      try {
+        const res = await failHabitAction({ habitId: habit.id, date: data.currentDate });
+        if (res?.error) {
+          setHabits((prev) => prev.map((h) => (h.id === habit.id ? { ...h, isFailed: !willFail } : h)));
+        }
         router.refresh();
       } finally {
         inFlight.current.delete(habit.id);
@@ -472,7 +516,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           the habits/tasks panel below becomes a full-screen overlay (see
           isMobilePanelOpen) instead of being stacked underneath it. */}
       <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden relative">
-        <section className={`relative flex-1 flex-col p-0 min-h-[420px] md:min-h-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED] ${hideRoomForTasks ? "flex md:hidden" : "flex"}`}>
+        <section className={`relative flex-1 flex-col p-0 min-h-[420px] md:min-h-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-theme-border bg-[#FAF5ED] ${isPanelMaximized ? "flex md:hidden" : "flex"}`}>
           <MinimalCozyRoom bgImageUrl="/assets/user_room_vertical.png">
 
             {/* Top Bar 1: Happy Meter Progress Bar (Emerald Green Bar) */}
@@ -737,8 +781,9 @@ export function HomeView({ data }: { data: DashboardData }) {
           onToggle={commitToggle}
           onDoIt={handleDoIt}
           onIncrement={handleIncrementCounter}
-          isTaskBoardMaximized={isTaskBoardMaximized}
-          onToggleTaskBoardMaximized={toggleTaskBoardMaximized}
+          onFail={commitFail}
+          isMaximized={isPanelMaximized}
+          onToggleMaximized={togglePanelMaximized}
         />
       </div>
       </div> {/* Close Main Workspace split panel */}

@@ -40,6 +40,8 @@ interface HabitRow {
 interface LogRow {
   habit_id: string;
   is_completed: boolean | null;
+  /** Added in migration 14 — absent until it is applied. */
+  is_failed?: boolean | null;
   value: number | null;
   date: string;
 }
@@ -181,7 +183,9 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .order("created_at", { ascending: true }),
     supabase
       .from("habit_logs")
-      .select("habit_id, is_completed, value, date")
+      // "*" rather than a column list so the dashboard keeps loading on a DB
+      // where migration 14 (is_failed) hasn't been applied yet.
+      .select("*")
       .eq("user_id", user.id)
       .gte("date", weekDates[0])
       .lte("date", weekDates[6]),
@@ -373,6 +377,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
 
   const logByHabit = new Map<string, LogRow>();
   const weeklyLogsByHabit = new Map<string, Record<string, boolean>>();
+  const weeklyFailedByHabit = new Map<string, Record<string, boolean>>();
 
   for (const log of (logRows ?? []) as LogRow[]) {
     if (log.date === targetDate) {
@@ -384,6 +389,14 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       weeklyLogsByHabit.set(log.habit_id, weekly);
     }
     weekly[log.date] = Boolean(log.is_completed);
+    if (log.is_failed && !log.is_completed) {
+      let failed = weeklyFailedByHabit.get(log.habit_id);
+      if (!failed) {
+        failed = {};
+        weeklyFailedByHabit.set(log.habit_id, failed);
+      }
+      failed[log.date] = true;
+    }
   }
 
   // Group completed log dates by habit
@@ -415,8 +428,10 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
         frequency: freq,
         timeOfDay: h.time_of_day ?? "anytime",
         isCompleted: Boolean(log?.is_completed),
+        isFailed: Boolean(log?.is_failed) && !log?.is_completed,
         value: log?.value ?? null,
         weeklyLogs: weeklyLogsByHabit.get(h.id) || {},
+        weeklyFailed: weeklyFailedByHabit.get(h.id) || {},
         streak: calculateStreak(completedDatesByHabit.get(h.id) || new Set<string>(), today, freq),
       };
     })

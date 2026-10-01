@@ -53,6 +53,7 @@ CREATE TABLE public.habit_logs (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   date DATE NOT NULL, -- Ngày theo timezone của user
   is_completed BOOLEAN DEFAULT FALSE,
+  is_failed BOOLEAN DEFAULT FALSE, -- Ngày bị đánh dấu fail (migration 14)
   value INTEGER, -- Cho dạng timer/counter (e.g., số phút, số lần)
   used_freeze BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),

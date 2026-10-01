@@ -62,6 +62,11 @@
     "weeklyPerformance": "Weekly Performance",
     "maximizeBoard": "Maximize task board",
     "restoreBoard": "Restore, show the room",
+    "maximizeHabits": "Maximize habit list",
+    "restoreHabits": "Restore, show the room",
+    "fail": "Fail — couldn't do it today",
+    "undoFail": "Unmark fail",
+    "failedText": "Failed ✕",
     "notDone": "Not completed",
     "completedText": "Completed",
     "weekdaysShort": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"

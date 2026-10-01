@@ -256,6 +256,51 @@ export async function toggleHabitAction(input: {
   return {};
 }
 
+/**
+ * Toggle the "failed" mark on a habit for a day. Purely a record: no coins,
+ * energy or streak change (not completing already earns nothing). A completed
+ * day can't be failed — undo the completion first. Counter progress (`value`)
+ * is left untouched so un-failing restores it.
+ */
+export async function failHabitAction(input: {
+  habitId: string;
+  date?: string;
+}): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("timezone")
+    .eq("id", userId)
+    .maybeSingle();
+  const targetDate = input.date || todayInTimezone(profile?.timezone || "UTC");
+
+  const { data: existing, error: readError } = await supabase
+    .from("habit_logs")
+    .select("id, is_completed, is_failed")
+    .eq("habit_id", input.habitId)
+    .eq("date", targetDate)
+    .maybeSingle();
+  if (readError) return { error: readError.message };
+  if (existing?.is_completed) return { error: "already_completed" };
+
+  const { error: logError } = await supabase.from("habit_logs").upsert(
+    {
+      habit_id: input.habitId,
+      user_id: userId,
+      date: targetDate,
+      is_completed: false,
+      is_failed: !existing?.is_failed,
+    },
+    { onConflict: "habit_id,date" }
+  );
+  if (logError) return { error: logError.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
 export async function incrementCounterHabitAction(input: {
   habitId: string;
   incrementAmount: number;

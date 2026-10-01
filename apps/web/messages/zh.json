@@ -62,6 +62,11 @@
     "weeklyPerformance": "本周表现",
     "maximizeBoard": "放大任务板",
     "restoreBoard": "还原，显示房间",
+    "maximizeHabits": "放大习惯列表",
+    "restoreHabits": "还原，显示房间",
+    "fail": "失败 — 今天没做到",
+    "undoFail": "取消失败标记",
+    "failedText": "失败 ✕",
     "notDone": "未完成",
     "completedText": "已完成",
     "weekdaysShort": "一,二,三,四,五,六,日"

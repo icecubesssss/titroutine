@@ -62,6 +62,11 @@
     "weeklyPerformance": "Hiệu suất tuần",
     "maximizeBoard": "Phóng to bảng công việc",
     "restoreBoard": "Thu nhỏ, hiện lại phòng",
+    "maximizeHabits": "Phóng to danh sách thói quen",
+    "restoreHabits": "Thu nhỏ, hiện lại phòng",
+    "fail": "Fail — hôm nay không làm được",
+    "undoFail": "Bỏ đánh dấu fail",
+    "failedText": "Fail ✕",
     "notDone": "Chưa làm",
     "completedText": "Đã hoàn thành",
     "weekdaysShort": "T2,T3,T4,T5,T6,T7,CN"

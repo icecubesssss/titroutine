@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, Pencil, CheckCircle, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
@@ -32,8 +32,9 @@ export function HabitsPanel({
   onToggle,
   onDoIt,
   onIncrement,
-  isTaskBoardMaximized,
-  onToggleTaskBoardMaximized,
+  onFail,
+  isMaximized,
+  onToggleMaximized,
 }: {
   scrollRef: RefObject<HTMLElement>;
   data: DashboardData;
@@ -50,9 +51,11 @@ export function HabitsPanel({
   onToggle: (habit: HabitWithLog) => void;
   onDoIt: (habit: HabitWithLog) => void;
   onIncrement: (habit: HabitWithLog, amount: number) => void;
-  /** Desktop only: task board takes the whole workspace, hiding the pet room. */
-  isTaskBoardMaximized: boolean;
-  onToggleTaskBoardMaximized: () => void;
+  /** Toggle the "failed" mark for the viewed day. */
+  onFail: (habit: HabitWithLog) => void;
+  /** Desktop only: the active tab takes the whole workspace, hiding the pet room. */
+  isMaximized: boolean;
+  onToggleMaximized: () => void;
 }) {
   const t = useTranslations("Home");
   const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
@@ -64,6 +67,10 @@ export function HabitsPanel({
     await toggleHabitPrivacyAction(habit.id, nextVal);
     onRefresh();
   };
+
+  const maximizeLabel = isMaximized
+    ? t(activeTab === "tasks" ? "restoreBoard" : "restoreHabits")
+    : t(activeTab === "tasks" ? "maximizeBoard" : "maximizeHabits");
 
   // Shared weekly header: week navigation + day strip. Rendered above both tabs
   // so tasks get the same week bar; the completion badge is habits-only.
@@ -107,17 +114,15 @@ export function HabitsPanel({
               {t("completed", { completed: completedCount, total: totalCount })}
             </span>
           )}
-          {activeTab === "tasks" && (
-            <button
-              type="button"
-              onClick={onToggleTaskBoardMaximized}
-              aria-label={isTaskBoardMaximized ? t("restoreBoard") : t("maximizeBoard")}
-              title={isTaskBoardMaximized ? t("restoreBoard") : t("maximizeBoard")}
-              className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-theme-card-bg border border-theme-card-border shadow-sm text-theme-text/60 hover:text-theme-accent hover:bg-theme-accent-light transition-colors"
-            >
-              {isTaskBoardMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onToggleMaximized}
+            aria-label={maximizeLabel}
+            title={maximizeLabel}
+            className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-theme-card-bg border border-theme-card-border shadow-sm text-theme-text/60 hover:text-theme-accent hover:bg-theme-accent-light transition-colors"
+          >
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
@@ -232,12 +237,16 @@ export function HabitsPanel({
                   <h3 className="text-lg font-bold text-earth-brown flex items-center gap-2">
                     {section.label}
                   </h3>
+                  {/* Maximized (desktop): the extra width becomes a card grid. */}
+                  <div className={isMaximized ? "space-y-3 md:space-y-0 md:grid md:grid-cols-2 2xl:grid-cols-3 md:gap-3" : "space-y-3"}>
                   {section.items.map((habit) => (
                     <div
                       key={habit.id}
                       className={`bg-theme-card-bg p-4 rounded-3xl border flex flex-col transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
                         habit.isCompleted
                           ? "border-theme-card-border opacity-60"
+                          : habit.isFailed
+                          ? "border-red-200 bg-red-50/40 opacity-70"
                           : habit.type === "negative"
                           ? "border-red-200 bg-red-50/50"
                           : "border-theme-card-border"
@@ -265,7 +274,7 @@ export function HabitsPanel({
                           <div className="flex items-center gap-1.5">
                             <h3
                               className={`font-bold truncate ${
-                                habit.isCompleted ? "line-through text-gray-400" : habit.type === "negative" ? "text-red-600" : "text-earth-text"
+                                habit.isCompleted ? "line-through text-gray-400" : habit.isFailed ? "line-through text-red-400" : habit.type === "negative" ? "text-red-600" : "text-earth-text"
                               }`}
                             >
                               {habit.title}
@@ -316,7 +325,33 @@ export function HabitsPanel({
                         >
                           <CheckCircle className={`w-8 h-8 ${habit.type === "negative" ? "text-red-500" : "text-green-500"}`} />
                         </button>
-                      ) : habit.type === "counter" ? (
+                      ) : habit.isFailed ? (
+                        <button
+                          type="button"
+                          aria-label={t("undoFail")}
+                          title={t("undoFail")}
+                          disabled={pendingIds.has(habit.id)}
+                          onClick={() => onFail(habit)}
+                          className="shrink-0 disabled:opacity-50"
+                        >
+                          <XCircle className="w-8 h-8 text-red-500" />
+                        </button>
+                      ) : (
+                      <div className="flex items-center gap-2 shrink-0">
+                      {/* Negative habits already have their own "slipped" button. */}
+                      {habit.type !== "negative" && (
+                        <button
+                          type="button"
+                          aria-label={t("fail")}
+                          title={t("fail")}
+                          disabled={pendingIds.has(habit.id)}
+                          onClick={() => onFail(habit)}
+                          className="w-8 h-8 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                        >
+                          <X className="w-4 h-4" strokeWidth={3} />
+                        </button>
+                      )}
+                      {habit.type === "counter" ? (
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -359,6 +394,8 @@ export function HabitsPanel({
                         </DuoButton>
                       )}
                       </div>
+                      )}
+                      </div>
 
                       {/* Mini Weekly Beans Progress */}
                       {data.weekDates && (
@@ -368,6 +405,7 @@ export function HabitsPanel({
                             {data.weekDates.map((dateStr, i) => {
                               const isPast = dateStr < data.today;
                               const completed = habit.weeklyLogs?.[dateStr];
+                              const failed = habit.weeklyFailed?.[dateStr];
                               const dayNames = t("weekdaysShort").split(",");
 
                               let bgClass = "bg-black/[0.04]";
@@ -378,6 +416,10 @@ export function HabitsPanel({
                                 bgClass = "bg-theme-accent";
                                 textClass = "text-white";
                                 tooltipText = `${dayNames[i]}: ${t("completedText")} 🎉`;
+                              } else if (failed) {
+                                bgClass = "bg-red-400";
+                                textClass = "text-white";
+                                tooltipText = `${dayNames[i]}: ${t("failedText")}`;
                               } else if (isPast) {
                                 bgClass = "bg-black/[0.12]";
                                 textClass = "text-theme-text/50";
@@ -398,6 +440,7 @@ export function HabitsPanel({
                       )}
                     </div>
                   ))}
+                  </div>
                 </div>
               );
             })}

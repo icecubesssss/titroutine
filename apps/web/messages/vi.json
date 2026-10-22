@@ -69,7 +69,11 @@
     "failedText": "Fail ✕",
     "notDone": "Chưa làm",
     "completedText": "Đã hoàn thành",
-    "weekdaysShort": "T2,T3,T4,T5,T6,T7,CN"
+    "weekdaysShort": "T2,T3,T4,T5,T6,T7,CN",
+    "freezeOwned": "Bạn đang có {count} thẻ",
+    "freezePending": "Bạn đã lỡ {count} ngày — sẽ dùng {count} thẻ để giữ chuỗi khi bạn hoàn thành 1 thói quen hôm nay.",
+    "freezeNotEnough": "Không đủ xu để mua thẻ.",
+    "freezeClose": "Đóng"
   },
   "HabitModal": {
     "newTitle": "Thói quen mới",
@@ -502,6 +506,65 @@
       "no_active_visit": "Không có ai ở đây cả.",
       "visits_closed": "Hàng xóm này đang tắt ghé thăm.",
       "generic": "Có lỗi xảy ra, thử lại nhé."
+    }
+  },
+  "Feedback": {
+    "open": "Chat góp ý với nhà phát triển",
+    "title": "Góp ý & hỗ trợ",
+    "subtitle": "Nhắn trực tiếp cho nhà phát triển Titroutine",
+    "welcome": "Chào bạn 👋 Có lỗi gì, ý tưởng gì hay chỉ muốn tâm sự, cứ nhắn ở đây nhé — mình sẽ trả lời sớm nhất có thể!",
+    "placeholder": "Nhập tin nhắn...",
+    "send": "Gửi",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "developer": "Nhà phát triển",
+    "sendError": "Gửi không được, thử lại nhé.",
+    "tooLong": "Tin nhắn dài quá (tối đa 2000 ký tự).",
+    "inboxTitle": "Hộp thư góp ý",
+    "inboxSubtitle": "Tin nhắn từ người dùng",
+    "inboxEmpty": "Chưa có góp ý nào.",
+    "threadEmpty": "Chưa có tin nhắn.",
+    "adminReplying": "Bạn đang trả lời với tư cách nhà phát triển",
+    "anonymous": "Người dùng ẩn danh"
+  },
+  "WhatsNew": {
+    "title": "Có gì mới",
+    "subtitle": "Những cập nhật gần đây của Titroutine",
+    "close": "Đóng",
+    "gotIt": "Đã hiểu, vào chơi thôi!",
+    "items": {
+      "feedback": {
+        "title": "Chat góp ý với nhà phát triển",
+        "body": "Bấm nút 💬 để nhắn trực tiếp: báo lỗi, gợi ý tính năng hay chỉ muốn tâm sự. Bạn sẽ thấy câu trả lời ngay trong cửa sổ chat."
+      },
+      "freeze": {
+        "title": "Thẻ đóng băng chuỗi ❄️",
+        "body": "Bấm chip ❄️ cạnh 🔥 để xem và mua thẻ (50 xu). Lỡ một ngày thì thẻ tự giữ chuỗi cho bạn khi quay lại; số chuỗi giờ cũng hiển thị chính xác hơn."
+      },
+      "neighborHabits": {
+        "title": "Xem thói quen của hàng xóm",
+        "body": "Trong Ghé thăm hàng xóm → Thói quen: thấy hôm nay họ đã làm gì, streak từng thói quen và 7 ngày gần nhất. Khu phố giờ tự động kết nối mọi cư dân."
+      },
+      "mobileForms": {
+        "title": "Form gọn hơn trên điện thoại",
+        "body": "Tạo/sửa công việc và thói quen dài giờ cuộn được, nút Tạo/Lưu luôn nằm ở cuối màn hình."
+      },
+      "habitFail": {
+        "title": "Đánh dấu \"Fail\" cho thói quen",
+        "body": "Hôm nào không làm được, đánh dấu Fail để ghi nhận thật lòng — không bị trừ xu hay mất chuỗi."
+      },
+      "maximize": {
+        "title": "Phóng to danh sách",
+        "body": "Trên máy tính có thể phóng to bảng công việc hoặc danh sách thói quen, ẩn tạm phòng thú cưng cho đỡ rối."
+      },
+      "taskFilter": {
+        "title": "Lọc công việc theo trạng thái",
+        "body": "Lọc nhanh Cần làm / Đang làm / Đã xong, kể cả khi xem task của hàng xóm."
+      },
+      "badges": {
+        "title": "Huy hiệu mốc streak",
+        "body": "Đạt mốc streak để mở khoá huy hiệu trong Cửa hàng, mua về treo và kéo thả trong phòng."
+      }
     }
   }
 }

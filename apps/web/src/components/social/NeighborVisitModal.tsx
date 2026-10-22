@@ -75,6 +75,13 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Local calendar days for the 7-dot history row (oldest first).
+  const lastSevenDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+
   const handleCopyTask = async (taskId: string) => {
     await copyNeighborTaskAction(taskId);
   };
@@ -430,22 +437,58 @@ export const NeighborVisitModal: React.FC<NeighborVisitModalProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-2">
+                        <div className="text-[11px] font-bold text-stone-600 px-1">
+                          Hôm nay đã làm{" "}
+                          <span className="text-emerald-700">
+                            {neighborData.publicHabits.filter((h) => h.isCompleted).length}/{neighborData.publicHabits.length}
+                          </span>{" "}
+                          thói quen
+                        </div>
                         {neighborData.publicHabits.map((h) => (
                           <div
                             key={h.id}
-                            className="bg-white/90 border border-amber-100 rounded-2xl p-3 flex items-center justify-between"
+                            className={`bg-white/90 border rounded-2xl p-3 flex items-center justify-between gap-3 ${
+                              h.isCompleted ? "border-emerald-200" : "border-amber-100"
+                            }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                              <span className="font-semibold text-stone-800 text-xs">
-                                {h.title}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-black ${
+                                  h.isCompleted
+                                    ? "bg-emerald-500 text-white"
+                                    : "bg-stone-100 text-stone-300 border border-stone-200"
+                                }`}
+                                title={h.isCompleted ? "Hôm nay đã làm" : "Hôm nay chưa làm"}
+                              >
+                                {h.isCompleted ? "✓" : ""}
                               </span>
-                              <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full border border-stone-200">
-                                {h.type}
-                              </span>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-stone-800 text-xs truncate">
+                                  {h.title}
+                                </div>
+                                {/* Last 7 days, oldest → today */}
+                                <div className="mt-1 flex items-center gap-1">
+                                  {lastSevenDays.map((d) => (
+                                    <span
+                                      key={d}
+                                      title={d}
+                                      className={`w-2 h-2 rounded-full ${
+                                        h.weeklyLogs?.[d] ? "bg-emerald-400" : "bg-stone-200"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-xs text-stone-500 font-medium">
-                              🌐 Public
+                            <span
+                              className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                                (h.streak ?? 0) > 0
+                                  ? "bg-orange-50 text-orange-700 border-orange-200"
+                                  : "bg-stone-50 text-stone-400 border-stone-200"
+                              }`}
+                              title="Chuỗi ngày liên tiếp của thói quen này"
+                            >
+                              🔥 {h.streak ?? 0} ngày
                             </span>
                           </div>
                         ))}

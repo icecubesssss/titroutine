@@ -14,3 +14,4 @@ export * from "./actions/visits";
 export * from "./actions/memories";
 export * from "./actions/tasks";
 export * from "./actions/badges";
+export * from "./actions/feedback";

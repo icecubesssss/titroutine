@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import confetti from "canvas-confetti";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { HabitModal } from "@/components/home/HabitModal";
@@ -27,6 +27,8 @@ import {
   moveBadgeAction,
   setBadgeVisibilityAction,
   acknowledgeBadgeMilestoneAction,
+  buyFreezeAction,
+  acknowledgeWhatsNewAction,
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
@@ -37,7 +39,11 @@ import { NeighborVisitModal } from "@/components/social/NeighborVisitModal";
 import { VisitLayer } from "@/components/social/VisitLayer";
 import { COOP_KINDS, type CoopKind } from "@/lib/coop";
 import { getBadge, eligibleBadgeKeys, nextUncelebratedBadge } from "@/lib/badges";
+import { STREAK_FREEZE_COST } from "@/lib/game";
 import { RoomBadge } from "@/components/home/RoomBadge";
+import { FeedbackChat } from "@/components/feedback/FeedbackChat";
+import { WhatsNewModal } from "@/components/home/WhatsNewModal";
+import { WHATS_NEW_VERSION } from "@/lib/announcements";
 
 
 /** How long a co-op duo animation plays before both companions go back to idle. */
@@ -244,6 +250,23 @@ export function HomeView({ data }: { data: DashboardData }) {
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
   const [isNavigating, startNavigation] = useTransition();
+  const tHome = useTranslations("Home");
+
+  // Streak-freeze popover in the HUD (buying refreshes via revalidatePath).
+  const [isFreezeOpen, setIsFreezeOpen] = useState(false);
+  const [freezeError, setFreezeError] = useState<string | null>(null);
+  const [isBuyingFreeze, startBuyFreeze] = useTransition();
+  const handleBuyFreeze = () => {
+    setFreezeError(null);
+    if (data.profile.coins < STREAK_FREEZE_COST) {
+      setFreezeError(tHome("freezeNotEnough"));
+      return;
+    }
+    startBuyFreeze(async () => {
+      const res = await buyFreezeAction();
+      if (res?.error) setFreezeError(res.error === "not_enough_coins" ? tHome("freezeNotEnough") : res.error);
+    });
+  };
 
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
@@ -310,6 +333,22 @@ export function HomeView({ data }: { data: DashboardData }) {
       });
     }
   }, [data.profile.currentStreak, data.profile.badgeMilestoneSeen]);
+
+  // One-time "what's new" popup. Waits for the check-in/badge celebration so the
+  // two never stack; hidden locally right away, persisted server-side.
+  const [whatsNewDismissed, setWhatsNewDismissed] = useState(false);
+  // (The check-in popup opens in an effect after first paint, hence the date check.)
+  const showWhatsNew =
+    !whatsNewDismissed &&
+    data.profile.whatsNewSeen !== WHATS_NEW_VERSION &&
+    data.profile.lastCheckinDate === data.today &&
+    !celebration.isOpen;
+  const handleCloseWhatsNew = () => {
+    setWhatsNewDismissed(true);
+    startTransition(async () => {
+      await acknowledgeWhatsNewAction(WHATS_NEW_VERSION);
+    });
+  };
 
   // Capture the user's real timezone once so streaks roll over on their local day.
   useCaptureTimezone(data.profile.timezone, () => router.refresh());
@@ -571,6 +610,52 @@ export function HomeView({ data }: { data: DashboardData }) {
                 <span className="flex items-center gap-1 bg-red-100/80 px-2.5 py-1 rounded-full border border-red-200/60 text-red-900 shadow-xs">
                   🔥 {data.profile.currentStreak}
                 </span>
+                <div className="relative">
+                  <button
+                    onClick={() => { setFreezeError(null); setIsFreezeOpen((v) => !v); }}
+                    title={tHome("freezeTitle")}
+                    className={`relative flex items-center gap-1 bg-sky-100/80 px-2.5 py-1 rounded-full border border-sky-200/60 text-sky-900 shadow-xs hover:bg-sky-100 active:scale-95 transition-all ${
+                      data.profile.streakFreezesPending > 0 ? "ring-2 ring-sky-400" : ""
+                    }`}
+                  >
+                    ❄️ {data.profile.streakFreezes}
+                  </button>
+                  {isFreezeOpen && (
+                    <div className="absolute left-0 top-full mt-2 z-50 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-sky-200 bg-white/95 backdrop-blur-md p-3 shadow-lg text-left font-normal">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-black text-sky-900">❄️ {tHome("freezeTitle")}</span>
+                        <button
+                          onClick={() => setIsFreezeOpen(false)}
+                          aria-label={tHome("freezeClose")}
+                          className="text-stone-400 hover:text-stone-600 text-sm leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-stone-600 leading-snug">
+                        {tHome("freezeTooltip", { price: STREAK_FREEZE_COST })}
+                      </p>
+                      <p className="mt-2 text-xs font-bold text-stone-800">
+                        {tHome("freezeOwned", { count: data.profile.streakFreezes })}
+                      </p>
+                      {data.profile.streakFreezesPending > 0 && (
+                        <p className="mt-1 text-[11px] font-semibold text-sky-700 leading-snug">
+                          {tHome("freezePending", { count: data.profile.streakFreezesPending })}
+                        </p>
+                      )}
+                      {freezeError && (
+                        <p className="mt-1 text-[11px] font-semibold text-red-600">{freezeError}</p>
+                      )}
+                      <button
+                        onClick={handleBuyFreeze}
+                        disabled={isBuyingFreeze}
+                        className="mt-2 w-full rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold py-2 disabled:opacity-50 transition-colors"
+                      >
+                        {tHome("buyFreeze")} · 🪙 {STREAK_FREEZE_COST}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Center: Companion Name (user-renameable, see Settings) */}
@@ -950,6 +1035,11 @@ export function HomeView({ data }: { data: DashboardData }) {
         onSettings={() => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); }}
         onNeighbor={() => { playSwoosh(); setIsNeighborVisitOpen(true); setIsMobileSidebarOpen(false); }}
       />
+
+      <WhatsNewModal isOpen={showWhatsNew} onClose={handleCloseWhatsNew} />
+
+      {/* Feedback chat with the developer (admins see every thread here). */}
+      <FeedbackChat userId={data.profile.id} />
     </main>
   );
 }

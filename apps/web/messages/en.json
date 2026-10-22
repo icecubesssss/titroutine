@@ -69,7 +69,11 @@
     "failedText": "Failed ✕",
     "notDone": "Not completed",
     "completedText": "Completed",
-    "weekdaysShort": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
+    "weekdaysShort": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    "freezeOwned": "You have {count} freezes",
+    "freezePending": "You missed {count} day(s) — {count} freeze(s) will be used to keep your streak when you complete a habit today.",
+    "freezeNotEnough": "Not enough coins for a freeze.",
+    "freezeClose": "Close"
   },
   "HabitModal": {
     "newTitle": "New Habit",
@@ -502,6 +506,65 @@
       "no_active_visit": "Nobody is here right now.",
       "visits_closed": "This neighbour has visits turned off.",
       "generic": "Something went wrong, please try again."
+    }
+  },
+  "Feedback": {
+    "open": "Chat with the developer",
+    "title": "Feedback & support",
+    "subtitle": "Message the Titroutine developer directly",
+    "welcome": "Hi 👋 Found a bug, have an idea, or just want to chat? Write here — I'll reply as soon as I can!",
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "close": "Close",
+    "back": "Back",
+    "developer": "Developer",
+    "sendError": "Couldn't send, please try again.",
+    "tooLong": "Message too long (max 2000 characters).",
+    "inboxTitle": "Feedback inbox",
+    "inboxSubtitle": "Messages from users",
+    "inboxEmpty": "No feedback yet.",
+    "threadEmpty": "No messages yet.",
+    "adminReplying": "You're replying as the developer",
+    "anonymous": "Anonymous user"
+  },
+  "WhatsNew": {
+    "title": "What's new",
+    "subtitle": "Recent updates to Titroutine",
+    "close": "Close",
+    "gotIt": "Got it, let's go!",
+    "items": {
+      "feedback": {
+        "title": "Chat with the developer",
+        "body": "Tap the 💬 button to send a message directly: report a bug, suggest a feature or just say hi. Replies show up right in the chat window."
+      },
+      "freeze": {
+        "title": "Streak freezes ❄️",
+        "body": "Tap the ❄️ chip next to 🔥 to see and buy freezes (50 coins). Miss a day and a freeze keeps your streak when you come back; the streak number is also more accurate now."
+      },
+      "neighborHabits": {
+        "title": "See your neighbours' habits",
+        "body": "In Visit neighbours → Habits: see what they did today, each habit's streak and the last 7 days. The neighbourhood now connects every resident automatically."
+      },
+      "mobileForms": {
+        "title": "Better forms on mobile",
+        "body": "Long task and habit forms now scroll, and the Create/Save button always stays at the bottom of the screen."
+      },
+      "habitFail": {
+        "title": "Mark a habit as \"Fail\"",
+        "body": "On days you couldn't do it, mark it as Fail to keep an honest record — no coins lost, no streak broken."
+      },
+      "maximize": {
+        "title": "Maximize the lists",
+        "body": "On desktop you can maximize the task board or habit list and hide the pet room for a cleaner view."
+      },
+      "taskFilter": {
+        "title": "Filter tasks by status",
+        "body": "Quickly filter To do / In progress / Done, including when browsing a neighbour's tasks."
+      },
+      "badges": {
+        "title": "Streak milestone badges",
+        "body": "Reach streak milestones to unlock badges in the Shop, then hang them in your room and drag them around."
+      }
     }
   }
 }

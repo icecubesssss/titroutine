@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { format, parseISO, startOfWeek, addDays } from "date-fns";
 import {
   ratchetStage,
+  effectiveStreak,
   todayInTimezone,
   currentSatiety,
   levelFromExp,
@@ -14,6 +15,7 @@ import {
 } from "./game";
 import { unlockedRooms, allRoomsUnlocked } from "./rooms";
 import { eligibleMemoryKeys } from "./memories";
+import { WHATS_NEW_VERSION } from "./announcements";
 import { characterDisplayName, getCharacter } from "./characters";
 import { isCoopKind } from "./coop";
 import { countCoopsSentToday } from "./coop_server";
@@ -54,7 +56,7 @@ function isScheduledDay(dateObj: Date, frequency: HabitFrequency): boolean {
   return true; // daily or other types are scheduled every day
 }
 
-function calculateStreak(completedDates: Set<string>, todayStr: string, frequency: HabitFrequency): number {
+export function calculateStreak(completedDates: Set<string>, todayStr: string, frequency: HabitFrequency): number {
   let streak = 0;
   let currentDateObj = parseISO(todayStr);
   
@@ -108,7 +110,13 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   const targetDate = targetDateStr || today;
   const isToday = targetDate === today;
   const totalExp = profile?.total_exp ?? 0;
-  const currentStreak = profile?.current_streak ?? 0;
+  // Vacation keeps the gap closed (the anchor is bumped below), so it never breaks.
+  const { streak: currentStreak, freezesPending: streakFreezesPending } = effectiveStreak(
+    profile?.current_streak ?? 0,
+    profile?.vacation_mode ? null : profile?.last_active_date ?? null,
+    today,
+    profile?.streak_freezes ?? 0
+  );
 
   // Nurture axis (feeding) — independent from the streak-driven appearance stage.
   const petExp = profile?.pet_exp ?? 0;
@@ -173,6 +181,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     { data: visitRow },
     { data: coopRows },
     { data: badgeRows },
+    { data: whatsNewRow },
     coopUsedToday
   ] = await Promise.all([
     supabase
@@ -247,6 +256,13 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       .from("badges")
       .select("badge_key, visible, pos_x, pos_y")
       .eq("user_id", user.id),
+    // Own query (not in the profile select above) so the dashboard keeps loading
+    // on a DB where migration 16 hasn't been applied yet.
+    supabase
+      .from("profiles")
+      .select("whats_new_seen")
+      .eq("id", user.id)
+      .maybeSingle(),
     countCoopsSentToday(supabase, user.id, timezone)
   ]);
 
@@ -456,6 +472,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       username: profile?.username ?? null,
       lastCheckinDate: profile?.last_checkin_date ?? null,
       streakFreezes: profile?.streak_freezes ?? 0,
+      streakFreezesPending,
       petExp,
       petLevel,
       petLevelProgress,
@@ -484,6 +501,8 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       hasCustomCharacterName: Boolean(profile?.character_name?.trim()),
       visitPrivacy: profile?.visit_privacy === "nobody" ? "nobody" : "friends",
       badgeMilestoneSeen: profile?.badge_milestone_seen ?? 0,
+      // Column missing (migration 16 not applied) → treat as seen, never nag.
+      whatsNewSeen: whatsNewRow ? whatsNewRow.whats_new_seen ?? null : WHATS_NEW_VERSION,
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},

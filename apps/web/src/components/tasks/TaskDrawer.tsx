@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Trash2, Calendar, Clock, User, Award } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import type { Task } from "@/lib/types";
@@ -153,11 +154,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     onClose();
   };
 
-  return (
+  // Portal to <body>: an ancestor with transform/backdrop-filter would otherwise
+  // trap `fixed` inside it. dvh = the real visible height on mobile browsers, and
+  // the action buttons live outside the scroll area so they're always reachable.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#fdfaf6] rounded-3xl shadow-2xl overflow-hidden border-4 border-[#ebdcc5] flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-md bg-[#fdfaf6] rounded-3xl shadow-2xl overflow-hidden border-4 border-[#ebdcc5] flex flex-col max-h-[calc(100dvh-2rem)]">
         {/* Header */}
-        <div className="pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-[#ebdcc5] bg-white sticky top-0 z-10">
+        <div className="shrink-0 pt-6 pb-4 px-6 flex items-center justify-between border-b-2 border-[#ebdcc5] bg-white">
           <h2 className="text-xl font-black text-[#5c4033] flex items-center gap-2">
             {isEdit ? "✏️ Sửa Công Việc" : "🌱 Thêm Công Việc Mới"}
           </h2>
@@ -172,7 +176,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1 bg-[#fdfaf6]">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col bg-[#fdfaf6]">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
           {/* Title */}
           <div className="space-y-1">
             <label className="text-xs font-black text-[#8b7355] uppercase tracking-wider">
@@ -352,9 +357,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               </p>
             </div>
           </div>
+          </div>
 
           {/* Action Buttons */}
-          <div className="pt-4 flex items-center gap-3">
+          <div className="shrink-0 px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t-2 border-[#ebdcc5] bg-white flex items-center gap-3">
             {isEdit && (
               <button
                 type="button"
@@ -378,6 +384,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

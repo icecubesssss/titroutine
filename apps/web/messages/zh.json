@@ -69,7 +69,11 @@
     "failedText": "失败 ✕",
     "notDone": "未完成",
     "completedText": "已完成",
-    "weekdaysShort": "一,二,三,四,五,六,日"
+    "weekdaysShort": "一,二,三,四,五,六,日",
+    "freezeOwned": "你有 {count} 张冻结卡",
+    "freezePending": "你错过了 {count} 天——今天完成一个习惯时将使用 {count} 张冻结卡来保住连击。",
+    "freezeNotEnough": "金币不足，无法购买冻结卡。",
+    "freezeClose": "关闭"
   },
   "HabitModal": {
     "newTitle": "新习惯",
@@ -462,6 +466,65 @@
       "no_active_visit": "现在没有人在这里。",
       "visits_closed": "这位邻居关闭了拜访功能。",
       "generic": "出错了，请再试一次。"
+    }
+  },
+  "Feedback": {
+    "open": "与开发者聊天",
+    "title": "反馈与支持",
+    "subtitle": "直接给 Titroutine 开发者留言",
+    "welcome": "你好 👋 发现了 bug、有想法，或只是想聊聊？在这里留言吧——我会尽快回复！",
+    "placeholder": "输入消息...",
+    "send": "发送",
+    "close": "关闭",
+    "back": "返回",
+    "developer": "开发者",
+    "sendError": "发送失败，请重试。",
+    "tooLong": "消息太长（最多 2000 个字符）。",
+    "inboxTitle": "反馈收件箱",
+    "inboxSubtitle": "来自用户的消息",
+    "inboxEmpty": "还没有反馈。",
+    "threadEmpty": "还没有消息。",
+    "adminReplying": "你正在以开发者身份回复",
+    "anonymous": "匿名用户"
+  },
+  "WhatsNew": {
+    "title": "新功能",
+    "subtitle": "Titroutine 最近的更新",
+    "close": "关闭",
+    "gotIt": "知道了，开始吧！",
+    "items": {
+      "feedback": {
+        "title": "与开发者聊天",
+        "body": "点击 💬 按钮直接留言：报告 bug、建议功能或只是聊聊。回复会直接显示在聊天窗口中。"
+      },
+      "freeze": {
+        "title": "连击冻结卡 ❄️",
+        "body": "点击 🔥 旁边的 ❄️ 查看和购买冻结卡（50 金币）。错过一天时，回来后冻结卡会自动保住连击；连击数字现在也更准确了。"
+      },
+      "neighborHabits": {
+        "title": "查看邻居的习惯",
+        "body": "在拜访邻居 → 习惯中：查看他们今天完成了什么、每个习惯的连击和最近 7 天。邻里现在会自动连接所有居民。"
+      },
+      "mobileForms": {
+        "title": "手机上的表单更好用",
+        "body": "较长的任务和习惯表单现在可以滚动，创建/保存按钮始终固定在屏幕底部。"
+      },
+      "habitFail": {
+        "title": "将习惯标记为“失败”",
+        "body": "没能完成的日子可以标记为失败，诚实记录——不扣金币，也不会断连击。"
+      },
+      "maximize": {
+        "title": "放大列表",
+        "body": "在电脑上可以放大任务板或习惯列表，暂时隐藏宠物房间，界面更清爽。"
+      },
+      "taskFilter": {
+        "title": "按状态筛选任务",
+        "body": "快速筛选 待办 / 进行中 / 已完成，浏览邻居的任务时也可以。"
+      },
+      "badges": {
+        "title": "连击里程碑徽章",
+        "body": "达到连击里程碑即可在商店解锁徽章，买下后挂在房间里并随意拖动。"
+      }
     }
   }
 }

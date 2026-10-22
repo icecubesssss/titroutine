@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Trash2, X } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
@@ -122,9 +123,11 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
     });
   };
 
-  return (
+  // Portal to <body> + dvh-capped column: the form body scrolls on small screens
+  // while the save/delete buttons stay pinned at the bottom (see TaskDrawer).
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-sm bg-earth-bg rounded-2xl shadow-2xl overflow-hidden border-2 border-earth-brown/10">
+      <div className="relative w-full max-w-sm bg-earth-bg rounded-2xl shadow-2xl overflow-hidden border-2 border-earth-brown/10 flex flex-col max-h-[calc(100dvh-2rem)]">
         {/* Notebook spiral binding visual */}
         <div className="absolute top-0 left-0 w-full h-8 bg-amber-100 flex items-center justify-evenly border-b-2 border-earth-brown/10">
           {[...Array(6)].map((_, i) => (
@@ -132,7 +135,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           ))}
         </div>
 
-        <div className="pt-10 pb-4 px-6 flex items-center justify-between border-b-2 border-gray-100 border-dashed">
+        <div className="shrink-0 pt-10 pb-4 px-6 flex items-center justify-between border-b-2 border-gray-100 border-dashed">
           <h2 className="text-xl font-bold text-earth-brown font-serif italic">
             {isEdit ? t("editTitle") : t("newTitle")}
           </h2>
@@ -146,7 +149,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
           <div className="space-y-2">
             <label className="block text-sm font-bold text-earth-text">{t("name")}</label>
             <input
@@ -351,8 +355,9 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           </div>
 
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          </div>
 
-          <div className="pt-2 space-y-3">
+          <div className="shrink-0 px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t-2 border-gray-100 border-dashed space-y-3">
             <DuoButton type="submit" variant="primary" fullWidth size="lg" disabled={isPending}>
               {isEdit ? t("save") : t("create")}
             </DuoButton>
@@ -373,6 +378,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

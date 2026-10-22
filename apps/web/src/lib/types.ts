@@ -47,6 +47,8 @@ export interface ProfileSummary {
   username: string | null;
   lastCheckinDate: string | null;
   streakFreezes: number;
+  /** Freezes that will be spent on the next completion to cover missed days. */
+  streakFreezesPending: number;
   // ── Nurture axis (feeding) ──────────────────────────────────────────────
   /** Cumulative feeding EXP. */
   petExp: number;
@@ -96,6 +98,8 @@ export interface ProfileSummary {
   visitPrivacy: VisitPrivacy;
   /** Highest streak milestone the badge-unlock celebration has already shown for. */
   badgeMilestoneSeen: number;
+  /** Last "what's new" version the user dismissed (see lib/announcements.ts). */
+  whatsNewSeen: string | null;
 }
 
 export type VisitPrivacy = "friends" | "nobody";
@@ -135,6 +139,26 @@ export interface PendingCoop {
   actorUsername: string | null;
   actorCharacterName: string;
   createdAt: string;
+}
+
+// ── Feedback chat (migration 15) ──────────────────────────────────────────────
+
+export interface FeedbackMessage {
+  id: string;
+  /** True for a reply from the developer/admin. */
+  fromAdmin: boolean;
+  body: string;
+  createdAt: string;
+}
+
+/** One row in the admin inbox: a user's conversation. */
+export interface FeedbackThreadSummary {
+  userId: string;
+  username: string | null;
+  lastBody: string;
+  lastAt: string;
+  /** User messages the admin hasn't read yet. */
+  unread: number;
 }
 
 export interface Task {

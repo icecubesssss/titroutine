@@ -6,6 +6,7 @@ import {
   COINS_PER_HABIT,
   nextStreak,
   ratchetStage,
+  STREAK_FREEZE_COST,
   todayInTimezone,
   currentSatiety,
   foodTier,
@@ -94,6 +95,22 @@ export async function setVacationModeAction(enabled: boolean): Promise<ActionRes
   return {};
 }
 
+/** Remember that the user closed the "what's new" popup for this version. */
+export async function acknowledgeWhatsNewAction(version: string): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+  if (!version || version.length > 32) return { error: "invalid_version" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ whats_new_seen: version })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+
 export async function claimDailyCheckinAction(): Promise<ActionResult> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
@@ -142,17 +159,16 @@ export async function buyFreezeAction(): Promise<ActionResult> {
     
   if (profileError) return { error: profileError.message };
 
-  const FREEZE_COST = 50;
   const currentCoins = profile?.coins ?? 0;
 
-  if (currentCoins < FREEZE_COST) {
+  if (currentCoins < STREAK_FREEZE_COST) {
     return { error: "not_enough_coins" };
   }
 
   const { error: updateError } = await supabase
     .from("profiles")
     .update({ 
-      coins: currentCoins - FREEZE_COST,
+      coins: currentCoins - STREAK_FREEZE_COST,
       streak_freezes: (profile?.streak_freezes ?? 0) + 1 
     })
     .eq("id", userId);

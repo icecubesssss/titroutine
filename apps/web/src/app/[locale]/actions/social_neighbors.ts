@@ -2,9 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { getUserId, type ActionResult } from "./_shared";
-import { levelFromExp } from "@/lib/game";
+import { format, addDays, parseISO } from "date-fns";
+import { levelFromExp, effectiveStreak, todayInTimezone } from "@/lib/game";
+import { calculateStreak } from "@/lib/data";
 import { characterDisplayName, getCharacter } from "@/lib/characters";
-import type { NeighborSummary, NeighborData, Task, HabitWithLog } from "@/lib/types";
+import type { NeighborSummary, NeighborData, Task, HabitWithLog, HabitFrequency } from "@/lib/types";
+
+/** Profile columns needed to show a neighbour's real streak (see effectiveStreak). */
+const STREAK_COLUMNS = "current_streak, last_active_date, streak_freezes, timezone, vacation_mode";
+
+interface StreakRow {
+  current_streak: number | null;
+  last_active_date: string | null;
+  streak_freezes: number | null;
+  timezone: string | null;
+  vacation_mode: boolean | null;
+}
+
+function neighborStreak(p: StreakRow): number {
+  return effectiveStreak(
+    p.current_streak ?? 0,
+    p.vacation_mode ? null : p.last_active_date,
+    todayInTimezone(p.timezone || "UTC"),
+    p.streak_freezes ?? 0
+  ).streak;
+}
 
 /**
  * Fetch the current user's neighbours — i.e. their friends. Friendships are
@@ -19,9 +41,8 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
   // Fetch all other registered user profiles directly as neighbors
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, username, pet_stage, pet_exp, current_streak, character_id, character_name")
-    .neq("id", userId)
-    .order("current_streak", { ascending: false });
+    .select(`id, username, pet_stage, pet_exp, character_id, character_name, ${STREAK_COLUMNS}`)
+    .neq("id", userId);
 
   let neighbors: NeighborSummary[] = [];
 
@@ -31,10 +52,11 @@ export async function getNeighborsListAction(): Promise<{ error?: string; neighb
       username: p.username || "Hàng xóm",
       petStage: p.pet_stage ?? 0,
       petLevel: levelFromExp(p.pet_exp ?? 0),
-      currentStreak: p.current_streak ?? 0,
+      currentStreak: neighborStreak(p),
       characterId: getCharacter(p.character_id).id,
       characterName: characterDisplayName(p.character_id, p.character_name),
     }));
+    neighbors.sort((a, b) => b.currentStreak - a.currentStreak);
   }
 
   // Fallback: If still empty (e.g. single-user environment), provide friendly NPC neighbors
@@ -103,7 +125,7 @@ export async function getNeighborDataAction(neighborId: string): Promise<{ error
   // Profile summary
   const { data: profile, error: pError } = await supabase
     .from("profiles")
-    .select("id, username, pet_stage, pet_exp, current_streak, affection_level, character_id, character_name")
+    .select(`id, username, pet_stage, pet_exp, affection_level, character_id, character_name, ${STREAK_COLUMNS}`)
     .eq("id", neighborId)
     .maybeSingle();
 
@@ -147,17 +169,49 @@ export async function getNeighborDataAction(neighborId: string): Promise<{ error
     .eq("is_private", false)
     .is("archived_at", null);
 
-  const publicHabits: HabitWithLog[] = (rawHabits || []).map((h) => ({
-    id: h.id,
-    title: h.title,
-    type: h.type || "boolean",
-    config: h.config || {},
-    frequency: h.frequency || { type: "daily" },
-    timeOfDay: h.time_of_day || "anytime",
-    isCompleted: false,
-    value: null,
-    isPrivate: h.is_private ?? false,
-  }));
+  // Completion history of those habits (readable for public habits, migration 15),
+  // in the neighbour's own day — same 366-day window getDashboard uses for streaks.
+  const today = todayInTimezone(profile.timezone || "UTC");
+  const weekStart = format(addDays(parseISO(today), -6), "yyyy-MM-dd");
+  const habitIds = (rawHabits || []).map((h) => h.id);
+  const { data: rawLogs } = habitIds.length
+    ? await supabase
+        .from("habit_logs")
+        .select("habit_id, date")
+        .in("habit_id", habitIds)
+        .eq("is_completed", true)
+        .gte("date", format(addDays(parseISO(today), -366), "yyyy-MM-dd"))
+    : { data: [] };
+
+  const completedDatesByHabit = new Map<string, Set<string>>();
+  for (const log of (rawLogs ?? []) as { habit_id: string; date: string }[]) {
+    let dates = completedDatesByHabit.get(log.habit_id);
+    if (!dates) {
+      dates = new Set<string>();
+      completedDatesByHabit.set(log.habit_id, dates);
+    }
+    dates.add(log.date);
+  }
+
+  const publicHabits: HabitWithLog[] = (rawHabits || []).map((h) => {
+    const frequency: HabitFrequency = h.frequency || { type: "daily" };
+    const dates = completedDatesByHabit.get(h.id) ?? new Set<string>();
+    const weeklyLogs: Record<string, boolean> = {};
+    for (const d of dates) if (d >= weekStart && d <= today) weeklyLogs[d] = true;
+    return {
+      id: h.id,
+      title: h.title,
+      type: h.type || "boolean",
+      config: h.config || {},
+      frequency,
+      timeOfDay: h.time_of_day || "anytime",
+      isCompleted: dates.has(today),
+      value: null,
+      isPrivate: h.is_private ?? false,
+      weeklyLogs,
+      streak: calculateStreak(dates, today, frequency),
+    };
+  });
 
   const data: NeighborData = {
     profile: {
@@ -165,7 +219,7 @@ export async function getNeighborDataAction(neighborId: string): Promise<{ error
       username: profile.username || "Neighbor",
       petStage: profile.pet_stage ?? 0,
       petLevel: levelFromExp(profile.pet_exp ?? 0),
-      currentStreak: profile.current_streak ?? 0,
+      currentStreak: neighborStreak(profile),
       affection: profile.affection_level ?? 0,
       characterId: getCharacter(profile.character_id).id,
       characterName: characterDisplayName(profile.character_id, profile.character_name),

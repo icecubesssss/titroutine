@@ -92,6 +92,28 @@ export function nextStreak(
   return { newStreak: 1, freezesUsed: 0 }; // Not enough freezes, streak resets
 }
 
+/** Coins for one streak freeze (buyFreezeAction). */
+export const STREAK_FREEZE_COST = 50;
+
+/**
+ * The stored streak only changes when a habit is completed, so after missed days
+ * it would keep showing a number that no longer exists. This is what the streak
+ * really is right now: still alive while the missed days are covered by freezes
+ * (they get spent on the next completion, see nextStreak), otherwise broken (0).
+ */
+export function effectiveStreak(
+  storedStreak: number,
+  lastActiveDate: string | null,
+  today: string,
+  availableFreezes: number = 0
+): { streak: number; freezesPending: number } {
+  if (!lastActiveDate) return { streak: storedStreak, freezesPending: 0 };
+  const missedDays = Math.max(0, daysBetween(lastActiveDate, today) - 1);
+  if (missedDays === 0) return { streak: storedStreak, freezesPending: 0 };
+  if (availableFreezes >= missedDays) return { streak: storedStreak, freezesPending: missedDays };
+  return { streak: 0, freezesPending: 0 };
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Pet NURTURE axis (feeding). Independent from the streak-driven *appearance*
 // stage (see ratchetStage). Feeding raises `pet_exp`, which derives a "nurture

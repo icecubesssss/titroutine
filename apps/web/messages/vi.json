@@ -73,7 +73,18 @@
     "freezeOwned": "Bạn đang có {count} thẻ",
     "freezePending": "Bạn đã lỡ {count} ngày — sẽ dùng {count} thẻ để giữ chuỗi khi bạn hoàn thành 1 thói quen hôm nay.",
     "freezeNotEnough": "Không đủ xu để mua thẻ.",
-    "freezeClose": "Đóng"
+    "freezeClose": "Đóng",
+    "expandMonth": "Xem theo tháng",
+    "collapseMonth": "Thu gọn",
+    "prevMonth": "Tháng trước",
+    "nextMonth": "Tháng sau",
+    "monthSummary": "Xong {good}/{total} ngày · {rate}%",
+    "monthSummaryNegative": "Giữ được {good}/{total} ngày · {rate}%",
+    "longestRunMonth": "Chuỗi dài nhất: {count} ngày",
+    "monthLoadError": "Không tải được dữ liệu tháng này",
+    "weeklyQuota": "{done}/{target} lần tuần này",
+    "streakWeeks": "{count} tuần",
+    "strengthHint": "Sức mạnh thói quen: lỡ một ngày chỉ giảm nhẹ, không mất hết"
   },
   "HabitModal": {
     "newTitle": "Thói quen mới",
@@ -102,7 +113,9 @@
     "save": "Lưu thay đổi",
     "delete": "Xóa thói quen",
     "deleteConfirm": "Chắc chưa? Nhấn lần nữa để xoá",
-    "error": "Có lỗi xảy ra, thử lại nhé."
+    "error": "Có lỗi xảy ra, thử lại nhé.",
+    "freqWeekly": "X lần/tuần",
+    "timesPerWeek": "{count} lần mỗi tuần"
   },
   "Shop": {
     "title": "Cửa Hàng",
@@ -566,5 +579,62 @@
         "body": "Đạt mốc streak để mở khoá huy hiệu trong Cửa hàng, mua về treo và kéo thả trong phòng."
       }
     }
+  },
+  "System": {
+    "loading": "Thỏ đang chạy tới đây...",
+    "errorTitle": "Ôi, có gì đó trục trặc rồi",
+    "errorBody": "Thỏ vấp phải một hòn sỏi nhỏ. Bạn thử lại nhé, dữ liệu của bạn vẫn an toàn.",
+    "retry": "Thử lại",
+    "notFoundTitle": "Không tìm thấy trang này",
+    "notFoundBody": "Thỏ đã đào khắp nơi mà không thấy trang bạn cần.",
+    "backHome": "Về nhà"
+  },
+  "Analytics": {
+    "title": "Thống Kê",
+    "back": "Quay lại",
+    "habitsSection": "Thói quen & Điểm danh",
+    "currentStreak": "Chuỗi hiện tại",
+    "bestStreak": "Chuỗi tốt nhất",
+    "totalCompleted": "Tổng thói quen xong",
+    "streakDays": "{count} ngày",
+    "streakWeeks": "{count} tuần",
+    "times": "{count} lần",
+    "focusSection": "Tập trung & Công việc",
+    "focusTime": "Thời gian tập trung",
+    "minutes": "{count} phút",
+    "tasksDone": "Công việc đã xong",
+    "tasksPending": "Công việc đang chờ",
+    "tasks": "{count} nhiệm vụ",
+    "activitySection": "Lịch sử hoạt động (60 ngày qua)",
+    "moodSection": "Nhật ký cảm xúc",
+    "timezoneNote": "Dữ liệu thống kê dựa trên múi giờ của bạn.",
+    "heatmapTitle": "Lịch sử 60 ngày qua",
+    "heatmapTooltip": "{date}: {count} thói quen",
+    "less": "Ít",
+    "more": "Nhiều",
+    "weekRecapTitle": "Tuần của bạn",
+    "weekCompletions": "lần hoàn thành tuần này",
+    "vsLastWeek": "{diff} so với cùng kỳ tuần trước",
+    "sameAsLastWeek": "Bằng cùng kỳ tuần trước",
+    "bestHabitWeek": "Chăm nhất: {title}",
+    "topMoodWeek": "Cảm xúc chủ đạo: {mood}",
+    "noActivityWeek": "Tuần mới, trang mới — làm một thói quen đầu tiên nhé 🌱",
+    "weekdayTitle": "Theo thứ trong tuần (12 tuần qua)",
+    "weekdayBest": "Bạn chăm nhất vào {day}",
+    "notEnoughData": "Chưa đủ dữ liệu — quay lại sau vài ngày nhé",
+    "habitsTitle": "Từng thói quen",
+    "noHabits": "Bạn chưa có thói quen nào",
+    "colHabit": "Thói quen",
+    "col30d": "30 ngày",
+    "colStrength": "Sức mạnh",
+    "colStreak": "Chuỗi",
+    "strengthHint": "Sức mạnh thói quen: lỡ một ngày chỉ giảm nhẹ, không mất hết",
+    "moodInsightsTitle": "Cảm xúc & thói quen",
+    "moodDoneUp": "Những ngày bạn làm “{habit}”, mood trung bình cao hơn {diff} điểm",
+    "moodDoneDown": "Những ngày bạn làm “{habit}”, mood trung bình thấp hơn {diff} điểm",
+    "moodSlipUp": "Những ngày bạn vi phạm “{habit}”, mood trung bình cao hơn {diff} điểm",
+    "moodSlipDown": "Những ngày bạn vi phạm “{habit}”, mood trung bình thấp hơn {diff} điểm",
+    "moodInsightsEmpty": "Ghi mood thêm vài ngày nữa để thỏ tìm ra điều gì giúp bạn vui hơn nhé 🐰",
+    "moodInsightsNote": "Thang mood 1–5. Đây là tương quan, chưa chắc là nguyên nhân."
   }
 }

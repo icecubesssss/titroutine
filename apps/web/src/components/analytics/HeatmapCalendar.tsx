@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 interface HeatmapCalendarProps {
   heatmapData: Record<string, number>;
@@ -13,6 +14,8 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
   startDate,
   endDate,
 }) => {
+  const t = useTranslations("Analytics");
+  const locale = useLocale();
   const days: { date: string; count: number }[] = [];
   
   // Generate array of days from startDate to endDate
@@ -39,7 +42,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
   return (
     <div className="bg-white p-6 rounded-3xl shadow-sm border-2 border-gray-100">
       <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-        <span>📅</span> Lịch sử 60 ngày qua
+        <span>📅</span> {t("heatmapTitle")}
       </h3>
       
       {/* We use a simple wrap flex container so it flows nicely on mobile */}
@@ -47,7 +50,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
         {days.map((day) => {
           const count = day.count;
           const dateObj = new Date(`${day.date}T00:00:00Z`);
-          const tooltip = `${dateObj.toLocaleDateString("vi-VN")}: ${count} habits`;
+          const tooltip = t("heatmapTooltip", { date: dateObj.toLocaleDateString(locale, { timeZone: "UTC" }), count });
           
           return (
             <div
@@ -61,14 +64,14 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
       
       {/* Legend */}
       <div className="mt-6 flex items-center justify-end gap-2 text-xs font-medium text-gray-400">
-        <span>Ít</span>
+        <span>{t("less")}</span>
         <div className="flex gap-1">
           <div className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200"></div>
           <div className="w-3 h-3 rounded-sm bg-green-200 border border-green-300"></div>
           <div className="w-3 h-3 rounded-sm bg-green-400 border border-green-500"></div>
           <div className="w-3 h-3 rounded-sm bg-green-600 border border-green-700"></div>
         </div>
-        <span>Nhiều</span>
+        <span>{t("more")}</span>
       </div>
     </div>
   );

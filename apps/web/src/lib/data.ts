@@ -19,6 +19,8 @@ import { WHATS_NEW_VERSION } from "./announcements";
 import { characterDisplayName, getCharacter } from "./characters";
 import { isCoopKind } from "./coop";
 import { countCoopsSentToday } from "./coop_server";
+import { isScheduledDay, weeklyQuotaStreak, weeklyTarget } from "./habit_schedule";
+import { habitStrength } from "./habit_strength";
 import type {
   ActiveVisit,
   DashboardData,
@@ -37,6 +39,7 @@ interface HabitRow {
   config: HabitConfig | null;
   frequency: HabitFrequency | null;
   time_of_day: TimeOfDay | null;
+  created_at: string | null;
 }
 
 interface LogRow {
@@ -48,15 +51,20 @@ interface LogRow {
   date: string;
 }
 
-function isScheduledDay(dateObj: Date, frequency: HabitFrequency): boolean {
-  if (frequency.type === "specific_days" && Array.isArray(frequency.days)) {
-    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    return frequency.days.includes(dayOfWeek);
+/** YYYY-MM-DD of a timestamp as seen in the given IANA timezone. */
+export function calendarDateIn(timezone: string, timestamp: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: timezone || "UTC" }).format(new Date(timestamp));
+  } catch {
+    return timestamp.slice(0, 10);
   }
-  return true; // daily or other types are scheduled every day
 }
 
 export function calculateStreak(completedDates: Set<string>, todayStr: string, frequency: HabitFrequency): number {
+  // Weekly-quota habits streak in weeks, not days.
+  const target = weeklyTarget(frequency);
+  if (target > 0) return weeklyQuotaStreak(completedDates, todayStr, target);
+
   let streak = 0;
   let currentDateObj = parseISO(todayStr);
   
@@ -186,7 +194,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
   ] = await Promise.all([
     supabase
       .from("habits")
-      .select("id, title, type, config, frequency, time_of_day")
+      .select("id, title, type, config, frequency, time_of_day, created_at")
       .eq("user_id", user.id)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
@@ -436,6 +444,8 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     .map((h) => {
       const log = logByHabit.get(h.id);
       const freq = h.frequency ?? { type: "daily" };
+      const completedDates = completedDatesByHabit.get(h.id) || new Set<string>();
+      const createdAt = h.created_at ? calendarDateIn(timezone, h.created_at) : undefined;
       return {
         id: h.id,
         title: h.title,
@@ -443,12 +453,19 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
         config: h.config ?? {},
         frequency: freq,
         timeOfDay: h.time_of_day ?? "anytime",
+        // Calendar day in the user's timezone, so the month view never marks
+        // days before the habit existed as missed.
+        createdAt,
         isCompleted: Boolean(log?.is_completed),
         isFailed: Boolean(log?.is_failed) && !log?.is_completed,
         value: log?.value ?? null,
         weeklyLogs: weeklyLogsByHabit.get(h.id) || {},
         weeklyFailed: weeklyFailedByHabit.get(h.id) || {},
-        streak: calculateStreak(completedDatesByHabit.get(h.id) || new Set<string>(), today, freq),
+        streak: calculateStreak(completedDates, today, freq),
+        strength: habitStrength(
+          { completed: completedDates, frequency: freq, isNegative: h.type === "negative", createdAt },
+          today
+        ),
       };
     })
     .filter((h) => {

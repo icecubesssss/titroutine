@@ -73,7 +73,18 @@
     "freezeOwned": "You have {count} freezes",
     "freezePending": "You missed {count} day(s) — {count} freeze(s) will be used to keep your streak when you complete a habit today.",
     "freezeNotEnough": "Not enough coins for a freeze.",
-    "freezeClose": "Close"
+    "freezeClose": "Close",
+    "expandMonth": "View month",
+    "collapseMonth": "Collapse",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "monthSummary": "Done {good}/{total} days · {rate}%",
+    "monthSummaryNegative": "Held strong {good}/{total} days · {rate}%",
+    "longestRunMonth": "Longest run: {count, plural, one {# day} other {# days}}",
+    "monthLoadError": "Couldn't load this month",
+    "weeklyQuota": "{done}/{target} this week",
+    "streakWeeks": "{count, plural, one {# week} other {# weeks}}",
+    "strengthHint": "Habit strength: a missed day only dents it, it never resets"
   },
   "HabitModal": {
     "newTitle": "New Habit",
@@ -102,7 +113,9 @@
     "save": "Save Changes",
     "delete": "Delete Habit",
     "deleteConfirm": "Sure? Tap again to delete",
-    "error": "Something went wrong, please try again."
+    "error": "Something went wrong, please try again.",
+    "freqWeekly": "X per week",
+    "timesPerWeek": "{count, plural, one {# time} other {# times}} a week"
   },
   "Shop": {
     "title": "Shop",
@@ -566,5 +579,62 @@
         "body": "Reach streak milestones to unlock badges in the Shop, then hang them in your room and drag them around."
       }
     }
+  },
+  "System": {
+    "loading": "Bunny is hopping over...",
+    "errorTitle": "Oops, something went wrong",
+    "errorBody": "Bunny tripped on a little pebble. Please try again — your data is safe.",
+    "retry": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "Bunny dug everywhere but couldn't find this page.",
+    "backHome": "Back home"
+  },
+  "Analytics": {
+    "title": "Insights",
+    "back": "Back",
+    "habitsSection": "Habits & Check-ins",
+    "currentStreak": "Current streak",
+    "bestStreak": "Best streak",
+    "totalCompleted": "Habits completed",
+    "streakDays": "{count, plural, one {# day} other {# days}}",
+    "streakWeeks": "{count, plural, one {# week} other {# weeks}}",
+    "times": "{count, plural, one {# time} other {# times}}",
+    "focusSection": "Focus & Tasks",
+    "focusTime": "Focus time",
+    "minutes": "{count, plural, one {# min} other {# mins}}",
+    "tasksDone": "Tasks done",
+    "tasksPending": "Tasks pending",
+    "tasks": "{count, plural, one {# task} other {# tasks}}",
+    "activitySection": "Activity (last 60 days)",
+    "moodSection": "Mood journal",
+    "timezoneNote": "Stats are based on your timezone.",
+    "heatmapTitle": "Last 60 days",
+    "heatmapTooltip": "{date}: {count, plural, one {# habit} other {# habits}}",
+    "less": "Less",
+    "more": "More",
+    "weekRecapTitle": "Your week",
+    "weekCompletions": "completions this week",
+    "vsLastWeek": "{diff} vs. this point last week",
+    "sameAsLastWeek": "Same as last week",
+    "bestHabitWeek": "Most consistent: {title}",
+    "topMoodWeek": "Main mood: {mood}",
+    "noActivityWeek": "New week, fresh page — tick your first habit 🌱",
+    "weekdayTitle": "By weekday (last 12 weeks)",
+    "weekdayBest": "You're most consistent on {day}",
+    "notEnoughData": "Not enough data yet — check back in a few days",
+    "habitsTitle": "Each habit",
+    "noHabits": "No habits yet",
+    "colHabit": "Habit",
+    "col30d": "30 days",
+    "colStrength": "Strength",
+    "colStreak": "Streak",
+    "strengthHint": "Habit strength: a missed day only dents it, it never resets",
+    "moodInsightsTitle": "Mood & habits",
+    "moodDoneUp": "On days you do “{habit}”, your mood is {diff} points higher on average",
+    "moodDoneDown": "On days you do “{habit}”, your mood is {diff} points lower on average",
+    "moodSlipUp": "On days you slip on “{habit}”, your mood is {diff} points higher on average",
+    "moodSlipDown": "On days you slip on “{habit}”, your mood is {diff} points lower on average",
+    "moodInsightsEmpty": "Log your mood a few more days and Bunny will spot what lifts you up 🐰",
+    "moodInsightsNote": "Mood on a 1–5 scale. This is correlation, not necessarily cause."
   }
 }

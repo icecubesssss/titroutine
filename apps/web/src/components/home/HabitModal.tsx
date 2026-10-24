@@ -11,6 +11,7 @@ import {
   updateHabitAction,
 } from "@/app/[locale]/actions";
 import type { HabitWithLog, FrequencyType, TimeOfDay, HabitType } from "@/lib/types";
+import { MAX_TIMES_PER_WEEK, MIN_TIMES_PER_WEEK } from "@/lib/habit_schedule";
 
 interface HabitModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
   const [focusMode, setFocusMode] = useState<"strict" | "normal">("strict");
   const [freqType, setFreqType] = useState<FrequencyType>("daily");
   const [freqDays, setFreqDays] = useState<number[]>([]);
+  const [freqTimes, setFreqTimes] = useState(3);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -48,6 +50,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
       setFocusMode(habit.config.focus_mode || "strict");
       setFreqType(habit.frequency?.type || "daily");
       setFreqDays(habit.frequency?.days || []);
+      setFreqTimes(habit.frequency?.timesPerWeek || 3);
     } else {
       setTitle("");
       setType("boolean");
@@ -57,6 +60,7 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
       setFocusMode("strict");
       setFreqType("daily");
       setFreqDays([]);
+      setFreqTimes(3);
     }
     setError(null);
     setConfirmDelete(false);
@@ -70,9 +74,12 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
     setError(null);
 
     startTransition(async () => {
+      // A weekly quota makes no sense for a "don't do this" habit.
+      const effectiveFreq = type === "negative" && freqType === "x_times_a_week" ? "daily" : freqType;
       const frequency = {
-        type: freqType,
-        days: freqType === "specific_days" ? freqDays : undefined,
+        type: effectiveFreq,
+        days: effectiveFreq === "specific_days" ? freqDays : undefined,
+        timesPerWeek: effectiveFreq === "x_times_a_week" ? freqTimes : undefined,
       };
 
         const result = isEdit
@@ -326,7 +333,45 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, onSaved
               >
                 {t("freqSpecific")}
               </button>
+              {type !== "negative" && (
+                <button
+                  type="button"
+                  onClick={() => setFreqType("x_times_a_week")}
+                  className={`flex-1 p-2 rounded-xl border-2 font-bold transition-all ${
+                    freqType === "x_times_a_week"
+                      ? "border-fire-orange bg-orange-50 text-fire-orange"
+                      : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  {t("freqWeekly")}
+                </button>
+              )}
             </div>
+            {freqType === "x_times_a_week" && type !== "negative" && (
+              <div className="flex items-center justify-center gap-4 mt-2 animate-in slide-in-from-top-2">
+                <button
+                  type="button"
+                  aria-label="-"
+                  disabled={freqTimes <= MIN_TIMES_PER_WEEK}
+                  onClick={() => setFreqTimes((n) => Math.max(MIN_TIMES_PER_WEEK, n - 1))}
+                  className="w-10 h-10 rounded-full bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-40"
+                >
+                  -
+                </button>
+                <span className="min-w-[8rem] text-center font-bold text-earth-text">
+                  {t("timesPerWeek", { count: freqTimes })}
+                </span>
+                <button
+                  type="button"
+                  aria-label="+"
+                  disabled={freqTimes >= MAX_TIMES_PER_WEEK}
+                  onClick={() => setFreqTimes((n) => Math.min(MAX_TIMES_PER_WEEK, n + 1))}
+                  className="w-10 h-10 rounded-full bg-fire-orange font-bold text-white hover:bg-orange-600 disabled:opacity-40"
+                >
+                  +
+                </button>
+              </div>
+            )}
             {freqType === "specific_days" && (
               <div className="flex justify-between mt-2 gap-1 animate-in slide-in-from-top-2">
                 {[1, 2, 3, 4, 5, 6, 0].map((d, index) => {

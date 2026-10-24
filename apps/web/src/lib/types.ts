@@ -11,6 +11,7 @@ export type TimeOfDay = "morning" | "afternoon" | "evening" | "anytime";
 export interface HabitFrequency {
   type: FrequencyType;
   days?: number[]; // 0=Sun, 1=Mon... Used for specific_days
+  timesPerWeek?: number; // 1..6, used for x_times_a_week
 }
 
 export interface HabitConfig {
@@ -26,6 +27,8 @@ export interface HabitWithLog {
   config: HabitConfig;
   frequency: HabitFrequency;
   timeOfDay: TimeOfDay;
+  /** YYYY-MM-DD (user's timezone) the habit was created; days before it are never "missed". */
+  createdAt?: string;
   isCompleted: boolean;
   /** Explicitly marked as failed for the selected day (never also completed). */
   isFailed?: boolean;
@@ -33,7 +36,10 @@ export interface HabitWithLog {
   isPrivate?: boolean;
   weeklyLogs?: Record<string, boolean>; // map of date YYYY-MM-DD to completion status
   weeklyFailed?: Record<string, boolean>; // map of date YYYY-MM-DD to failed status
+  /** Days in a row — or weeks in a row for an x_times_a_week habit. */
   streak?: number;
+  /** Habit strength 0..100 (Loop-style moving average, see lib/habit_strength.ts). */
+  strength?: number;
 }
 
 export interface ProfileSummary {

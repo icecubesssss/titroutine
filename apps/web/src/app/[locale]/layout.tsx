@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "../globals.css";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -16,6 +16,11 @@ const quicksand = Quicksand({
 export const metadata: Metadata = {
   title: "Titroutine",
   description: "Your Cozy Habit Tracker & Virtual Pet",
+  appleWebApp: { capable: true, title: "Titroutine", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FDFBF7",
 };
 
 export default async function RootLayout({

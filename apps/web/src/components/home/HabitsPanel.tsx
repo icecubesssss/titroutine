@@ -4,8 +4,10 @@ import { useState } from "react";
 import { type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
+import { HabitMonthView } from "@/components/home/HabitMonthView";
+import { weeklyTarget } from "@/lib/habit_schedule";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import type { DashboardData, HabitWithLog } from "@/lib/types";
@@ -59,6 +61,17 @@ export function HabitsPanel({
 }) {
   const t = useTranslations("Home");
   const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
+  // Habit cards whose month calendar is open.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleTogglePrivacy = async (habit: HabitWithLog) => {
     const current = localPrivate[habit.id] ?? habit.isPrivate ?? false;
@@ -67,6 +80,13 @@ export function HabitsPanel({
     await toggleHabitPrivacyAction(habit.id, nextVal);
     onRefresh();
   };
+
+  // Completions in the shown week; the viewed day uses the optimistic flag so a
+  // tick updates "2/3 this week" before the server round trip.
+  const weeklyDoneCount = (habit: HabitWithLog) =>
+    (data.weekDates ?? []).filter((d) =>
+      d === data.currentDate ? habit.isCompleted : habit.weeklyLogs?.[d]
+    ).length;
 
   const maximizeLabel = isMaximized
     ? t(activeTab === "tasks" ? "restoreBoard" : "restoreHabits")
@@ -300,13 +320,25 @@ export function HabitsPanel({
                                 ? t("targetGoal", { count: habit.config.target_count })
                                 : habit.type === "negative"
                                 ? t("noViolate")
+                                : weeklyTarget(habit.frequency) > 0
+                                ? t("weeklyQuota", { done: weeklyDoneCount(habit), target: weeklyTarget(habit.frequency) })
                                 : t("daily")}
                             </span>
                             {habit.streak !== undefined && habit.streak > 0 && (
                               <>
                                 <span className="text-gray-300">•</span>
                                 <span className="flex items-center gap-0.5 text-orange-600 font-semibold text-xs">
-                                  🔥 {habit.streak} {t("streakDays", { count: habit.streak })}
+                                  🔥 {weeklyTarget(habit.frequency) > 0
+                                    ? t("streakWeeks", { count: habit.streak })
+                                    : t("streakDays", { count: habit.streak })}
+                                </span>
+                              </>
+                            )}
+                            {habit.strength !== undefined && habit.strength > 0 && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-xs font-semibold text-theme-accent" title={t("strengthHint")}>
+                                  💪 {habit.strength}%
                                 </span>
                               </>
                             )}
@@ -399,9 +431,9 @@ export function HabitsPanel({
 
                       {/* Mini Weekly Beans Progress */}
                       {data.weekDates && (
-                        <div className="mt-3 pt-2.5 border-t border-black/[0.03] flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-theme-text/40 uppercase tracking-wider">{t("weeklyPerformance")}</span>
-                          <div className="flex gap-1.5">
+                        <div className="mt-3 pt-2.5 border-t border-black/[0.03] flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate text-[10px] font-bold text-theme-text/40 uppercase tracking-wider">{t("weeklyPerformance")}</span>
+                          <div className="flex shrink-0 items-center gap-1.5">
                             {data.weekDates.map((dateStr, i) => {
                               const isPast = dateStr < data.today;
                               const completed = habit.weeklyLogs?.[dateStr];
@@ -435,8 +467,22 @@ export function HabitsPanel({
                                 </div>
                               );
                             })}
+                            <button
+                              type="button"
+                              onClick={() => toggleExpanded(habit.id)}
+                              aria-expanded={expandedIds.has(habit.id)}
+                              aria-label={t(expandedIds.has(habit.id) ? "collapseMonth" : "expandMonth")}
+                              title={t(expandedIds.has(habit.id) ? "collapseMonth" : "expandMonth")}
+                              className="ml-0.5 w-7 h-7 rounded-full flex items-center justify-center text-theme-text/40 hover:text-theme-accent hover:bg-theme-accent-light transition-colors"
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expandedIds.has(habit.id) ? "rotate-180" : ""}`} />
+                            </button>
                           </div>
                         </div>
+                      )}
+
+                      {expandedIds.has(habit.id) && (
+                        <HabitMonthView habit={habit} today={data.today} currentDate={data.currentDate} />
                       )}
                     </div>
                   ))}

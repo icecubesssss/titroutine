@@ -8,6 +8,7 @@ import {
   todayInTimezone,
 } from "@/lib/game";
 import { ENERGY_PER_HABIT } from "@/lib/cleaning";
+import { sanitizeFrequency } from "@/lib/habit_schedule";
 import type { HabitType } from "@/lib/types";
 import { getUserId, reconcileMemories, type ActionResult } from "./_shared";
 
@@ -41,7 +42,7 @@ export async function addHabitAction(input: {
     title,
     type: input.type,
     config,
-    frequency: input.frequency || { type: "daily" },
+    frequency: sanitizeFrequency(input.frequency),
     time_of_day: input.timeOfDay || "anytime",
   });
   if (error) return { error: error.message };
@@ -93,7 +94,7 @@ export async function updateHabitAction(input: {
     }
   }
   if (input.frequency != null) {
-    patch.frequency = input.frequency;
+    patch.frequency = sanitizeFrequency(input.frequency);
   }
   if (input.timeOfDay != null) {
     patch.time_of_day = input.timeOfDay;
@@ -377,4 +378,36 @@ export async function incrementCounterHabitAction(input: {
 
   revalidatePath("/", "layout");
   return {};
+}
+
+/**
+ * Completed / failed dates of one habit in one calendar month ("YYYY-MM"), for
+ * the per-habit month view. Read-only, so no revalidation.
+ */
+export async function getHabitMonthAction(
+  habitId: string,
+  month: string
+): Promise<{ completed: string[]; failed: string[]; error?: string }> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { completed: [], failed: [], error: "unauthorized" };
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { completed: [], failed: [], error: "invalid_month" };
+
+  const [year, mon] = month.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+
+  const { data, error } = await supabase
+    .from("habit_logs")
+    // "*" so this keeps working on a DB without migration 14 (is_failed).
+    .select("*")
+    .eq("user_id", userId)
+    .eq("habit_id", habitId)
+    .gte("date", `${month}-01`)
+    .lte("date", `${month}-${String(lastDay).padStart(2, "0")}`);
+  if (error) return { completed: [], failed: [], error: error.message };
+
+  const rows = (data ?? []) as { date: string; is_completed: boolean | null; is_failed?: boolean | null }[];
+  return {
+    completed: rows.filter((r) => r.is_completed).map((r) => r.date),
+    failed: rows.filter((r) => r.is_failed && !r.is_completed).map((r) => r.date),
+  };
 }

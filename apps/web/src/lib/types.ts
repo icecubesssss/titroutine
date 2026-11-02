@@ -106,6 +106,14 @@ export interface ProfileSummary {
   badgeMilestoneSeen: number;
   /** Last "what's new" version the user dismissed (see lib/announcements.ts). */
   whatsNewSeen: string | null;
+  /** Custom user UI preferences (calendar view, task view, claimed freeze milestones). */
+  preferences?: UserPreferences;
+}
+
+export interface UserPreferences {
+  calendarView?: "week" | "month" | "year";
+  taskView?: "kanban" | "calendar";
+  claimedFreezeMilestones?: number[];
 }
 
 export type VisitPrivacy = "friends" | "nobody";

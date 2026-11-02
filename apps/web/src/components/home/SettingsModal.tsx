@@ -11,8 +11,9 @@ import {
   renameCharacterAction,
   setCharacterAction,
   setVisitPrivacyAction,
+  updateUserPreferencesAction,
 } from "@/app/[locale]/actions";
-import type { VisitPrivacy } from "@/lib/types";
+import type { VisitPrivacy, UserPreferences } from "@/lib/types";
 import { CharacterCompanion } from "../pet/CharacterCompanion";
 import {
   CHARACTERS,
@@ -55,6 +56,9 @@ interface SettingsModalProps {
   hasCustomCharacterName?: boolean;
   /** Who may drop by: 'friends' or 'nobody'. */
   visitPrivacy?: VisitPrivacy;
+  /** User calendar and task display preferences. */
+  preferences?: UserPreferences;
+  onPreferencesChange?: (preferences: Partial<UserPreferences>) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -78,11 +82,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   characterName,
   hasCustomCharacterName = false,
   visitPrivacy = "friends",
+  preferences,
+  onPreferencesChange,
 }) => {
   const t = useTranslations("Settings");
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [localPrefs, setLocalPrefs] = useState<UserPreferences>(
+    preferences ?? { calendarView: "week", taskView: "kanban" }
+  );
+
+  useEffect(() => {
+    if (preferences) setLocalPrefs(preferences);
+  }, [preferences]);
+
+  const handleUpdatePref = async (patch: Partial<UserPreferences>) => {
+    setLocalPrefs((prev) => ({ ...prev, ...patch }));
+    onPreferencesChange?.(patch);
+    await updateUserPreferencesAction(patch);
+  };
 
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [reportEmail, setReportEmail] = useState(email ?? "");
@@ -372,6 +392,65 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span className="text-xs">{tItem.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Calendar & Task Layout */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              🗓️ {t("calendarLayout")}
+            </h3>
+            <div>
+              <label className="text-xs font-bold text-gray-500 mb-2 block">
+                {t("defaultCalendarView")}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { code: "week", label: t("viewWeek"), emoji: "📅" },
+                  { code: "month", label: t("viewMonth"), emoji: "🗓️" },
+                  { code: "year", label: t("viewYear"), emoji: "📊" },
+                ].map((item) => (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => handleUpdatePref({ calendarView: item.code as "week" | "month" | "year" })}
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
+                      (localPrefs.calendarView ?? "week") === item.code
+                        ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                        : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
+                    }`}
+                  >
+                    <span className="text-2xl">{item.emoji}</span>
+                    <span className="text-xs">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 mb-2 block">
+                {t("defaultTaskView")}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { code: "kanban", label: t("taskKanban"), emoji: "📋" },
+                  { code: "calendar", label: t("taskCalendar"), emoji: "📅" },
+                ].map((item) => (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => handleUpdatePref({ taskView: item.code as "kanban" | "calendar" })}
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
+                      (localPrefs.taskView ?? "kanban") === item.code
+                        ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                        : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
+                    }`}
+                  >
+                    <span className="text-2xl">{item.emoji}</span>
+                    <span className="text-xs">{item.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

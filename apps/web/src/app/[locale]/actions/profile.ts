@@ -178,3 +178,47 @@ export async function buyFreezeAction(): Promise<ActionResult> {
   revalidatePath("/", "layout");
   return {};
 }
+
+/**
+ * Update user preferences (calendar view: "week" | "month" | "year", task view: "kanban" | "calendar").
+ */
+export async function updateUserPreferencesAction(
+  newPreferences: Partial<{
+    calendarView: "week" | "month" | "year";
+    taskView: "kanban" | "calendar";
+    claimedFreezeMilestones: number[];
+  }>
+): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("preferences")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const currentPrefs = (profile?.preferences as Record<string, unknown>) || {};
+  const updatedPrefs: Record<string, unknown> = { ...currentPrefs };
+
+  if (newPreferences.calendarView !== undefined) {
+    updatedPrefs.calendar_view = newPreferences.calendarView;
+  }
+  if (newPreferences.taskView !== undefined) {
+    updatedPrefs.task_view = newPreferences.taskView;
+  }
+  if (newPreferences.claimedFreezeMilestones !== undefined) {
+    updatedPrefs.claimed_freeze_milestones = newPreferences.claimedFreezeMilestones;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ preferences: updatedPrefs, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+

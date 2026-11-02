@@ -190,6 +190,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     { data: coopRows },
     { data: badgeRows },
     { data: whatsNewRow },
+    { data: preferencesRow },
     coopUsedToday
   ] = await Promise.all([
     supabase
@@ -269,6 +270,12 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
     supabase
       .from("profiles")
       .select("whats_new_seen")
+      .eq("id", user.id)
+      .maybeSingle(),
+    // Own query so dashboard keeps loading on DB where migration 17 hasn't been applied yet.
+    supabase
+      .from("profiles")
+      .select("preferences")
       .eq("id", user.id)
       .maybeSingle(),
     countCoopsSentToday(supabase, user.id, timezone)
@@ -520,6 +527,15 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       badgeMilestoneSeen: profile?.badge_milestone_seen ?? 0,
       // Column missing (migration 16 not applied) → treat as seen, never nag.
       whatsNewSeen: whatsNewRow ? whatsNewRow.whats_new_seen ?? null : WHATS_NEW_VERSION,
+      preferences: preferencesRow?.preferences ? {
+        calendarView: (preferencesRow.preferences as Record<string, unknown>).calendar_view as "week" | "month" | "year" ?? "week",
+        taskView: (preferencesRow.preferences as Record<string, unknown>).task_view as "kanban" | "calendar" ?? "kanban",
+        claimedFreezeMilestones: ((preferencesRow.preferences as Record<string, unknown>).claimed_freeze_milestones as number[]) ?? [],
+      } : {
+        calendarView: "week",
+        taskView: "kanban",
+        claimedFreezeMilestones: [],
+      },
     },
     inventory: {
       equippedItems: (inventoryData?.equipped_items as Record<string, string>) || {},

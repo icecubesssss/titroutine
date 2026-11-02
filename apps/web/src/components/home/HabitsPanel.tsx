@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { type RefObject } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useEffect, type RefObject } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, ChevronDown, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2, CalendarDays } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { HabitMonthView } from "@/components/home/HabitMonthView";
+import { MonthOverviewCalendar } from "@/components/home/MonthOverviewCalendar";
 import { weeklyTarget } from "@/lib/habit_schedule";
 import { CarrotPlanting } from "@/components/tasks/CarrotPlanting";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
-import type { DashboardData, HabitWithLog } from "@/lib/types";
+import type { DashboardData, HabitWithLog, UserPreferences } from "@/lib/types";
 import { toggleHabitPrivacyAction } from "@/app/[locale]/actions";
 
 // Bottom half of the home screen (scrolls internally). Two tabs share the pane:
@@ -37,6 +38,7 @@ export function HabitsPanel({
   onFail,
   isMaximized,
   onToggleMaximized,
+  preferences,
 }: {
   scrollRef: RefObject<HTMLElement>;
   data: DashboardData;
@@ -58,8 +60,22 @@ export function HabitsPanel({
   /** Desktop only: the active tab takes the whole workspace, hiding the pet room. */
   isMaximized: boolean;
   onToggleMaximized: () => void;
+  /** User calendar & display preferences */
+  preferences?: UserPreferences;
 }) {
   const t = useTranslations("Home");
+  const locale = useLocale();
+  const effectivePreferences = preferences ?? data.profile.preferences;
+  const [calendarViewMode, setCalendarViewMode] = useState<"week" | "month" | "year">(
+    effectivePreferences?.calendarView ?? "week"
+  );
+
+  useEffect(() => {
+    if (effectivePreferences?.calendarView) {
+      setCalendarViewMode(effectivePreferences.calendarView);
+    }
+  }, [effectivePreferences?.calendarView]);
+
   const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
   // Habit cards whose month calendar is open.
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
@@ -96,27 +112,66 @@ export function HabitsPanel({
   // so tasks get the same week bar; the completion badge is habits-only.
   const weekHeader = (
     <div className="mb-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 bg-theme-card-bg px-2 py-1 rounded-full shadow-sm border border-theme-card-border">
-          <button
-            type="button"
-            aria-label={t("prevDay")}
-            onClick={() => onSelectDate(format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd"))}
-            className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-theme-text/60" />
-          </button>
-          <div className="text-sm font-bold text-theme-accent text-center min-w-[110px]">
-            {data.weekDates ? `${format(parseISO(data.weekDates[0]), "dd/MM")} - ${format(parseISO(data.weekDates[6]), "dd/MM")}` : format(parseISO(data.currentDate), "dd/MM/yyyy")}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 bg-theme-card-bg px-2 py-1 rounded-full shadow-sm border border-theme-card-border">
+            <button
+              type="button"
+              aria-label={t("prevDay")}
+              onClick={() => onSelectDate(format(subWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd"))}
+              className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-theme-text/60" />
+            </button>
+            <div className="text-sm font-bold text-theme-accent text-center min-w-[110px]">
+              {data.weekDates ? `${format(parseISO(data.weekDates[0]), "dd/MM")} - ${format(parseISO(data.weekDates[6]), "dd/MM")}` : format(parseISO(data.currentDate), "dd/MM/yyyy")}
+            </div>
+            <button
+              type="button"
+              aria-label={t("nextDay")}
+              onClick={() => onSelectDate(format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd"))}
+              className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 text-theme-text/60" />
+            </button>
           </div>
-          <button
-            type="button"
-            aria-label={t("nextDay")}
-            onClick={() => onSelectDate(format(addWeeks(parseISO(data.currentDate), 1), "yyyy-MM-dd"))}
-            className="p-1 hover:bg-theme-accent-light rounded-full transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-theme-text/60" />
-          </button>
+
+          {/* Quick Calendar View Selector: Week / Month / Year */}
+          <div className="inline-flex items-center bg-theme-card-bg p-1 rounded-full border border-theme-card-border shadow-sm text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode("week")}
+              className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
+                calendarViewMode === "week"
+                  ? "bg-theme-accent text-white shadow-sm"
+                  : "text-theme-text/60 hover:text-theme-accent"
+              }`}
+            >
+              {t("viewWeek")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode("month")}
+              className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
+                calendarViewMode === "month"
+                  ? "bg-theme-accent text-white shadow-sm"
+                  : "text-theme-text/60 hover:text-theme-accent"
+              }`}
+            >
+              {t("viewMonth")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode("year")}
+              className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
+                calendarViewMode === "year"
+                  ? "bg-theme-accent text-white shadow-sm"
+                  : "text-theme-text/60 hover:text-theme-accent"
+              }`}
+            >
+              {t("viewYear")}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -158,6 +213,11 @@ export function HabitsPanel({
             // Trích xuất thông tin cảm xúc từ logs
             const moodLog = data.moodLogs?.[dateStr];
 
+            // Đếm số công việc chưa hoàn thành có hạn vào ngày này
+            const pendingTasksCount = (data.tasks || []).filter(
+              (t) => t.deadline && t.deadline.slice(0, 10) === dateStr && t.status !== "done"
+            ).length;
+
             const MOOD_DESIGNS: Record<string, { bg: string; border: string; text: string; emoji: string }> = {
               awesome: { bg: "bg-pink-100 hover:bg-pink-200 border-pink-200", border: "border-pink-300", text: "text-pink-700", emoji: "😆" },
               good: { bg: "bg-emerald-100 hover:bg-emerald-200 border-emerald-200", border: "border-emerald-300", text: "text-emerald-700", emoji: "🙂" },
@@ -183,7 +243,19 @@ export function HabitsPanel({
                 className={`group flex flex-col items-center justify-center w-11 h-14 rounded-2xl transition-all relative border ${btnStyles}`}
               >
                 {isRealToday && !isSelected && (
-                  <span className="absolute -top-1 w-2 h-2 bg-amber-400 rounded-full z-10 animate-pulse"></span>
+                  <span className="absolute -top-1 left-1.5 w-2 h-2 bg-amber-400 rounded-full z-10 animate-pulse"></span>
+                )}
+
+                {/* Pending Tasks badge for this day */}
+                {pendingTasksCount > 0 && (
+                  <span
+                    title={`${pendingTasksCount} việc cần làm`}
+                    className={`absolute -top-1.5 -right-1 min-w-[17px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center shadow-sm z-10 ${
+                      isSelected ? "bg-white text-theme-accent border border-theme-accent" : "bg-theme-accent text-white"
+                    }`}
+                  >
+                    {pendingTasksCount}
+                  </span>
                 )}
 
                 <span className={`text-[9px] font-bold mb-0.5 uppercase tracking-wider ${isSelected ? "text-white/70" : "text-theme-text/40"}`}>
@@ -237,7 +309,48 @@ export function HabitsPanel({
     <section ref={scrollRef} className={`flex-[1.3] min-h-0 bg-earth-bg p-6 md:p-8 pb-28 overflow-y-visible md:overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
       {weekHeader}
 
-      {activeTab === "habits" ? (
+      {calendarViewMode === "month" ? (
+        <div className="space-y-6">
+          <MonthOverviewCalendar
+            currentDate={data.currentDate}
+            today={data.today}
+            habits={habits}
+            tasks={data.tasks || []}
+            moodLogs={data.moodLogs}
+            onSelectDate={(d) => {
+              onSelectDate(d);
+              setCalendarViewMode("week");
+            }}
+            onBackToWeek={() => setCalendarViewMode("week")}
+          />
+        </div>
+      ) : calendarViewMode === "year" ? (
+        <div className="bg-theme-card-bg p-6 rounded-3xl border border-theme-card-border shadow-sm text-center space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">
+            📈
+          </div>
+          <h3 className="text-lg font-black text-theme-text">Tổng quan tiến độ cả năm</h3>
+          <p className="text-xs text-theme-text/60 max-w-md mx-auto leading-relaxed">
+            Xem biểu đồ thói quen, chuỗi ngày streak kỷ lục, phân bố hoàn thành theo tháng và lịch sử tâm trạng trong năm của bạn.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Link
+              href={`/${locale}/analytics`}
+              className="px-5 py-2.5 rounded-full bg-theme-accent text-white text-xs font-bold shadow-md hover:brightness-110 flex items-center gap-1.5 transition-transform active:scale-95"
+            >
+              <span>Xem Thống kê & Phân tích chi tiết</span>
+              <span aria-hidden>→</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCalendarViewMode("week")}
+              className="px-4 py-2.5 rounded-full bg-black/5 dark:bg-white/5 text-theme-text text-xs font-bold hover:bg-black/10 transition-colors"
+            >
+              Quay lại Tuần
+            </button>
+          </div>
+        </div>
+      ) : activeTab === "habits" ? (
         totalCount === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center text-gray-400">
             <span className="text-4xl">🌱</span>
@@ -500,6 +613,10 @@ export function HabitsPanel({
             onRefresh={onRefresh}
             weekStart={data.weekDates?.[0]}
             weekEnd={data.weekDates?.[6]}
+            weekDates={data.weekDates}
+            currentDate={data.currentDate}
+            defaultTaskView={effectivePreferences?.taskView ?? "kanban"}
+            onSelectDate={onSelectDate}
           />
         </div>
       )}

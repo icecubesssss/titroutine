@@ -30,7 +30,7 @@ import {
   buyFreezeAction,
   acknowledgeWhatsNewAction,
 } from "@/app/[locale]/actions";
-import type { DashboardData, HabitWithLog } from "@/lib/types";
+import type { DashboardData, HabitWithLog, UserPreferences } from "@/lib/types";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
 import { hasSheet } from "@/lib/characters";
 import { usePandaAction } from "@/components/home/hooks/usePandaAction";
@@ -73,6 +73,11 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [unlockedItems, setUnlockedItems] = useState(data.inventory.unlockedItems ?? []);
   const [vacationMode, setVacationMode] = useState(data.profile.vacationMode ?? false);
   const [badges, setBadges] = useState(data.badges);
+  const [preferences, setPreferences] = useState<UserPreferences>(data.profile.preferences || {
+    calendarView: "week",
+    taskView: "kanban",
+    claimedFreezeMilestones: []
+  });
   const roomCanvasRef = useRef<HTMLDivElement>(null);
 
   const handleBadgeMove = (key: string, x: number, y: number) => {
@@ -869,6 +874,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           onFail={commitFail}
           isMaximized={isPanelMaximized}
           onToggleMaximized={togglePanelMaximized}
+          preferences={preferences}
         />
       </div>
       </div> {/* Close Main Workspace split panel */}
@@ -952,6 +958,10 @@ export function HomeView({ data }: { data: DashboardData }) {
         characterName={data.profile.characterName}
         hasCustomCharacterName={data.profile.hasCustomCharacterName}
         visitPrivacy={data.profile.visitPrivacy}
+        preferences={preferences}
+        onPreferencesChange={(updated) => {
+          setPreferences((prev) => ({ ...prev, ...updated }));
+        }}
       />
       
       <ShopModal

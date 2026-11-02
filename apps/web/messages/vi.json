@@ -409,7 +409,15 @@
     "visitsTitle": "Cho phép ghé thăm",
     "visitsOnSub": "Bạn bè có thể sang chơi cùng bạn.",
     "visitsOffSub": "Bạn đang tắt ghé thăm, không ai sang được.",
-    "visitsToggle": "Bật/tắt ghé thăm"
+    "visitsToggle": "Bật/tắt ghé thăm",
+    "calendarLayout": "Lịch trình & Hiển thị",
+    "defaultCalendarView": "Chế độ xem lịch mặc định",
+    "viewWeek": "Tuần",
+    "viewMonth": "Tháng",
+    "viewYear": "Năm",
+    "defaultTaskView": "Dạng bảng công việc mặc định",
+    "taskKanban": "Kanban (3 cột)",
+    "taskCalendar": "Lịch tuần"
   },
   "Rooms": {
     "bedroom": "Phòng riêng",

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Trash2, Calendar, Clock, User, Award } from "lucide-react";
+import { format, addDays, nextSaturday } from "date-fns";
 import { DuoButton } from "@/components/ui/DuoButton";
 import type { Task } from "@/lib/types";
 
@@ -10,6 +11,7 @@ interface TaskDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   task?: Task | null;
+  defaultDeadline?: string | null;
   onCreateTask: (input: {
     title: string;
     notes?: string;
@@ -36,6 +38,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   isOpen, 
   onClose, 
   task,
+  defaultDeadline,
   onCreateTask,
   onUpdateTask,
   onDeleteTask
@@ -92,11 +95,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       setAssigneeType("self");
       setFocusDuration(25);
       setIsCustomDuration(false);
-      setDeadline("");
+      setDeadline(defaultDeadline ? defaultDeadline.split("T")[0] : "");
     }
     setNewSubtaskText("");
     setConfirmDelete(false);
-  }, [task, isOpen]);
+  }, [task, isOpen, defaultDeadline]);
 
   if (!isOpen) return null;
 
@@ -329,10 +332,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               )}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="deadline-input" className="text-xs font-black text-[#8b7355] uppercase tracking-wider flex items-center gap-1">
-                <Calendar size={12} /> Hạn chót
-              </label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="deadline-input" className="text-xs font-black text-[#8b7355] uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={12} /> Hạn chót
+                </label>
+                {deadline && (
+                  <button
+                    type="button"
+                    onClick={() => setDeadline("")}
+                    className="text-[10px] font-bold text-stone-400 hover:text-stone-600 transition-colors"
+                  >
+                    Xoá hạn
+                  </button>
+                )}
+              </div>
               <input
                 id="deadline-input"
                 type="date"
@@ -342,6 +356,50 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                 onChange={(e) => setDeadline(e.target.value)}
                 className="w-full bg-white border-2 border-[#ebdcc5] px-3 py-2 rounded-2xl text-sm font-bold text-[#5c4033] focus:outline-none focus:border-theme-accent"
               />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {(() => {
+                  const todayStr = format(new Date(), "yyyy-MM-dd");
+                  const tomorrowStr = format(addDays(new Date(), 1), "yyyy-MM-dd");
+                  const saturdayStr = format(nextSaturday(new Date()), "yyyy-MM-dd");
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setDeadline(todayStr)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                          deadline === todayStr
+                            ? "bg-theme-accent text-white shadow-xs"
+                            : "bg-[#f5ecdd] text-[#8b7355] hover:bg-[#ebdcc5]"
+                        }`}
+                      >
+                        ⚡ Hôm nay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeadline(tomorrowStr)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                          deadline === tomorrowStr
+                            ? "bg-theme-accent text-white shadow-xs"
+                            : "bg-[#f5ecdd] text-[#8b7355] hover:bg-[#ebdcc5]"
+                        }`}
+                      >
+                        📅 Ngày mai
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeadline(saturdayStr)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                          deadline === saturdayStr
+                            ? "bg-theme-accent text-white shadow-xs"
+                            : "bg-[#f5ecdd] text-[#8b7355] hover:bg-[#ebdcc5]"
+                        }`}
+                      >
+                        🌿 Thứ 7 này
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
 

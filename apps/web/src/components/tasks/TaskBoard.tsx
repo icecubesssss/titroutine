@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, TouchSensor, useDroppable, useDraggable } from "@dnd-kit/core";
-import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, X } from "lucide-react";
+import { Plus, Play, CheckCircle2, User, Clock, Calendar, ArrowLeft, Edit2, X, CalendarDays, LayoutGrid, ChevronRight, Check, Sparkles } from "lucide-react";
+import { format, parseISO, addDays } from "date-fns";
 import type { Task } from "@/lib/types";
 import { updateTaskStatusAction, updateTaskDetailsAction, createTaskAction, deleteTaskAction } from "@/app/[locale]/actions";
 import { useSound } from "@/hooks/useSound";
@@ -46,15 +47,34 @@ interface TaskBoardProps {
    *  this range; tasks with no deadline always show. Omit to show everything. */
   weekStart?: string;
   weekEnd?: string;
+  weekDates?: string[];
+  currentDate?: string;
+  defaultTaskView?: "kanban" | "calendar";
+  onSelectDate?: (dateStr: string) => void;
 }
 
-export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefresh, weekStart, weekEnd }) => {
+export const TaskBoard: React.FC<TaskBoardProps> = ({
+  tasks: serverTasks,
+  onRefresh,
+  weekStart,
+  weekEnd,
+  weekDates,
+  currentDate,
+  defaultTaskView = "kanban",
+  onSelectDate,
+}) => {
   const { playPop } = useSound();
   const isMobile = useIsMobile();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [defaultNewDeadline, setDefaultNewDeadline] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"kanban" | "calendar">(defaultTaskView);
   // The task a focus countdown is currently running for (phone-only ritual).
   const [focusTask, setFocusTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (defaultTaskView) setViewMode(defaultTaskView);
+  }, [defaultTaskView]);
 
   // Optimistic tasks state
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(serverTasks);
@@ -247,16 +267,60 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
     { id: "done", title: "Đã hoàn thành", bg: "bg-emerald-50/70", border: "border-emerald-200/50", text: "text-emerald-700", icon: "✨" },
   ];
 
+  const calendarDates = useMemo(() => {
+    if (weekDates && weekDates.length === 7) return weekDates;
+    const base = currentDate ? parseISO(currentDate) : new Date();
+    const day = base.getDay();
+    const diffToMon = (day === 0 ? -6 : 1) - day;
+    const mon = addDays(base, diffToMon);
+    return Array.from({ length: 7 }, (_, i) => format(addDays(mon, i), "yyyy-MM-dd"));
+  }, [weekDates, currentDate]);
+
+  const WEEK_DAYS_NAMES = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+
+  const unscheduledTasks = useMemo(() => {
+    return optimisticTasks.filter((t) => !t.deadline && t.status !== "done");
+  }, [optimisticTasks]);
+
   return (
     <div className="space-y-6 select-none h-full flex flex-col relative">
       {/* Header bar */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-theme-text flex items-center gap-2">
-          📋 Bảng Công Việc
-        </h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-black text-theme-text flex items-center gap-2">
+            📋 Bảng Công Việc
+          </h2>
+          {/* View mode toggle */}
+          <div className="flex items-center bg-stone-100 p-1 rounded-full border border-stone-200 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => { playPop(); setViewMode("kanban"); }}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                viewMode === "kanban"
+                  ? "bg-white text-stone-800 shadow-xs"
+                  : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              <LayoutGrid size={13} /> Kanban
+            </button>
+            <button
+              type="button"
+              onClick={() => { playPop(); setViewMode("calendar"); }}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                viewMode === "calendar"
+                  ? "bg-white text-stone-800 shadow-xs"
+                  : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              <CalendarDays size={13} /> Lịch tuần
+            </button>
+          </div>
+        </div>
+
         <button
           onClick={() => {
             setEditingTask(null);
+            setDefaultNewDeadline(null);
             setIsDrawerOpen(true);
           }}
           className="bg-theme-accent hover:brightness-105 text-white font-bold text-xs px-3.5 py-2.5 rounded-full flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
@@ -265,44 +329,228 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
         </button>
       </div>
 
-      {/* Kanban Grid */}
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 items-start">
-          {columns.map((col) => {
-            // Week filter: keep tasks whose deadline falls in the selected week;
-            // tasks without a deadline always show. In the "done" column, put the
-            // most recently completed on top (updated_at bumps on status change).
-            const colTasks = optimisticTasks
-              .filter((t) => {
-                if (t.status !== col.id) return false;
-                if (!t.deadline || !weekStart || !weekEnd) return true;
-                const due = t.deadline.slice(0, 10);
-                return due >= weekStart && due <= weekEnd;
-              })
-              .sort((a, b) =>
-                col.id === "done" ? Date.parse(b.updatedAt) - Date.parse(a.updatedAt) : 0
+      {viewMode === "calendar" ? (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Week Columns Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {calendarDates.map((dateStr, idx) => {
+              const isToday = dateStr === (currentDate || format(new Date(), "yyyy-MM-dd"));
+              const dayTasks = optimisticTasks.filter(
+                (t) => t.deadline && t.deadline.slice(0, 10) === dateStr
               );
-            return (
-              <Column
-                key={col.id}
-                id={col.id}
-                title={col.title}
-                bg={col.bg}
-                border={col.border}
-                text={col.text}
-                icon={col.icon}
-                tasks={colTasks}
-                onEdit={(task) => {
-                  setEditingTask(task);
-                  setIsDrawerOpen(true);
-                }}
-                onMove={moveTask}
-                onUpdateNotes={updateTaskNotes}
-              />
-            );
-          })}
+              const doneCount = dayTasks.filter((t) => t.status === "done").length;
+
+              return (
+                <div
+                  key={dateStr}
+                  className={`rounded-2xl border-2 p-3 min-h-[220px] flex flex-col transition-all ${
+                    isToday
+                      ? "bg-amber-50/70 border-amber-300 shadow-xs"
+                      : "bg-white/95 border-[#ebdcc5]"
+                  }`}
+                >
+                  {/* Day Header */}
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-100">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-theme-accent">
+                        {WEEK_DAYS_NAMES[idx]}
+                      </span>
+                      <span className="text-[11px] font-bold text-stone-500">
+                        {format(parseISO(dateStr), "dd/MM")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {dayTasks.length > 0 && (
+                        <span className="text-[10px] font-black text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded-full">
+                          {doneCount}/{dayTasks.length}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        title={`Thêm việc vào ${WEEK_DAYS_NAMES[idx]}`}
+                        onClick={() => {
+                          setEditingTask(null);
+                          setDefaultNewDeadline(dateStr);
+                          setIsDrawerOpen(true);
+                        }}
+                        className="w-5 h-5 rounded-full bg-theme-accent-light text-theme-accent hover:bg-theme-accent hover:text-white flex items-center justify-center text-xs font-bold transition-colors"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tasks List */}
+                  <div className="flex-1 space-y-2 overflow-y-auto max-h-[360px] pr-0.5">
+                    {dayTasks.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center py-6 text-stone-300">
+                        <span className="text-[11px] font-semibold">Chưa có việc</span>
+                      </div>
+                    ) : (
+                      dayTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className={`p-2 rounded-xl border transition-all text-xs flex flex-col gap-1.5 shadow-2xs ${
+                            task.status === "done"
+                              ? "bg-emerald-50/50 border-emerald-200 opacity-60"
+                              : task.status === "in_progress"
+                              ? "bg-orange-50/80 border-orange-200"
+                              : "bg-white border-stone-200 hover:border-theme-accent/60"
+                          }`}
+                        >
+                          <div className="flex items-start gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                moveTask(task.id, task.status === "done" ? "todo" : "done")
+                              }
+                              className={`w-4 h-4 rounded-md mt-0.5 shrink-0 flex items-center justify-center border transition-all ${
+                                task.status === "done"
+                                  ? "bg-emerald-500 border-emerald-500 text-white"
+                                  : "bg-white border-stone-300 hover:border-theme-accent"
+                              }`}
+                            >
+                              {task.status === "done" && <Check size={11} strokeWidth={3} />}
+                            </button>
+                            <span
+                              onClick={() => {
+                                setEditingTask(task);
+                                setDefaultNewDeadline(null);
+                                setIsDrawerOpen(true);
+                              }}
+                              className={`flex-1 font-bold cursor-pointer text-stone-800 leading-snug line-clamp-2 ${
+                                task.status === "done" ? "line-through text-stone-400" : ""
+                              }`}
+                            >
+                              {task.title}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-stone-400 pt-0.5">
+                            <span className="flex items-center gap-1 font-medium">
+                              <Clock size={10} /> {task.focusDuration}m
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded-full font-bold ${
+                                task.priority === "high"
+                                  ? "bg-red-100 text-red-600"
+                                  : task.priority === "medium"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-blue-100 text-blue-600"
+                              }`}
+                            >
+                              {task.priority === "high"
+                                ? "Cao"
+                                : task.priority === "medium"
+                                ? "Vừa"
+                                : "Thấp"}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Unscheduled Backlog Section */}
+          {unscheduledTasks.length > 0 && (
+            <div className="bg-stone-50 border-2 border-stone-200/80 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                  📋 Việc chưa xếp lịch ({unscheduledTasks.length})
+                </h4>
+                <span className="text-[11px] text-stone-400">
+                  Gán ngày nhanh để đưa vào lịch tuần
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {unscheduledTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className="bg-white border border-stone-200 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-2xs text-xs"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => moveTask(t.id, "done")}
+                        className="w-4 h-4 rounded-md shrink-0 flex items-center justify-center border border-stone-300 hover:border-theme-accent"
+                      >
+                      </button>
+                      <span className="font-bold text-stone-700 truncate">{t.title}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const todayStr = format(new Date(), "yyyy-MM-dd");
+                          handleUpdateTask(t.id, { deadline: todayStr });
+                        }}
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors"
+                      >
+                        Hôm nay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTask(t);
+                          setDefaultNewDeadline(null);
+                          setIsDrawerOpen(true);
+                        }}
+                        className="bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors"
+                      >
+                        Sửa
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </DndContext>
+      ) : (
+        /* Kanban Grid */
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 items-start">
+            {columns.map((col) => {
+              // Week filter: keep tasks whose deadline falls in the selected week;
+              // tasks without a deadline always show. In the "done" column, put the
+              // most recently completed on top (updated_at bumps on status change).
+              const colTasks = optimisticTasks
+                .filter((t) => {
+                  if (t.status !== col.id) return false;
+                  if (!t.deadline || !weekStart || !weekEnd) return true;
+                  const due = t.deadline.slice(0, 10);
+                  return due >= weekStart && due <= weekEnd;
+                })
+                .sort((a, b) =>
+                  col.id === "done" ? Date.parse(b.updatedAt) - Date.parse(a.updatedAt) : 0
+                );
+              return (
+                <Column
+                  key={col.id}
+                  id={col.id}
+                  title={col.title}
+                  bg={col.bg}
+                  border={col.border}
+                  text={col.text}
+                  icon={col.icon}
+                  tasks={colTasks}
+                  onEdit={(task) => {
+                    setEditingTask(task);
+                    setDefaultNewDeadline(null);
+                    setIsDrawerOpen(true);
+                  }}
+                  onMove={moveTask}
+                  onUpdateNotes={updateTaskNotes}
+                />
+              );
+            })}
+          </div>
+        </DndContext>
+      )}
 
       {/* Toast container */}
       {toasts.length > 0 && (
@@ -315,8 +563,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({ tasks: serverTasks, onRefr
 
       <TaskDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setDefaultNewDeadline(null);
+        }}
         task={editingTask}
+        defaultDeadline={defaultNewDeadline}
         onCreateTask={handleCreateTask}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}

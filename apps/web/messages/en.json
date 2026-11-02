@@ -409,7 +409,15 @@
     "visitsTitle": "Allow visits",
     "visitsOnSub": "Friends can come over and hang out.",
     "visitsOffSub": "Visits are off — nobody can drop by.",
-    "visitsToggle": "Toggle visits"
+    "visitsToggle": "Toggle visits",
+    "calendarLayout": "Calendar & Display",
+    "defaultCalendarView": "Default Calendar View",
+    "viewWeek": "Week",
+    "viewMonth": "Month",
+    "viewYear": "Year",
+    "defaultTaskView": "Default Task Board View",
+    "taskKanban": "Kanban (3 columns)",
+    "taskCalendar": "Weekly Calendar"
   },
   "Rooms": {
     "bedroom": "Bedroom",

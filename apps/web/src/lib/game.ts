@@ -96,6 +96,31 @@ export function nextStreak(
 export const STREAK_FREEZE_COST = 50;
 
 /**
+ * Streak milestones that award +1 streak freeze when reached (e.g. 3, 7, 14, 30, 60, 100, 150, 200, 365 days).
+ */
+export const STREAK_FREEZE_MILESTONES = [3, 7, 14, 30, 60, 100, 150, 200, 365] as const;
+
+/**
+ * Check if the new streak reaches any unclaimed milestones.
+ * Returns the list of newly achieved milestones and the total freezes to grant.
+ */
+export function evaluateFreezeMilestones(
+  newStreak: number,
+  claimedMilestones: number[] = []
+): { newlyClaimed: number[]; freezesGranted: number } {
+  const newlyClaimed: number[] = [];
+  for (const milestone of STREAK_FREEZE_MILESTONES) {
+    if (newStreak >= milestone && !claimedMilestones.includes(milestone)) {
+      newlyClaimed.push(milestone);
+    }
+  }
+  return {
+    newlyClaimed,
+    freezesGranted: newlyClaimed.length,
+  };
+}
+
+/**
  * The stored streak only changes when a habit is completed, so after missed days
  * it would keep showing a number that no longer exists. This is what the streak
  * really is right now: still alive while the missed days are covered by freezes

@@ -409,7 +409,15 @@
     "visitsTitle": "允许拜访",
     "visitsOnSub": "好友可以过来一起玩。",
     "visitsOffSub": "已关闭拜访，没有人可以过来。",
-    "visitsToggle": "开关拜访"
+    "visitsToggle": "开关拜访",
+    "calendarLayout": "日程与显示",
+    "defaultCalendarView": "默认日历视图",
+    "viewWeek": "周视图",
+    "viewMonth": "月视图",
+    "viewYear": "年视图",
+    "defaultTaskView": "默认任务板视图",
+    "taskKanban": "看板（3列）",
+    "taskCalendar": "周日历"
   },
   "Rooms": {
     "bedroom": "卧室",

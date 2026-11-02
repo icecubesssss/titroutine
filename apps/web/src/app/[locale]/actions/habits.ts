@@ -6,6 +6,7 @@ import {
   nextStreak,
   ratchetStage,
   todayInTimezone,
+  evaluateFreezeMilestones,
 } from "@/lib/game";
 import { ENERGY_PER_HABIT } from "@/lib/cleaning";
 import { sanitizeFrequency } from "@/lib/habit_schedule";
@@ -144,7 +145,7 @@ export async function toggleHabitAction(input: {
   const [{ data: profile, error: profileError }, { data: habitData }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status, cleaning_energy")
+      .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, last_checkin_date, pet_stage, adventure_energy, adventure_status, cleaning_energy, preferences")
       .eq("id", userId)
       .maybeSingle(),
     supabase.from("habits").select("type").eq("id", input.habitId).single(),
@@ -194,6 +195,7 @@ export async function toggleHabitAction(input: {
   // derived from the streak so the stored value always matches what's shown.
   let newStreak = profile?.current_streak ?? 0;
   let remainingFreezes = profile?.streak_freezes ?? 0;
+  let newPrefs: Record<string, unknown> | null = null;
 
   if (targetDate === today) {
     if (willComplete && !isNegative) {
@@ -205,6 +207,18 @@ export async function toggleHabitAction(input: {
       );
       newStreak = streakResult.newStreak;
       remainingFreezes -= streakResult.freezesUsed;
+
+      // Reward +1 streak freeze when hitting milestones (e.g. 3, 7, 14, 30, 60, 100...)
+      const prefs = (profile?.preferences as Record<string, unknown>) || {};
+      const claimedMilestones = (prefs.claimed_freeze_milestones as number[]) || [];
+      const freezeReward = evaluateFreezeMilestones(newStreak, claimedMilestones);
+      if (freezeReward.freezesGranted > 0) {
+        remainingFreezes += freezeReward.freezesGranted;
+        newPrefs = {
+          ...prefs,
+          claimed_freeze_milestones: [...claimedMilestones, ...freezeReward.newlyClaimed],
+        };
+      }
     } else if (willComplete && isNegative) {
       // Violated negative habit -> Reset streak
       newStreak = 0;
@@ -236,6 +250,10 @@ export async function toggleHabitAction(input: {
     pet_stage: targetDate === today ? ratchetStage(profile?.pet_stage, newStreak) : profile?.pet_stage,
     updated_at: new Date().toISOString(),
   };
+
+  if (newPrefs) {
+    patch.preferences = newPrefs;
+  }
 
   if (willComplete && targetDate === today) {
     patch.current_streak = newStreak;
@@ -313,7 +331,7 @@ export async function incrementCounterHabitAction(input: {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage, adventure_energy, adventure_status, cleaning_energy")
+    .select("timezone, coins, total_exp, current_streak, last_active_date, streak_freezes, pet_stage, adventure_energy, adventure_status, cleaning_energy, preferences")
     .eq("id", userId)
     .maybeSingle();
 
@@ -357,21 +375,38 @@ export async function incrementCounterHabitAction(input: {
       profile?.streak_freezes ?? 0
     );
 
+    let updatedFreezes = profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0;
+    const prefs = (profile?.preferences as Record<string, unknown>) || {};
+    const claimedMilestones = (prefs.claimed_freeze_milestones as number[]) || [];
+    const freezeReward = evaluateFreezeMilestones(streakResult.newStreak, claimedMilestones);
+    if (freezeReward.freezesGranted > 0) {
+      updatedFreezes += freezeReward.freezesGranted;
+    }
+
     let adventureEnergy = profile?.adventure_energy ?? 0;
     if (profile?.adventure_status === "idle") {
       adventureEnergy = Math.min(30, adventureEnergy + 10);
     }
 
-    await supabase.from("profiles").update({
+    const updatePayload: Record<string, unknown> = {
       coins,
       current_streak: streakResult.newStreak,
-      streak_freezes: profile?.streak_freezes ? profile.streak_freezes - streakResult.freezesUsed : 0,
+      streak_freezes: updatedFreezes,
       pet_stage: ratchetStage(profile?.pet_stage, streakResult.newStreak),
       last_active_date: today,
       adventure_energy: adventureEnergy,
       cleaning_energy: (profile?.cleaning_energy ?? 0) + ENERGY_PER_HABIT,
       updated_at: new Date().toISOString(),
-    }).eq("id", userId);
+    };
+
+    if (freezeReward.freezesGranted > 0) {
+      updatePayload.preferences = {
+        ...prefs,
+        claimed_freeze_milestones: [...claimedMilestones, ...freezeReward.newlyClaimed],
+      };
+    }
+
+    await supabase.from("profiles").update(updatePayload).eq("id", userId);
 
     await reconcileMemories(supabase, userId, streakResult.newStreak);
   }

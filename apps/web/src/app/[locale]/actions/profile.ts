@@ -3,38 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { format, addDays, parseISO } from "date-fns";
 import {
-  COINS_PER_HABIT,
-  nextStreak,
-  ratchetStage,
   STREAK_FREEZE_COST,
   todayInTimezone,
   currentSatiety,
-  foodTier,
-  feedExpGain,
-  levelFromExp,
-  SATIETY_MAX,
-  DAILY_FEED_BONUS_EXP,
-  AFFECTION_MAX,
-  AFFECTION_PER_FEED,
-  AFFECTION_PER_INTERACT,
-  AFFECTION_DAILY_CAP,
-  INTERACT_COOLDOWN_MS,
-  NEIGHBOR_GIFT_COINS,
-  NEIGHBOR_GIFT_AFFECTION,
 } from "@/lib/game";
-import { allRoomsUnlocked, ROOMS, type InteractionKind } from "@/lib/rooms";
-import {
-  ENERGY_PER_HABIT,
-  SPOT_CLEAN_COINS,
-  ROOM_CLEAN_BONUS_COINS,
-  ROOM_CLEAN_GIFTS,
-  findMessSpot,
-  isRoomFullyClean,
-} from "@/lib/cleaning";
-import type { HabitType } from "@/lib/types";
-import { ADVENTURE_STORIES, getRandomStory } from "@/lib/adventure_stories";
-import { getFeedFeedback, getPlayFeedback, getCleanFeedback, getSleepFeedback } from "@/lib/game_interactions";
-import { getUserId, reconcileMemories, type ActionResult } from "./_shared";
+import { getUserId, type ActionResult } from "./_shared";
 
 /**
  * Persist the user's real IANA timezone so "today" and streaks are computed in

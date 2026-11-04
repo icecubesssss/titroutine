@@ -595,7 +595,12 @@ export function HabitsPanel({
                       )}
 
                       {expandedIds.has(habit.id) && (
-                        <HabitMonthView habit={habit} today={data.today} currentDate={data.currentDate} />
+                        <HabitMonthView
+                          habit={habit}
+                          today={data.today}
+                          currentDate={data.currentDate}
+                          onRefresh={onRefresh}
+                        />
                       )}
                     </div>
                   ))}

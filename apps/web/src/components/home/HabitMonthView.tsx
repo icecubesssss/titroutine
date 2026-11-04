@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -15,7 +15,7 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { getHabitMonthAction } from "@/app/[locale]/actions";
+import { getHabitMonthAction, toggleHabitAction } from "@/app/[locale]/actions";
 import { isScheduledDay } from "@/lib/habit_schedule";
 import type { HabitWithLog } from "@/lib/types";
 
@@ -30,17 +30,22 @@ export function HabitMonthView({
   habit,
   today,
   currentDate,
+  onRefresh,
 }: {
   habit: HabitWithLog;
   /** Real today in the user's timezone (YYYY-MM-DD). */
   today: string;
   /** Day the dashboard is showing; the calendar opens on its month. */
   currentDate: string;
+  /** Revalidate parent data on retroactive check-in. */
+  onRefresh?: () => void;
 }) {
   const t = useTranslations("Home");
   const locale = useLocale();
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(parseISO(currentDate)));
   const [cache, setCache] = useState<Record<string, MonthLogs | "error">>({});
+  const [localOverrides, setLocalOverrides] = useState<Record<string, boolean>>({});
+  const [isPending, startTransition] = useTransition();
 
   const monthKey = format(viewMonth, "yyyy-MM");
   const fetched = cache[monthKey];
@@ -81,6 +86,7 @@ export function HabitMonthView({
   const logs = fetched && fetched !== "error" ? fetched : null;
 
   const isDone = (key: string): boolean => {
+    if (localOverrides[key] !== undefined) return localOverrides[key];
     if (key === currentDate) return habit.isCompleted;
     const weekly = habit.weeklyLogs?.[key];
     if (weekly !== undefined) return weekly;
@@ -90,6 +96,41 @@ export function HabitMonthView({
     if (key === currentDate) return Boolean(habit.isFailed);
     if (habit.weeklyLogs?.[key] !== undefined) return Boolean(habit.weeklyFailed?.[key]);
     return logs?.failed.has(key) ?? false;
+  };
+
+  const handleToggleDate = (targetDate: string) => {
+    if (targetDate > today || isNegative) return;
+    const currentlyDone = isDone(targetDate);
+    const nextDone = !currentlyDone;
+
+    // Optimistic local override
+    setLocalOverrides((prev) => ({ ...prev, [targetDate]: nextDone }));
+
+    // Optimistic cache update
+    setCache((prev) => {
+      const currentMonthLogs = prev[monthKey];
+      if (!currentMonthLogs || currentMonthLogs === "error") return prev;
+      const nextCompleted = new Set(currentMonthLogs.completed);
+      if (nextDone) {
+        nextCompleted.add(targetDate);
+      } else {
+        nextCompleted.delete(targetDate);
+      }
+      return {
+        ...prev,
+        [monthKey]: { ...currentMonthLogs, completed: nextCompleted },
+      };
+    });
+
+    startTransition(async () => {
+      const res = await toggleHabitAction({ habitId: habit.id, date: targetDate });
+      if (res?.error) {
+        // Revert on error
+        setLocalOverrides((prev) => ({ ...prev, [targetDate]: currentlyDone }));
+      } else {
+        onRefresh?.();
+      }
+    });
   };
 
   const kindOf = (day: Date, key: string): CellKind => {
@@ -184,26 +225,43 @@ export function HabitMonthView({
         {Array.from({ length: leadingBlanks }).map((_, i) => (
           <div key={`blank-${i}`} />
         ))}
-        {cells.map(({ day, key, kind }) => (
-          <div
-            key={key}
-            title={cellTitle(kind)}
-            className={`aspect-square max-h-9 w-full mx-auto rounded-full border flex items-center justify-center text-[10px] font-extrabold select-none ${CELL_STYLES[kind]} ${
-              key === today ? "outline outline-2 outline-offset-1 outline-amber-400" : ""
-            }`}
-          >
-            {kind === "failed" || kind === "violated" ? "✕" : format(day, "d")}
-          </div>
-        ))}
+        {cells.map(({ day, key, kind }) => {
+          const isInteractive = key <= today && !isNegative;
+          return (
+            <button
+              type="button"
+              key={key}
+              disabled={!isInteractive || isPending}
+              onClick={() => handleToggleDate(key)}
+              title={
+                isInteractive
+                  ? `${format(day, "dd/MM/yyyy")}: ${cellTitle(kind) ?? ""} (Bấm để check-in bù/hủy)`
+                  : cellTitle(kind)
+              }
+              className={`aspect-square max-h-9 w-full mx-auto rounded-full border flex items-center justify-center text-[10px] font-extrabold select-none transition-transform active:scale-90 ${CELL_STYLES[kind]} ${
+                key === today ? "outline outline-2 outline-offset-1 outline-amber-400" : ""
+              } ${isInteractive ? "cursor-pointer hover:opacity-85 hover:scale-105" : "cursor-default"}`}
+            >
+              {kind === "failed" || kind === "violated" ? "✕" : format(day, "d")}
+            </button>
+          );
+        })}
       </div>
 
       {fetched === "error" ? (
         <p className="mt-2 text-center text-[11px] font-bold text-red-400">{t("monthLoadError")}</p>
       ) : (
-        <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-bold text-theme-text/50">
-          <span>{t(isNegative ? "monthSummaryNegative" : "monthSummary", { good, total: counted, rate })}</span>
-          {longestRun > 0 && <span className="text-orange-600">🔥 {t("longestRunMonth", { count: longestRun })}</span>}
-        </div>
+        <>
+          <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-bold text-theme-text/50">
+            <span>{t(isNegative ? "monthSummaryNegative" : "monthSummary", { good, total: counted, rate })}</span>
+            {longestRun > 0 && <span className="text-orange-600">🔥 {t("longestRunMonth", { count: longestRun })}</span>}
+          </div>
+          {!isNegative && (
+            <p className="mt-1.5 text-center text-[10px] text-theme-text/40 font-medium">
+              💡 Bấm vào bất kỳ ngày nào trong quá khứ để check-in bù nếu hôm đó bạn quên tích nhé!
+            </p>
+          )}
+        </>
       )}
     </div>
   );

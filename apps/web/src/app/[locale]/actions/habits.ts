@@ -261,6 +261,34 @@ export async function toggleHabitAction(input: {
       patch.last_active_date = today;
       patch.streak_freezes = remainingFreezes;
     }
+  } else if (targetDate < today && willComplete && !isNegative) {
+    // Recalculate streak if backfill bridges previous missed days
+    const { data: logsData } = await supabase
+      .from("habit_logs")
+      .select("date")
+      .eq("user_id", userId)
+      .eq("is_completed", true)
+      .order("date", { ascending: false });
+
+    if (logsData && logsData.length > 0) {
+      const dates = Array.from(new Set(logsData.map((l) => l.date))).sort().reverse();
+      let streakCount = 0;
+      let checkDate = dates.includes(today) ? today : new Date(Date.parse(`${today}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+      for (const d of dates) {
+        if (d === checkDate) {
+          streakCount++;
+          checkDate = new Date(Date.parse(`${checkDate}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+        } else if (d < checkDate) {
+          break;
+        }
+      }
+      if (streakCount > newStreak) {
+        newStreak = streakCount;
+        patch.current_streak = newStreak;
+        patch.pet_stage = ratchetStage(profile?.pet_stage, newStreak);
+        patch.last_active_date = today;
+      }
+    }
   }
 
   const { error: updateError } = await supabase

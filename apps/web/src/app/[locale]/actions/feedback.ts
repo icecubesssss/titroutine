@@ -45,20 +45,21 @@ export async function getFeedbackInboxAction(): Promise<{ error?: string; thread
 
   const { data, error } = await supabase
     .from("feedback_messages")
-    .select("thread_user_id, from_admin, body, created_at, read_at, profiles!feedback_messages_thread_user_id_fkey(username)")
+    .select("thread_user_id, from_admin, body, created_at, read_at, profiles!feedback_messages_thread_user_id_fkey(username, character_name)")
     .order("created_at", { ascending: false })
     .limit(1000);
   if (error) return { error: error.message };
 
   const threads = new Map<string, FeedbackThreadSummary>();
   for (const row of data ?? []) {
-    const owner = (row as unknown as { profiles: { username: string | null } | null }).profiles;
+    const owner = (row as unknown as { profiles: { username: string | null; character_name: string | null } | null }).profiles;
     let thread = threads.get(row.thread_user_id);
     if (!thread) {
       // Rows are newest first, so the first one seen is the latest message.
+      const resolvedName = owner?.username || owner?.character_name || null;
       thread = {
         userId: row.thread_user_id,
-        username: owner?.username ?? null,
+        username: resolvedName,
         lastBody: row.body,
         lastAt: row.created_at,
         unread: 0,
@@ -76,16 +77,26 @@ export async function getFeedbackInboxAction(): Promise<{ error?: string; thread
  */
 export async function getFeedbackThreadAction(
   threadUserId?: string
-): Promise<{ error?: string; messages?: FeedbackMessage[] }> {
+): Promise<{ error?: string; messages?: FeedbackMessage[]; threadUsername?: string }> {
   const { supabase, userId } = await getUserId();
   if (!userId) return { error: "unauthorized" };
 
-  const { data, error } = await supabase
-    .from("feedback_messages")
-    .select("id, from_admin, body, created_at")
-    .eq("thread_user_id", threadUserId || userId)
-    .order("created_at", { ascending: true })
-    .limit(500);
+  const targetId = threadUserId || userId;
+
+  const [{ data, error }, { data: profile }] = await Promise.all([
+    supabase
+      .from("feedback_messages")
+      .select("id, from_admin, body, created_at")
+      .eq("thread_user_id", targetId)
+      .order("created_at", { ascending: true })
+      .limit(500),
+    supabase
+      .from("profiles")
+      .select("username, character_name")
+      .eq("id", targetId)
+      .maybeSingle(),
+  ]);
+
   if (error) return { error: error.message };
 
   return {
@@ -95,6 +106,7 @@ export async function getFeedbackThreadAction(
       body: m.body,
       createdAt: m.created_at,
     })),
+    threadUsername: profile?.username || profile?.character_name || undefined,
   };
 }
 

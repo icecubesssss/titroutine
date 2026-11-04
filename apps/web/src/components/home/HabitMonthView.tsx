@@ -254,7 +254,15 @@ export function HabitMonthView({
         <>
           <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-bold text-theme-text/50">
             <span>{t(isNegative ? "monthSummaryNegative" : "monthSummary", { good, total: counted, rate })}</span>
-            {longestRun > 0 && <span className="text-orange-600">🔥 {t("longestRunMonth", { count: longestRun })}</span>}
+            {habit.streak !== undefined && habit.streak > 0 ? (
+              <span className="text-orange-600" title="Tính từ ngày mất chuỗi gần nhất hoặc ngày bắt đầu đến nay">
+                🔥 {t("currentHabitStreak", { count: habit.streak })}
+              </span>
+            ) : longestRun > 0 ? (
+              <span className="text-orange-600">
+                🔥 {t("longestRunMonth", { count: longestRun })}
+              </span>
+            ) : null}
           </div>
           {!isNegative && (
             <p className="mt-1.5 text-center text-[10px] text-theme-text/40 font-medium">

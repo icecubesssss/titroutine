@@ -12,6 +12,7 @@ import {
   setCharacterAction,
   setVisitPrivacyAction,
   updateUserPreferencesAction,
+  updateUsernameAction,
 } from "@/app/[locale]/actions";
 import type { VisitPrivacy, UserPreferences } from "@/lib/types";
 import { CharacterCompanion } from "../pet/CharacterCompanion";
@@ -36,6 +37,7 @@ interface SettingsModalProps {
   onClose: () => void;
   report: ReportData;
   email: string | null;
+  username?: string | null;
   currentTheme?: "neutral" | "matcha" | "ube";
   onThemeChange?: (theme: "neutral" | "matcha" | "ube") => void;
   devStageOverride?: number | null;
@@ -66,6 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   report,
   email,
+  username,
   currentTheme = "neutral",
   onThemeChange,
   devStageOverride = null,
@@ -115,9 +118,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const savedName = hasCustomCharacterName ? characterName ?? "" : "";
   const [nameDraft, setNameDraft] = useState(savedName);
   const [nameStatus, setNameStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [usernameDraft, setUsernameDraft] = useState(username || "");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isSavingCharacter, setIsSavingCharacter] = useState(false);
   // Optimistic mirror so the switch flips instantly, then re-syncs from the server.
   const [visitsOpen, setVisitsOpen] = useState(visitPrivacy !== "nobody");
+
+  useEffect(() => {
+    setUsernameDraft(username || "");
+  }, [username]);
+
+  const handleUpdateUsername = async () => {
+    const trimmed = usernameDraft.trim();
+    if (!trimmed || trimmed === (username || "").trim()) return;
+    setUsernameStatus("saving");
+    const res = await updateUsernameAction(trimmed);
+    if (res?.error) {
+      setUsernameStatus("error");
+    } else {
+      setUsernameStatus("saved");
+      setTimeout(() => setUsernameStatus("idle"), 2500);
+    }
+  };
 
   useEffect(() => {
     setReportEmail(email ?? "");
@@ -228,6 +250,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="p-6 space-y-8">
+          {/* User Profile — display username */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">
+              👤 {t("profileSection")}
+            </h3>
+            <div className="p-4 border-2 border-theme-card-border rounded-2xl space-y-2 bg-theme-card-bg">
+              <label className="text-xs font-bold text-gray-400 block">
+                {t("usernameLabel")}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={usernameDraft}
+                  maxLength={50}
+                  onChange={(e) => {
+                    setUsernameDraft(e.target.value);
+                    setUsernameStatus("idle");
+                  }}
+                  placeholder={t("usernamePlaceholder")}
+                  aria-label={t("usernameLabel")}
+                  className="flex-1 p-2 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-fire-orange focus:outline-none text-sm font-bold text-theme-text"
+                />
+                <DuoButton
+                  variant="primary"
+                  size="sm"
+                  disabled={usernameStatus === "saving" || usernameDraft.trim() === (username || "").trim()}
+                  onClick={handleUpdateUsername}
+                >
+                  {usernameStatus === "saving" ? t("usernameSaving") : t("usernameSave")}
+                </DuoButton>
+              </div>
+              {usernameStatus === "saved" && (
+                <p className="text-xs font-medium text-green-600">{t("usernameSaved")}</p>
+              )}
+              {usernameStatus === "error" && (
+                <p className="text-xs font-medium text-red-600">{t("usernameError")}</p>
+              )}
+              <p className="text-[11px] text-gray-400">
+                {t("usernameHint")}
+              </p>
+            </div>
+          </div>
+
           {/* Companion character — pick the sprite set + name it */}
           <div className="space-y-4">
             <h3 className="font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider text-sm">

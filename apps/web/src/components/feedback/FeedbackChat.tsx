@@ -38,6 +38,7 @@ export const FeedbackChat: React.FC<FeedbackChatProps> = ({ userId }) => {
   const [threads, setThreads] = useState<FeedbackThreadSummary[]>([]);
   /** Admin only: whose conversation is open (null = inbox). */
   const [adminThread, setAdminThread] = useState<FeedbackThreadSummary | null>(null);
+  const [threadUsername, setThreadUsername] = useState<string | null>(null);
   const [messages, setMessages] = useState<FeedbackMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -65,6 +66,7 @@ export const FeedbackChat: React.FC<FeedbackChatProps> = ({ userId }) => {
     }
     const res = await getFeedbackThreadAction(threadUserId);
     if (res.messages) setMessages(res.messages);
+    if (res.threadUsername) setThreadUsername(res.threadUsername);
     await markFeedbackReadAction(threadUserId);
     await refreshStatus();
   }, [showingInbox, threadUserId, refreshStatus]);
@@ -158,7 +160,7 @@ export const FeedbackChat: React.FC<FeedbackChatProps> = ({ userId }) => {
               {isAdmin && adminThread && (
                 <button
                   type="button"
-                  onClick={() => { setAdminThread(null); setMessages([]); }}
+                  onClick={() => { setAdminThread(null); setMessages([]); setThreadUsername(null); }}
                   aria-label={t("back")}
                   className="p-1 rounded-full hover:bg-stone-100 text-stone-500"
                 >
@@ -170,7 +172,7 @@ export const FeedbackChat: React.FC<FeedbackChatProps> = ({ userId }) => {
                   {showingInbox
                     ? t("inboxTitle")
                     : adminThread
-                    ? adminThread.username || t("anonymous")
+                    ? adminThread.username || threadUsername || t("anonymous")
                     : t("title")}
                 </h2>
                 <p className="text-[11px] text-stone-500 truncate">
@@ -237,8 +239,10 @@ export const FeedbackChat: React.FC<FeedbackChatProps> = ({ userId }) => {
                                 : "bg-white border border-[#ebdcc5] text-[#5c4033] rounded-bl-md"
                             }`}
                           >
-                            {!mine && m.fromAdmin && (
-                              <div className="text-[10px] font-black text-amber-700 mb-0.5">{t("developer")}</div>
+                            {!mine && (
+                              <div className="text-[10px] font-black text-amber-700 mb-0.5">
+                                {m.fromAdmin ? t("developer") : (adminThread?.username || threadUsername || t("anonymous"))}
+                              </div>
                             )}
                             {m.body}
                             <div className={`mt-1 text-[10px] ${mine ? "text-white/70" : "text-stone-400"}`}>

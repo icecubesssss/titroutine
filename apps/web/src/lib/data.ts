@@ -483,6 +483,12 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       return true; // daily and x_times_a_week show up every day
     });
 
+  const emailPrefix = user.email ? user.email.split("@")[0] : null;
+  const username = profile?.username || emailPrefix;
+  if (profile && !profile.username && emailPrefix) {
+    supabase.from("profiles").update({ username: emailPrefix }).eq("id", user.id).then();
+  }
+
   return {
     profile: {
       id: user.id,
@@ -493,7 +499,7 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       petStage: ratchetStage(profile?.pet_stage, currentStreak),
       totalExp,
       timezone,
-      username: profile?.username ?? null,
+      username,
       lastCheckinDate: profile?.last_checkin_date ?? null,
       streakFreezes: profile?.streak_freezes ?? 0,
       streakFreezesPending,

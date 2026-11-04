@@ -222,3 +222,25 @@ export async function updateUserPreferencesAction(
   return {};
 }
 
+/**
+ * Update the user's display username.
+ */
+export async function updateUsernameAction(username: string): Promise<ActionResult> {
+  const { supabase, userId } = await getUserId();
+  if (!userId) return { error: "unauthorized" };
+
+  const trimmed = username.trim();
+  if (!trimmed) return { error: "Username cannot be empty" };
+  if (trimmed.length > 50) return { error: "Username too long" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  return {};
+}
+

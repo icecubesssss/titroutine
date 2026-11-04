@@ -449,7 +449,7 @@ $$;
 
 -- Tài khoản nhận feedback. Đổi email ở đây nếu muốn admin khác.
 INSERT INTO public.app_admins (user_id)
-SELECT id FROM auth.users WHERE email = 'thaitd.mathtech@gmail.com'
+SELECT id FROM auth.users WHERE email IN ('thaitd.mathtech@gmail.com', 'dinhthai.ctv@gmail.com')
 ON CONFLICT (user_id) DO NOTHING;
 
 -- 3. Tin nhắn feedback: mỗi người dùng có đúng 1 cuộc hội thoại với admin

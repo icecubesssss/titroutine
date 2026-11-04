@@ -950,6 +950,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           petStage: isEvolved ? "rabbit" : "egg",
         }}
         email={data.email}
+        username={data.profile.username}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
         vacationMode={vacationMode}

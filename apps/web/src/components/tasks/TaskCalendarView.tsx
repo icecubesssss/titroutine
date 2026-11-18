@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -92,6 +92,12 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
   );
   const [selectedMobileDate, setSelectedMobileDate] = useState<string>(initialRefDate);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const lastDragEndRef = useRef(0);
+
+  const handleSafeEdit = (task: Task) => {
+    if (Date.now() - lastDragEndRef.current < 160) return;
+    onEditTask(task);
+  };
 
   useEffect(() => {
     if (currentDate) {
@@ -154,12 +160,14 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    lastDragEndRef.current = Date.now();
     setActiveTask(null);
     if (!over) return;
 
+    const rawTaskId = String(active.id).replace(/^(mobile-)?task:/, "");
     const draggedTask =
       (active.data.current?.task as Task | undefined) ??
-      tasks.find((t) => `task:${t.id}` === String(active.id));
+      tasks.find((t) => t.id === rawTaskId);
     if (!draggedTask) return;
 
     const overId = String(over.id);
@@ -189,7 +197,10 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveTask(null)}
+      onDragCancel={() => {
+        lastDragEndRef.current = Date.now();
+        setActiveTask(null);
+      }}
     >
       <div className={`space-y-6 animate-in fade-in duration-200 ${activeTask ? "cursor-grabbing" : ""}`}>
         {mode === "week" ? (
@@ -206,7 +217,7 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
                   isToday={isToday}
                   tasks={dayTasks}
                   onCreateForDate={onCreateForDate}
-                  onEditTask={onEditTask}
+                  onEditTask={handleSafeEdit}
                   onToggleDone={onToggleDone}
                 />
               );
@@ -287,7 +298,7 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
                     tasks={tasksByDate[dateStr] || []}
                     onSelectMobile={() => setSelectedMobileDate(dateStr)}
                     onCreateForDate={onCreateForDate}
-                    onEditTask={onEditTask}
+                    onEditTask={handleSafeEdit}
                     onToggleDone={onToggleDone}
                   />
                 ))}
@@ -323,7 +334,8 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
                       key={task.id}
                       task={task}
                       compact={false}
-                      onEditTask={onEditTask}
+                      idPrefix="mobile-"
+                      onEditTask={handleSafeEdit}
                       onToggleDone={onToggleDone}
                     />
                   ))}
@@ -342,7 +354,7 @@ export const TaskCalendarView: React.FC<TaskCalendarViewProps> = ({
             onPlayPop();
             onUpdateDeadline(taskId, toDeadlineISO(realToday));
           }}
-          onEditTask={onEditTask}
+          onEditTask={handleSafeEdit}
         />
       </div>
 
@@ -642,11 +654,12 @@ const DroppableMonthDay: React.FC<{
 const DraggableTaskChip: React.FC<{
   task: Task;
   compact: boolean;
+  idPrefix?: string;
   onEditTask: (task: Task) => void;
   onToggleDone: (task: Task) => void;
-}> = ({ task, compact, onEditTask, onToggleDone }) => {
+}> = ({ task, compact, idPrefix = "", onEditTask, onToggleDone }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `task:${task.id}`,
+    id: `${idPrefix}task:${task.id}`,
     data: { task },
   });
 

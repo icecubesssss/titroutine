@@ -496,25 +496,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <label className="text-xs font-bold text-gray-500 mb-2 block">
                 {t("defaultTaskView")}
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { code: "kanban", label: t("taskKanban"), emoji: "📋" },
-                  { code: "calendar", label: t("taskCalendar"), emoji: "📅" },
-                ].map((item) => (
-                  <button
-                    key={item.code}
-                    type="button"
-                    onClick={() => handleUpdatePref({ taskView: item.code as "kanban" | "calendar" })}
-                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
-                      (localPrefs.taskView ?? "kanban") === item.code
-                        ? "border-theme-accent bg-theme-accent-light text-theme-accent"
-                        : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
-                    }`}
-                  >
-                    <span className="text-2xl">{item.emoji}</span>
-                    <span className="text-xs">{item.label}</span>
-                  </button>
-                ))}
+                  { code: "week", label: t("taskCalendar"), emoji: "📅" },
+                  { code: "month", label: t("taskMonth"), emoji: "🗓️" },
+                ].map((item) => {
+                  const currentTaskView =
+                    (localPrefs.taskView ?? "kanban") === "calendar"
+                      ? "week"
+                      : localPrefs.taskView ?? "kanban";
+                  const isActive = currentTaskView === item.code;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => handleUpdatePref({ taskView: item.code as "kanban" | "week" | "month" })}
+                      className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-bold transition-all ${
+                        isActive
+                          ? "border-theme-accent bg-theme-accent-light text-theme-accent"
+                          : "border-theme-card-border bg-theme-card-bg text-theme-text/60 hover:bg-theme-accent-light/50"
+                      }`}
+                    >
+                      <span className="text-2xl">{item.emoji}</span>
+                      <span className="text-xs">{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

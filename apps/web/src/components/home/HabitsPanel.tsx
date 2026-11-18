@@ -4,7 +4,7 @@ import { useState, useEffect, type RefObject } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { format, parseISO, subWeeks, addWeeks } from "date-fns";
-import { ChevronLeft, ChevronRight, ChevronDown, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Pencil, CheckCircle, XCircle, X, Lock, Globe, Maximize2, Minimize2 } from "lucide-react";
 import { DuoButton } from "@/components/ui/DuoButton";
 import { HabitMonthView } from "@/components/home/HabitMonthView";
 import { MonthOverviewCalendar } from "@/components/home/MonthOverviewCalendar";
@@ -39,6 +39,7 @@ export function HabitsPanel({
   isMaximized,
   onToggleMaximized,
   preferences,
+  onUpdatePreferences,
 }: {
   scrollRef: RefObject<HTMLElement>;
   data: DashboardData;
@@ -62,6 +63,8 @@ export function HabitsPanel({
   onToggleMaximized: () => void;
   /** User calendar & display preferences */
   preferences?: UserPreferences;
+  /** Persist updated UI preferences */
+  onUpdatePreferences?: (patch: Partial<UserPreferences>) => void;
 }) {
   const t = useTranslations("Home");
   const locale = useLocale();
@@ -75,6 +78,24 @@ export function HabitsPanel({
       setCalendarViewMode(effectivePreferences.calendarView);
     }
   }, [effectivePreferences?.calendarView]);
+
+  const handleSelectCalendarView = (mode: "week" | "month" | "year") => {
+    setCalendarViewMode(mode);
+    if (activeTab === "tasks" && (mode === "week" || mode === "month")) {
+      onUpdatePreferences?.({ calendarView: mode, taskView: mode });
+      return;
+    }
+    onUpdatePreferences?.({ calendarView: mode });
+  };
+
+  const activeTopView: "week" | "month" | "year" =
+    activeTab === "tasks"
+      ? calendarViewMode === "year"
+        ? "year"
+        : effectivePreferences?.taskView === "month"
+        ? "month"
+        : "week"
+      : calendarViewMode;
 
   const [localPrivate, setLocalPrivate] = useState<Record<string, boolean>>({});
   // Habit cards whose month calendar is open.
@@ -140,9 +161,9 @@ export function HabitsPanel({
           <div className="inline-flex items-center bg-theme-card-bg p-1 rounded-full border border-theme-card-border shadow-sm text-xs font-bold">
             <button
               type="button"
-              onClick={() => setCalendarViewMode("week")}
+              onClick={() => handleSelectCalendarView("week")}
               className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
-                calendarViewMode === "week"
+                activeTopView === "week"
                   ? "bg-theme-accent text-white shadow-sm"
                   : "text-theme-text/60 hover:text-theme-accent"
               }`}
@@ -151,9 +172,9 @@ export function HabitsPanel({
             </button>
             <button
               type="button"
-              onClick={() => setCalendarViewMode("month")}
+              onClick={() => handleSelectCalendarView("month")}
               className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
-                calendarViewMode === "month"
+                activeTopView === "month"
                   ? "bg-theme-accent text-white shadow-sm"
                   : "text-theme-text/60 hover:text-theme-accent"
               }`}
@@ -162,9 +183,9 @@ export function HabitsPanel({
             </button>
             <button
               type="button"
-              onClick={() => setCalendarViewMode("year")}
+              onClick={() => handleSelectCalendarView("year")}
               className={`px-2.5 py-1 rounded-full transition-all text-xs font-bold ${
-                calendarViewMode === "year"
+                activeTopView === "year"
                   ? "bg-theme-accent text-white shadow-sm"
                   : "text-theme-text/60 hover:text-theme-accent"
               }`}
@@ -309,7 +330,7 @@ export function HabitsPanel({
     <section ref={scrollRef} className={`flex-[1.3] min-h-0 bg-earth-bg p-6 md:p-8 pb-28 overflow-y-visible md:overflow-y-auto transition-opacity duration-300 ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
       {weekHeader}
 
-      {calendarViewMode === "month" ? (
+      {activeTab === "habits" && calendarViewMode === "month" ? (
         <div className="space-y-6">
           <MonthOverviewCalendar
             currentDate={data.currentDate}
@@ -319,9 +340,9 @@ export function HabitsPanel({
             moodLogs={data.moodLogs}
             onSelectDate={(d) => {
               onSelectDate(d);
-              setCalendarViewMode("week");
+              handleSelectCalendarView("week");
             }}
-            onBackToWeek={() => setCalendarViewMode("week")}
+            onBackToWeek={() => handleSelectCalendarView("week")}
           />
         </div>
       ) : calendarViewMode === "year" ? (
@@ -343,7 +364,7 @@ export function HabitsPanel({
             </Link>
             <button
               type="button"
-              onClick={() => setCalendarViewMode("week")}
+              onClick={() => handleSelectCalendarView("week")}
               className="px-4 py-2.5 rounded-full bg-black/5 dark:bg-white/5 text-theme-text text-xs font-bold hover:bg-black/10 transition-colors"
             >
               Quay lại Tuần
@@ -621,6 +642,7 @@ export function HabitsPanel({
             weekDates={data.weekDates}
             currentDate={data.currentDate}
             defaultTaskView={effectivePreferences?.taskView ?? "kanban"}
+            onTaskViewChange={(mode) => onUpdatePreferences?.({ taskView: mode })}
             onSelectDate={onSelectDate}
           />
         </div>

@@ -429,7 +429,8 @@
     "viewYear": "年视图",
     "defaultTaskView": "默认任务板视图",
     "taskKanban": "看板（3列）",
-    "taskCalendar": "周日历"
+    "taskCalendar": "周日历",
+    "taskMonth": "月日历"
   },
   "Rooms": {
     "bedroom": "卧室",

@@ -41,6 +41,14 @@ const Toast: React.FC<{ toast: ToastData; onDismiss: (id: number) => void }> = (
 };
 
 // ── TaskBoard ────────────────────────────────────────────────────────────────
+type TaskViewMode = "kanban" | "week" | "month";
+
+function normalizeTaskView(view?: "kanban" | "calendar" | "week" | "month"): TaskViewMode {
+  if (view === "calendar" || view === "week") return "week";
+  if (view === "month") return "month";
+  return "kanban";
+}
+
 interface TaskBoardProps {
   tasks: Task[];
   onRefresh: () => void;
@@ -50,7 +58,8 @@ interface TaskBoardProps {
   weekEnd?: string;
   weekDates?: string[];
   currentDate?: string;
-  defaultTaskView?: "kanban" | "calendar";
+  defaultTaskView?: "kanban" | "calendar" | "week" | "month";
+  onTaskViewChange?: (mode: TaskViewMode) => void;
   onSelectDate?: (dateStr: string) => void;
 }
 
@@ -62,24 +71,26 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   weekDates,
   currentDate,
   defaultTaskView = "kanban",
-  onSelectDate,
+  onTaskViewChange,
 }) => {
   const { playPop } = useSound();
   const isMobile = useIsMobile();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [defaultNewDeadline, setDefaultNewDeadline] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"kanban" | "week" | "month">(
-    defaultTaskView === "calendar" ? "week" : "kanban"
-  );
+  const [viewMode, setViewMode] = useState<TaskViewMode>(() => normalizeTaskView(defaultTaskView));
   // The task a focus countdown is currently running for (phone-only ritual).
   const [focusTask, setFocusTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    if (defaultTaskView) {
-      setViewMode(defaultTaskView === "calendar" ? "week" : "kanban");
-    }
+    setViewMode(normalizeTaskView(defaultTaskView));
   }, [defaultTaskView]);
+
+  const changeViewMode = (mode: TaskViewMode) => {
+    playPop();
+    setViewMode(mode);
+    onTaskViewChange?.(mode);
+  };
 
   // Optimistic tasks state
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(serverTasks);
@@ -293,7 +304,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           <div className="flex items-center bg-stone-100 p-1 rounded-full border border-stone-200 shadow-2xs">
             <button
               type="button"
-              onClick={() => { playPop(); setViewMode("kanban"); }}
+              onClick={() => changeViewMode("kanban")}
               className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
                 viewMode === "kanban"
                   ? "bg-white text-stone-800 shadow-xs"
@@ -304,7 +315,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => { playPop(); setViewMode("week"); }}
+              onClick={() => changeViewMode("week")}
               className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
                 viewMode === "week"
                   ? "bg-white text-stone-800 shadow-xs"
@@ -315,7 +326,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => { playPop(); setViewMode("month"); }}
+              onClick={() => changeViewMode("month")}
               className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
                 viewMode === "month"
                   ? "bg-white text-stone-800 shadow-xs"

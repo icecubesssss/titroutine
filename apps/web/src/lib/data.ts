@@ -534,10 +534,12 @@ export async function getDashboard(targetDateStr?: string): Promise<DashboardDat
       // Column missing (migration 16 not applied) → treat as seen, never nag.
       whatsNewSeen: whatsNewRow ? whatsNewRow.whats_new_seen ?? null : WHATS_NEW_VERSION,
       preferences: preferencesRow?.preferences ? {
+        activeTab: ((preferencesRow.preferences as Record<string, unknown>).active_tab === "tasks" ? "tasks" : "habits"),
         calendarView: (preferencesRow.preferences as Record<string, unknown>).calendar_view as "week" | "month" | "year" ?? "week",
-        taskView: (preferencesRow.preferences as Record<string, unknown>).task_view as "kanban" | "calendar" ?? "kanban",
+        taskView: (preferencesRow.preferences as Record<string, unknown>).task_view as "kanban" | "calendar" | "week" | "month" ?? "kanban",
         claimedFreezeMilestones: ((preferencesRow.preferences as Record<string, unknown>).claimed_freeze_milestones as number[]) ?? [],
       } : {
+        activeTab: "habits",
         calendarView: "week",
         taskView: "kanban",
         claimedFreezeMilestones: [],

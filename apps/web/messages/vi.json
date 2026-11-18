@@ -429,7 +429,8 @@
     "viewYear": "Năm",
     "defaultTaskView": "Dạng bảng công việc mặc định",
     "taskKanban": "Kanban (3 cột)",
-    "taskCalendar": "Lịch tuần"
+    "taskCalendar": "Lịch tuần",
+    "taskMonth": "Lịch tháng"
   },
   "Rooms": {
     "bedroom": "Phòng riêng",

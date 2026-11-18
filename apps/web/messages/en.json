@@ -429,7 +429,8 @@
     "viewYear": "Year",
     "defaultTaskView": "Default Task Board View",
     "taskKanban": "Kanban (3 columns)",
-    "taskCalendar": "Weekly Calendar"
+    "taskCalendar": "Weekly Calendar",
+    "taskMonth": "Monthly Calendar"
   },
   "Rooms": {
     "bedroom": "Bedroom",

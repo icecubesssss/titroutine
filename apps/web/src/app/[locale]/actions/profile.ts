@@ -153,12 +153,13 @@ export async function buyFreezeAction(): Promise<ActionResult> {
 }
 
 /**
- * Update user preferences (calendar view: "week" | "month" | "year", task view: "kanban" | "calendar").
+ * Update user preferences (active tab, calendar view, task view, freeze milestones).
  */
 export async function updateUserPreferencesAction(
   newPreferences: Partial<{
+    activeTab: "habits" | "tasks";
     calendarView: "week" | "month" | "year";
-    taskView: "kanban" | "calendar";
+    taskView: "kanban" | "calendar" | "week" | "month";
     claimedFreezeMilestones: number[];
   }>
 ): Promise<ActionResult> {
@@ -174,10 +175,22 @@ export async function updateUserPreferencesAction(
   const currentPrefs = (profile?.preferences as Record<string, unknown>) || {};
   const updatedPrefs: Record<string, unknown> = { ...currentPrefs };
 
-  if (newPreferences.calendarView !== undefined) {
+  if (newPreferences.activeTab === "habits" || newPreferences.activeTab === "tasks") {
+    updatedPrefs.active_tab = newPreferences.activeTab;
+  }
+  if (
+    newPreferences.calendarView === "week" ||
+    newPreferences.calendarView === "month" ||
+    newPreferences.calendarView === "year"
+  ) {
     updatedPrefs.calendar_view = newPreferences.calendarView;
   }
-  if (newPreferences.taskView !== undefined) {
+  if (
+    newPreferences.taskView === "kanban" ||
+    newPreferences.taskView === "calendar" ||
+    newPreferences.taskView === "week" ||
+    newPreferences.taskView === "month"
+  ) {
     updatedPrefs.task_view = newPreferences.taskView;
   }
   if (newPreferences.claimedFreezeMilestones !== undefined) {

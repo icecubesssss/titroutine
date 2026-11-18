@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import confetti from "canvas-confetti";
@@ -29,6 +29,7 @@ import {
   acknowledgeBadgeMilestoneAction,
   buyFreezeAction,
   acknowledgeWhatsNewAction,
+  updateUserPreferencesAction,
 } from "@/app/[locale]/actions";
 import type { DashboardData, HabitWithLog, UserPreferences } from "@/lib/types";
 import { CharacterCompanion } from "@/components/pet/CharacterCompanion";
@@ -54,6 +55,7 @@ const MAXIMIZED_STORAGE_KEYS = {
   habits: "titroutine:habitsMaximized",
   tasks: "titroutine:taskBoardMaximized",
 } as const;
+const VIEW_STATE_STORAGE_KEY = "titroutine:lastViewState";
 
 export function HomeView({ data }: { data: DashboardData }) {
   const locale = useLocale();
@@ -73,11 +75,40 @@ export function HomeView({ data }: { data: DashboardData }) {
   const [unlockedItems, setUnlockedItems] = useState(data.inventory.unlockedItems ?? []);
   const [vacationMode, setVacationMode] = useState(data.profile.vacationMode ?? false);
   const [badges, setBadges] = useState(data.badges);
-  const [preferences, setPreferences] = useState<UserPreferences>(data.profile.preferences || {
+  const initialPreferences: UserPreferences = data.profile.preferences || {
+    activeTab: "habits",
     calendarView: "week",
     taskView: "kanban",
     claimedFreezeMilestones: []
-  });
+  };
+  const [preferences, setPreferences] = useState<UserPreferences>(initialPreferences);
+  const prefsRef = useRef<UserPreferences>(initialPreferences);
+
+  const handlePreferencesUpdate = useCallback((patch: Partial<UserPreferences>, persist = true) => {
+    const next = { ...prefsRef.current, ...patch };
+    prefsRef.current = next;
+    setPreferences(next);
+    try {
+      window.localStorage.setItem(
+        VIEW_STATE_STORAGE_KEY,
+        JSON.stringify({
+          activeTab: next.activeTab,
+          calendarView: next.calendarView,
+          taskView: next.taskView,
+        })
+      );
+    } catch {}
+    if (persist) {
+      updateUserPreferencesAction({
+        activeTab: next.activeTab,
+        calendarView: next.calendarView,
+        taskView: next.taskView,
+        ...(patch.claimedFreezeMilestones !== undefined
+          ? { claimedFreezeMilestones: next.claimedFreezeMilestones }
+          : {}),
+      });
+    }
+  }, []);
   const roomCanvasRef = useRef<HTMLDivElement>(null);
 
   const handleBadgeMove = (key: string, x: number, y: number) => {
@@ -98,7 +129,50 @@ export function HomeView({ data }: { data: DashboardData }) {
     (key) => !badges.some((b) => b.key === key)
   );
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
-  const [activeTab, setActiveTab] = useState<"habits" | "tasks">("habits");
+  const [activeTab, setActiveTab] = useState<"habits" | "tasks">(
+    initialPreferences.activeTab ?? "habits"
+  );
+  const selectTab = useCallback((tab: "habits" | "tasks") => {
+    setActiveTab(tab);
+    if (tab === "tasks" && prefsRef.current.calendarView === "year") {
+      handlePreferencesUpdate({ activeTab: tab, calendarView: "week" });
+      return;
+    }
+    handlePreferencesUpdate({ activeTab: tab });
+  }, [handlePreferencesUpdate]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(VIEW_STATE_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<UserPreferences>;
+      const patch: Partial<UserPreferences> = {};
+      if (parsed.activeTab === "habits" || parsed.activeTab === "tasks") {
+        patch.activeTab = parsed.activeTab;
+        setActiveTab(parsed.activeTab);
+      }
+      if (
+        parsed.calendarView === "week" ||
+        parsed.calendarView === "month" ||
+        parsed.calendarView === "year"
+      ) {
+        patch.calendarView = parsed.calendarView;
+      }
+      if (
+        parsed.taskView === "kanban" ||
+        parsed.taskView === "calendar" ||
+        parsed.taskView === "week" ||
+        parsed.taskView === "month"
+      ) {
+        patch.taskView = parsed.taskView;
+      }
+      if (Object.keys(patch).length > 0) {
+        const next = { ...prefsRef.current, ...patch };
+        prefsRef.current = next;
+        setPreferences(next);
+      }
+    } catch {}
+  }, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Drag-to-walk: the companion can be dragged anywhere within the room floor
@@ -548,8 +622,8 @@ export function HomeView({ data }: { data: DashboardData }) {
       {/* Desktop Sidebar (Notion-style) */}
       <DesktopSidebar
         activeTab={activeTab}
-        onHome={() => { playSwoosh(); setActiveTab("habits"); }}
-        onTasks={() => { playSwoosh(); setActiveTab("tasks"); }}
+        onHome={() => { playSwoosh(); selectTab("habits"); }}
+        onTasks={() => { playSwoosh(); selectTab("tasks"); }}
         onShop={() => { playSwoosh(); setIsShopOpen(true); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
         onSettings={() => setIsSettingsOpen(true)}
@@ -700,14 +774,14 @@ export function HomeView({ data }: { data: DashboardData }) {
                   <span className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-sm">📊</span>
                 </button>
                 <button
-                  onClick={() => { setIsMenuOpen(false); setActiveTab("habits"); setIsMobilePanelOpen(true); }}
+                  onClick={() => { setIsMenuOpen(false); selectTab("habits"); setIsMobilePanelOpen(true); }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
                 >
                   <span>Thói Quen</span>
                   <span className="w-7 h-7 rounded-full bg-lime-100 flex items-center justify-center text-sm">🌱</span>
                 </button>
                 <button
-                  onClick={() => { setIsMenuOpen(false); setActiveTab("tasks"); setIsMobilePanelOpen(true); }}
+                  onClick={() => { setIsMenuOpen(false); selectTab("tasks"); setIsMobilePanelOpen(true); }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-stone-200 shadow-md text-xs font-bold text-stone-700 hover:bg-amber-50 active:scale-95 transition-all"
                 >
                   <span>Task Board</span>
@@ -875,6 +949,7 @@ export function HomeView({ data }: { data: DashboardData }) {
           isMaximized={isPanelMaximized}
           onToggleMaximized={togglePanelMaximized}
           preferences={preferences}
+          onUpdatePreferences={handlePreferencesUpdate}
         />
       </div>
       </div> {/* Close Main Workspace split panel */}
@@ -885,8 +960,8 @@ export function HomeView({ data }: { data: DashboardData }) {
       }`}>
         <BottomNav
           activeTab={activeTab}
-          onHome={() => { playSwoosh(); setIsMobilePanelOpen(false); }}
-          onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsMobilePanelOpen(true); }}
+          onHome={() => { playSwoosh(); selectTab("habits"); setIsMobilePanelOpen(false); }}
+          onTasks={() => { playSwoosh(); selectTab("tasks"); setIsMobilePanelOpen(true); }}
           onShop={() => { playSwoosh(); setIsShopOpen(true); }}
           onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); }}
           onSettings={() => setIsSettingsOpen(true)}
@@ -961,7 +1036,7 @@ export function HomeView({ data }: { data: DashboardData }) {
         visitPrivacy={data.profile.visitPrivacy}
         preferences={preferences}
         onPreferencesChange={(updated) => {
-          setPreferences((prev) => ({ ...prev, ...updated }));
+          handlePreferencesUpdate(updated, false);
         }}
       />
       
@@ -1039,8 +1114,8 @@ export function HomeView({ data }: { data: DashboardData }) {
         open={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         activeTab={activeTab}
-        onHome={() => { playSwoosh(); setIsMobilePanelOpen(false); setIsMobileSidebarOpen(false); }}
-        onTasks={() => { playSwoosh(); setActiveTab("tasks"); setIsMobilePanelOpen(true); setIsMobileSidebarOpen(false); }}
+        onHome={() => { playSwoosh(); selectTab("habits"); setIsMobilePanelOpen(false); setIsMobileSidebarOpen(false); }}
+        onTasks={() => { playSwoosh(); selectTab("tasks"); setIsMobilePanelOpen(true); setIsMobileSidebarOpen(false); }}
         onShop={() => { playSwoosh(); setIsShopOpen(true); setIsMobileSidebarOpen(false); }}
         onAnalytics={() => { playSwoosh(); router.push(`/${locale}/analytics`); setIsMobileSidebarOpen(false); }}
         onSettings={() => { playSwoosh(); setIsSettingsOpen(true); setIsMobileSidebarOpen(false); }}

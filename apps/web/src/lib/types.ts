@@ -111,8 +111,9 @@ export interface ProfileSummary {
 }
 
 export interface UserPreferences {
+  activeTab?: "habits" | "tasks";
   calendarView?: "week" | "month" | "year";
-  taskView?: "kanban" | "calendar";
+  taskView?: "kanban" | "calendar" | "week" | "month";
   claimedFreezeMilestones?: number[];
 }
 

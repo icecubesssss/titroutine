@@ -85,7 +85,10 @@
     "monthLoadError": "Couldn't load this month",
     "weeklyQuota": "{done}/{target} this week",
     "streakWeeks": "{count, plural, one {# week} other {# weeks}}",
-    "strengthHint": "Habit strength: a missed day only dents it, it never resets"
+    "strengthHint": "Habit strength: a missed day only dents it, it never resets",
+    "viewWeek": "Week",
+    "viewMonth": "Month",
+    "viewYear": "Year"
   },
   "HabitModal": {
     "newTitle": "New Habit",

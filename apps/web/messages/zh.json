@@ -85,7 +85,10 @@
     "monthLoadError": "无法加载本月数据",
     "weeklyQuota": "本周 {done}/{target} 次",
     "streakWeeks": "{count} 周",
-    "strengthHint": "习惯强度：偶尔错过一天只会小幅下降，不会清零"
+    "strengthHint": "习惯强度：偶尔错过一天只会小幅下降，不会清零",
+    "viewWeek": "周视图",
+    "viewMonth": "月视图",
+    "viewYear": "年视图"
   },
   "HabitModal": {
     "newTitle": "新习惯",

@@ -85,7 +85,10 @@
     "monthLoadError": "Không tải được dữ liệu tháng này",
     "weeklyQuota": "{done}/{target} lần tuần này",
     "streakWeeks": "{count} tuần",
-    "strengthHint": "Sức mạnh thói quen: lỡ một ngày chỉ giảm nhẹ, không mất hết"
+    "strengthHint": "Sức mạnh thói quen: lỡ một ngày chỉ giảm nhẹ, không mất hết",
+    "viewWeek": "Tuần",
+    "viewMonth": "Tháng",
+    "viewYear": "Năm"
   },
   "HabitModal": {
     "newTitle": "Thói quen mới",

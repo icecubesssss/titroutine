@@ -81,7 +81,7 @@ export const MonthOverviewCalendar: React.FC<MonthOverviewCalendarProps> = ({
             <ChevronLeft size={18} />
           </button>
           <h3 className="text-base font-black text-theme-text min-w-[140px] text-center">
-            {format(viewMonth, "Tháng MM / yyyy")}
+            {format(viewMonth, "'Tháng' MM / yyyy")}
           </h3>
           <button
             type="button"
@@ -211,7 +211,7 @@ export const MonthOverviewCalendar: React.FC<MonthOverviewCalendarProps> = ({
             <span className="text-xl">📅</span>
             <div>
               <h4 className="text-sm font-black text-stone-800">
-                {format(parseISO(currentDate), "EEEE, 'ngày' dd 'tháng' MM, yyyy")}
+                {format(parseISO(currentDate || today), "EEEE, 'ngày' dd 'tháng' MM, yyyy")}
               </h4>
               <p className="text-[11px] text-stone-400">
                 {currentDate === today ? "Hôm nay" : "Ngày đang chọn"}
